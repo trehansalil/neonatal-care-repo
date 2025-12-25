@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newborn Hydronephrosis Care Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom Chart Container Styles */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Custom Scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+
+        .active-tab {
+            border-bottom: 3px solid #0ea5e9;
+            color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        .inactive-tab {
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+        }
+
+        .inactive-tab:hover {
+            color: #334155;
+        }
+
+        /* Smooth transitions */
+        .transition-all-300 {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans leading-relaxed">
+
+
+    <!-- Chosen Palette: "Clinical Calm" - Slate (Structure/Text), Sky Blue (Fluids/Health), Amber (Caution), Teal (Safe/Go) -->
+    <!-- Application Structure Plan:
+1. Hero/Context: Immediate reassurance and defining the core goal (Flow).
+2. Interactive Simulator (The Core): Input baby's weight/age to generate a specific routine. This personalizes the abstract data.
+3. The "Inflow" Section (Eating): Visualization of feeding schedules and volume.
+4. The "Outflow" Section (Potty): The critical monitoring metric for Hydronephrosis. Visual guide to diaper tracking.
+5. Hygiene & Safety: Specifics on UTI prevention (critical for this condition).
+6. Emergency Dashboard: Red flags to watch for.
+Rationale: Parents of newborns with medical conditions are overwhelmed. A dashboard approach that calculates "normals" based on their baby reduces cognitive load. -->
+
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl text-sky-500">💧</span>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Hydro<span
+                        class="text-sky-600">Care</span> Routine</h1>
+            </div>
+            <button id="reset-btn"
+                class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded transition-colors">
+                Reset Data
+            </button>
+        </div>
+    </header>
+
+
+    <main class="container mx-auto px-4 py-8 space-y-12">
+
+
+        <!-- Section 1: Introduction & Context -->
+        <section class="max-w-4xl mx-auto text-center space-y-4">
+            <h2 class="text-3xl font-bold text-slate-900">Understanding the "Flow"</h2>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+                For a newborn with <strong>Hydronephrosis</strong> (swelling of the kidney due to urine buildup), the
+                routine focuses on one golden rule: <strong>Keep it moving.</strong>
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div
+                    class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all-300">
+                    <div class="text-3xl mb-3">🍼</div>
+                    <h3 class="font-bold text-slate-800 mb-2">1. Frequent Intake</h3>
+                    <p class="text-sm text-slate-500">More fluid in equals more flushing of the urinary tract.</p>
+                </div>
+                <div
+                    class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all-300">
+                    <div class="text-3xl mb-3">🛡️</div>
+                    <h3 class="font-bold text-slate-800 mb-2">2. Strict Hygiene</h3>
+                    <p class="text-sm text-slate-500">Preventing bacteria from entering is critical to avoid UTIs.</p>
+                </div>
+                <div
+                    class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all-300">
+                    <div class="text-3xl mb-3">⚖️</div>
+                    <h3 class="font-bold text-slate-800 mb-2">3. Monitor Output</h3>
+                    <p class="text-sm text-slate-500">Wet diapers are your primary data point for kidney function.</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Section 2: Routine Simulator -->
+        <!-- Visualization & Content Choices:
+Goal: Personalize the abstract medical advice.
+Method: Input fields (Weight/Age) driving dynamic text and Chart.js visualizations.
+Justification: "Feed 150ml/kg" is hard to visualize. "Feed 60ml every 3 hours" is actionable.
+Charts: Pie chart for day structure, Bar chart for volume goals. -->
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <div class="bg-sky-50 p-6 border-b border-sky-100">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>⚙️</span> Routine Builder
+                </h2>
+                <p class="text-slate-600 mt-2">Enter your baby's details to calculate a safe baseline routine.</p>
+            </div>
+
+            <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Controls -->
+                <div class="lg:col-span-1 space-y-6 bg-slate-50 p-6 rounded-xl border border-slate-200 h-fit">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Baby's Weight (kg)</label>
+                        <input type="range" id="weight-slider" min="2.5" max="6.0" step="0.1" value="3.5"
+                            class="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-sky-500">
+                        <div class="flex justify-between mt-2 text-slate-600 font-mono">
+                            <span class="text-xs">2.5kg</span>
+                            <span id="weight-display" class="font-bold text-sky-600 text-lg">3.5 kg</span>
+                            <span class="text-xs">6.0kg</span>
+                        </div>
+                    </div>
+
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Feeding Method</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button
+                                class="feed-method-btn active-method bg-white border border-sky-500 text-sky-600 py-2 rounded-lg text-sm font-medium shadow-sm"
+                                data-method="bottle">Bottle (mL)</button>
+                            <button
+                                class="feed-method-btn bg-slate-100 border border-slate-200 text-slate-500 py-2 rounded-lg text-sm font-medium"
+                                data-method="breast">Breast (Time)</button>
+                        </div>
+                    </div>
+
+
+                    <div class="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                        <h4 class="text-amber-800 font-bold text-sm mb-1">⚠️ Medical Note</h4>
+                        <p class="text-xs text-amber-700">Calculations are based on standard fluid requirements
+                            (150ml/kg/day). Always follow your nephrologist's specific volume limits if any.</p>
+                    </div>
+                </div>
+
+
+                <!-- Results & Visuals -->
+                <div class="lg:col-span-2 space-y-8">
+
+                    <!-- Dynamic Stats Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-sky-50 p-4 rounded-lg text-center">
+                            <div id="total-vol" class="text-2xl font-bold text-sky-700">525</div>
+                            <div class="text-xs text-sky-600 uppercase tracking-wide font-semibold">Total mL/Day</div>
+                        </div>
+                        <div class="bg-sky-50 p-4 rounded-lg text-center">
+                            <div id="feed-freq" class="text-2xl font-bold text-sky-700">8-10</div>
+                            <div class="text-xs text-sky-600 uppercase tracking-wide font-semibold">Feeds/Day</div>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-lg text-center">
+                            <div id="per-feed" class="text-2xl font-bold text-emerald-700">60</div>
+                            <div class="text-xs text-emerald-600 uppercase tracking-wide font-semibold">mL per Feed
+                            </div>
+                        </div>
+                        <div class="bg-indigo-50 p-4 rounded-lg text-center">
+                            <div id="diaper-goal" class="text-2xl font-bold text-indigo-700">6+</div>
+                            <div class="text-xs text-indigo-600 uppercase tracking-wide font-semibold">Heavy Diapers
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Charts Area -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Chart 1: The 24h Cycle -->
+                        <div class="bg-white rounded-lg p-2">
+                            <h3 class="text-center text-sm font-semibold text-slate-500 mb-2">Ideal 24h Distribution
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="routinePieChart"></canvas>
+                            </div>
+                            <p class="text-center text-xs text-slate-400 mt-2">Prioritizing frequent shorter feeds over
+                                long gaps.</p>
+                        </div>
+                        <!-- Chart 2: Output Targets -->
+                        <div class="bg-white rounded-lg p-2">
+                            <h3 class="text-center text-sm font-semibold text-slate-500 mb-2">Hydration Safety Zones
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="outputBarChart"></canvas>
+                            </div>
+                            <p class="text-center text-xs text-slate-400 mt-2">Maintain "Optimal" zone to flush kidneys.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Section 3: Detailed Logic Breakdown (Tabs) -->
+        <section>
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-900">The "Why" & "How"</h2>
+                <p class="text-slate-600">Deep dive into the specifics of eating, potting, and hygiene for
+                    hydronephrosis.</p>
+            </div>
+
+
+            <!-- Tab Navigation -->
+            <div class="flex border-b border-slate-200 mb-6 overflow-x-auto">
+                <button class="tab-btn active-tab px-6 py-3 focus:outline-none whitespace-nowrap"
+                    onclick="switchTab('eating')">1. The Eating Routine</button>
+                <button class="tab-btn inactive-tab px-6 py-3 focus:outline-none whitespace-nowrap"
+                    onclick="switchTab('potty')">2. The Potty (Output)</button>
+                <button class="tab-btn inactive-tab px-6 py-3 focus:outline-none whitespace-nowrap"
+                    onclick="switchTab('hygiene')">3. Hygiene & Meds</button>
+            </div>
+
+
+            <!-- Tab Content: Eating -->
+            <div id="eating-content" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <h3 class="font-bold text-lg text-slate-800">Feeding Strategy: The "Flush"</h3>
+                    <p class="text-slate-600 text-sm">
+                        With hydronephrosis, the goal isn't just nutrition; it's <strong>maintaining renal
+                            flow</strong>. Dehydration causes urine to concentrate, which can lead to crystal formation
+                        or stones, and makes bacterial growth easier.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex gap-3">
+                            <span class="text-emerald-500 font-bold">✓</span>
+                            <span class="text-slate-700 text-sm"><strong>On Demand + Limits:</strong> Feed whenever
+                                hungry, but do not let the baby go more than 3-4 hours without feeding, even at night
+                                initially.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="text-emerald-500 font-bold">✓</span>
+                            <span class="text-slate-700 text-sm"><strong>No Water:</strong> Newborns generally do not
+                                need extra water. Breast milk or formula provides the correct solute load. Water can
+                                mess up electrolytes.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="text-emerald-500 font-bold">✓</span>
+                            <span class="text-slate-700 text-sm"><strong>Cluster Feeding:</strong> This is normal in
+                                evenings. It helps build a fluid reserve for the longer sleep stretch.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                    <h3 class="font-bold text-lg text-indigo-900 mb-4">Feeding Tracker Log Idea</h3>
+                    <!-- Interactive Sample Log -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center bg-white p-3 rounded shadow-sm">
+                            <span class="text-xs font-mono text-slate-500">07:00 AM</span>
+                            <span class="text-sm font-semibold text-slate-700">Left Breast (15m)</span>
+                            <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Good Latch</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-white p-3 rounded shadow-sm">
+                            <span class="text-xs font-mono text-slate-500">10:00 AM</span>
+                            <span class="text-sm font-semibold text-slate-700">Formula (70ml)</span>
+                            <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Finished</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-white p-3 rounded shadow-sm opacity-50">
+                            <span class="text-xs font-mono text-slate-500">01:00 PM</span>
+                            <span class="text-sm font-semibold text-slate-700">Scheduled...</span>
+                            <span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded">Pending</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Tab Content: Potty (Hidden by default) -->
+            <div id="potty-content" class="tab-content hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <h3 class="font-bold text-lg text-slate-800">Output Analysis: The Dashboard</h3>
+                    <p class="text-slate-600 text-sm">
+                        You can't see the kidneys, but you can see the diaper. The "Potty Routine" is actually an
+                        inspection routine.
+                    </p>
+                    <div class="space-y-4 mt-4">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-yellow-50 border border-slate-200 flex items-center justify-center font-bold text-slate-400">
+                                1</div>
+                            <div>
+                                <h4 class="font-bold text-sm">Clear / Pale Yellow</h4>
+                                <p class="text-xs text-slate-500">Ideal. Means excellent hydration and flow.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-yellow-200 border border-yellow-300 flex items-center justify-center font-bold text-slate-600">
+                                2</div>
+                            <div>
+                                <h4 class="font-bold text-sm">Deep Yellow / Amber</h4>
+                                <p class="text-xs text-slate-500">Concentrated. Offer a feed immediately. Kidneys are
+                                    working harder.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-orange-200 border border-orange-300 flex items-center justify-center font-bold text-orange-800">
+                                3</div>
+                            <div>
+                                <h4 class="font-bold text-sm">Pink/Orange Dust (Urates)</h4>
+                                <p class="text-xs text-slate-500">Common in first days, but later signals dehydration.
+                                    Watch closely.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">Diaper Changing Protocol</h3>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-slate-600">
+                        <li><strong>Change Immediately:</strong> Do not let stool sit. Bacteria from stool can migrate
+                            to the urethra (UTI risk).</li>
+                        <li><strong>Wipe Direction:</strong> strictly <strong>Front to Back</strong>. Never wipe back
+                            towards the urethra.</li>
+                        <li><strong>Barrier Cream:</strong> Use freely. Healthy skin prevents bacterial colonization.
+                        </li>
+                        <li><strong>Frequency:</strong> Aim to change every 2-3 hours or immediately upon soiling.</li>
+                    </ul>
+                </div>
+            </div>
+
+
+            <!-- Tab Content: Hygiene (Hidden by default) -->
+            <div id="hygiene-content" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">Infection Prevention (UTI)</h3>
+                    <p class="text-slate-600 text-sm mb-4">
+                        In hydronephrosis, urine may sit in the kidney longer (stasis), making it a breeding ground for
+                        bacteria.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="border-l-4 border-red-400 pl-4 py-2 bg-red-50">
+                            <h4 class="font-bold text-red-800 text-sm">Fever > 38°C (100.4°F)</h4>
+                            <p class="text-xs text-red-700">In a hydronephrosis baby, unexpected fever is a UTI until
+                                proven otherwise. Go to ER/Doctor.</p>
+                        </div>
+                        <div class="border-l-4 border-sky-400 pl-4 py-2 bg-sky-50">
+                            <h4 class="font-bold text-sky-800 text-sm">Cloudy/Smelly Urine</h4>
+                            <p class="text-xs text-sky-700">Strong ammonia smell or fishy odor is a red flag. Consult
+                                doctor.</p>
+                        </div>
+                        <div class="border-l-4 border-emerald-400 pl-4 py-2 bg-emerald-50">
+                            <h4 class="font-bold text-emerald-800 text-sm">Antibiotics (Prophylaxis)</h4>
+                            <p class="text-xs text-emerald-700">If prescribed (e.g., Amoxicillin), give at the
+                                <strong>same time daily</strong>. Consistency is key to protection.</p>
+                        </div>
+                        <div class="border-l-4 border-slate-400 pl-4 py-2 bg-slate-50">
+                            <h4 class="font-bold text-slate-800 text-sm">Bath Time</h4>
+                            <p class="text-xs text-slate-700">Avoid strong bubble baths or harsh soaps that can irritate
+                                the urethra.</p>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="lg:col-span-1 bg-sky-100 rounded-xl p-6 flex flex-col justify-center items-center text-center">
+                    <div class="text-4xl mb-4">👨‍⚕️</div>
+                    <h3 class="font-bold text-sky-900 mb-2">When to Call</h3>
+                    <p class="text-xs text-sky-800 mb-4">Keep your Nephrologist/Pediatrician number saved.</p>
+                    <button
+                        class="bg-white text-sky-700 font-bold py-2 px-6 rounded-full shadow hover:bg-sky-50 transition w-full text-sm">
+                        Create Emergency Plan
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Section 4: Warning Signs Checklist -->
+        <section class="bg-slate-800 text-white rounded-2xl p-6 md:p-10 shadow-xl">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <span class="text-red-400">⚡</span> Daily Safety Check
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <label
+                    class="flex items-start gap-3 p-4 bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-600 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded accent-emerald-500">
+                    <div>
+                        <span class="block font-bold text-sm">Temperature Normal?</span>
+                        <span class="block text-xs text-slate-400 mt-1">Under 38°C</span>
+                    </div>
+                </label>
+                <label
+                    class="flex items-start gap-3 p-4 bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-600 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded accent-emerald-500">
+                    <div>
+                        <span class="block font-bold text-sm">Feeding Well?</span>
+                        <span class="block text-xs text-slate-400 mt-1">No refusal of feeds</span>
+                    </div>
+                </label>
+                <label
+                    class="flex items-start gap-3 p-4 bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-600 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded accent-emerald-500">
+                    <div>
+                        <span class="block font-bold text-sm">Diaper Count?</span>
+                        <span class="block text-xs text-slate-400 mt-1">At least 3 heavy by noon</span>
+                    </div>
+                </label>
+                <label
+                    class="flex items-start gap-3 p-4 bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-600 transition">
+                    <input type="checkbox" class="mt-1 w-5 h-5 rounded accent-emerald-500">
+                    <div>
+                        <span class="block font-bold text-sm">Mood?</span>
+                        <span class="block text-xs text-slate-400 mt-1">Not excessively fussy</span>
+                    </div>
+                </label>
+            </div>
+            <p class="text-center text-xs text-slate-500 mt-6 italic">This tool is for educational purposes. Always
+                follow your doctor's advice.</p>
+        </section>
+
+
+    </main>
+
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+
+    <script>
+        // State Management
+        const state = {
+            weight: 3.5, // kg
+            method: 'bottle', // bottle | breast
+            feedVolumePerKg: 150, // ml
+            feedsPerDay: 9, // average
+        };
+
+
+        // DOM Elements
+        const weightSlider = document.getElementById('weight-slider');
+        const weightDisplay = document.getElementById('weight-display');
+        const methodBtns = document.querySelectorAll('.feed-method-btn');
+        const totalVolEl = document.getElementById('total-vol');
+        const feedFreqEl = document.getElementById('feed-freq');
+        const perFeedEl = document.getElementById('per-feed');
+        const diaperGoalEl = document.getElementById('diaper-goal');
+
+
+        // Charts Global Config
+        Chart.defaults.font.family = "'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'";
+        Chart.defaults.color = '#64748b';
+
+
+        let pieChart = null;
+        let barChart = null;
+
+
+        // --- Core Logic ---
+
+
+        function calculateRoutine() {
+            // Calculate Total Volume
+            const totalVolume = Math.round(state.weight * state.feedVolumePerKg);
+
+            // Calculate Frequency (Smaller babies eat more often)
+            // Logic: < 3kg -> 10-12 feeds. > 4kg -> 7-9 feeds.
+            let freqMin, freqMax;
+            if (state.weight < 3.5) {
+                freqMin = 10; freqMax = 12;
+            } else if (state.weight < 4.5) {
+                freqMin = 8; freqMax = 10;
+            } else {
+                freqMin = 7; freqMax = 9;
+            }
+            const avgFreq = Math.round((freqMin + freqMax) / 2);
+            state.feedsPerDay = avgFreq;
+
+
+            // Calculate Volume Per Feed
+            const volPerFeed = Math.round(totalVolume / avgFreq);
+
+
+            // Calculate Diapers (Roughly 1 per 70-80ml intake effectively processed, but min 6 is the rule)
+            const estimatedDiapers = Math.max(6, Math.floor(totalVolume / 75));
+
+
+            // Update Text UI
+            weightDisplay.textContent = `${state.weight} kg`;
+            totalVolEl.textContent = totalVolume;
+            feedFreqEl.textContent = `${freqMin}-${freqMax}`;
+
+            if (state.method === 'bottle') {
+                perFeedEl.textContent = `${volPerFeed} mL`;
+                perFeedEl.nextElementSibling.textContent = "mL PER FEED";
+            } else {
+                // Estimation for breastfeeding time based on flow (very rough approx)
+                perFeedEl.textContent = "15-20 m";
+                perFeedEl.nextElementSibling.textContent = "MIN PER SIDE";
+            }
+
+            diaperGoalEl.textContent = `${estimatedDiapers}+`;
+
+
+            updateCharts(totalVolume, avgFreq, estimatedDiapers);
+        }
+
+
+        // --- Charts Implementation ---
+
+
+        function initCharts() {
+            // 1. Pie Chart: 24h Routine Distribution
+            const ctxPie = document.getElementById('routinePieChart').getContext('2d');
+            pieChart = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sleeping', 'Feeding', 'Diaper/Care', 'Alert/Play'],
+                    datasets: [{
+                        data: [14, 4, 3, 3], // Initial dummy data (hours)
+                        backgroundColor: [
+                            '#e2e8f0', // Sleep (Slate 200)
+                            '#38bdf8', // Feed (Sky 400)
+                            '#818cf8', // Diaper (Indigo 400)
+                            '#fbbf24' // Play (Amber 400)
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return ` ${context.label}: ~${context.raw} hrs`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+
+
+            // 2. Bar Chart: Output Goals
+            const ctxBar = document.getElementById('outputBarChart').getContext('2d');
+            barChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Critical Low', 'Concern', 'Target', 'Optimal'],
+                    datasets: [{
+                        label: 'Wet Diapers / 24h',
+                        data: [2, 4, 6, 8],
+                        backgroundColor: [
+                            '#ef4444', // Red
+                            '#f97316', // Orange
+                            '#22c55e', // Green
+                            '#3b82f6' // Blue
+                        ],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 12, title: { display: true, text: 'Count' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+
+        function updateCharts(totalVol, freq, diapers) {
+            // Update Pie Chart Logic:
+            // Feed time = freq * 0.5 hours (30 mins per feed cycle)
+            const feedTime = freq * 0.5;
+            // Care time = freq * 0.25 (15 mins change/clean) + 1 hour bath/hygiene
+            const careTime = (freq * 0.25) + 1;
+            const sleepTime = 24 - feedTime - careTime - 2; // -2 for alert buffer
+
+            pieChart.data.datasets[0].data = [
+                Math.max(0, sleepTime.toFixed(1)),
+                feedTime.toFixed(1),
+                careTime.toFixed(1),
+                2 // Alert time roughly constant
+            ];
+            pieChart.update();
+
+
+            // Update Bar Chart:
+            // The Target is the calculated "diapers", Optimal is target + 2
+            barChart.data.datasets[0].data = [3, diapers - 2, diapers, diapers + 2];
+            barChart.update();
+        }
+
+
+        // --- Navigation Logic ---
+
+
+        function switchTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Show selected
+            document.getElementById(`${tabId}-content`).classList.remove('hidden');
+
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active-tab');
+                btn.classList.add('inactive-tab');
+            });
+            // Find the clicked button (via event delegation logic or manual mapping)
+            // Simple mapping for this specific layout:
+            const index = ['eating', 'potty', 'hygiene'].indexOf(tabId);
+            const btns = document.querySelectorAll('.tab-btn');
+            if (btns[index]) {
+                btns[index].classList.remove('inactive-tab');
+                btns[index].classList.add('active-tab');
+            }
+        }
+
+
+        // --- Event Listeners ---
+
+
+        weightSlider.addEventListener('input', (e) => {
+            state.weight = parseFloat(e.target.value);
+            calculateRoutine();
+        });
+
+
+        methodBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // UI Toggle
+                methodBtns.forEach(b => {
+                    b.classList.remove('active-method', 'bg-white', 'border-sky-500', 'text-sky-600', 'shadow-sm');
+                    b.classList.add('bg-slate-100', 'border-slate-200', 'text-slate-500');
+                });
+                e.target.classList.remove('bg-slate-100', 'border-slate-200', 'text-slate-500');
+                e.target.classList.add('active-method', 'bg-white', 'border-sky-500', 'text-sky-600', 'shadow-sm');
+
+                // Logic Update
+                state.method = e.target.dataset.method;
+                calculateRoutine();
+            });
+        });
+
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            weightSlider.value = 3.5;
+            state.weight = 3.5;
+            state.method = 'bottle';
+            methodBtns[0].click(); // Trigger click to reset UI
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            calculateRoutine();
+        });
+
+
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            calculateRoutine();
+        });
+
+
+    </script>
+</body>
+
+</html>
