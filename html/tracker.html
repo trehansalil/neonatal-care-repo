@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Baby Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .entry-card {
+            transition: all 0.3s ease;
+        }
+
+        .entry-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .action-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            border-color: #0ea5e9;
+        }
+
+        .action-card:active {
+            transform: translateY(-1px);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .history-item {
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">📊</span>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-800">Baby Tracker</h1>
+            </div>
+            <a href="index.html"
+                class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded transition-colors">
+                Back to Guide
+            </a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+
+        <!-- Quick Action Cards -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <span>✍️</span> New Entry
+            </h2>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Feed Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('feed')">
+                    <div class="text-5xl mb-3">🍼</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Feed</h3>
+                    <p class="text-xs text-slate-500">Log ml or breast</p>
+                </div>
+
+                <!-- Susu Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('susu')">
+                    <div class="text-5xl mb-3">💧</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Susu (Urine)</h3>
+                    <p class="text-xs text-slate-500">Color & Amount</p>
+                </div>
+
+                <!-- Poti Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('poti')">
+                    <div class="text-5xl mb-3">💩</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Poti (Stool)</h3>
+                    <p class="text-xs text-slate-500">Texture & Color</p>
+                </div>
+
+                <!-- Temperature Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('temp')">
+                    <div class="text-5xl mb-3">🌡️</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Temp</h3>
+                    <p class="text-xs text-slate-500">Track Fever</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Stats -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+                <div class="text-3xl font-bold text-sky-600" id="today-feeds">0</div>
+                <div class="text-sm text-slate-600 mt-1">Feeds Today</div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+                <div class="text-3xl font-bold text-indigo-600" id="today-susu">0</div>
+                <div class="text-sm text-slate-600 mt-1">Wet Diapers</div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+                <div class="text-3xl font-bold text-amber-600" id="today-poti">0</div>
+                <div class="text-sm text-slate-600 mt-1">Soiled Diapers</div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+                <div class="text-3xl font-bold text-emerald-600" id="avg-temp">--</div>
+                <div class="text-sm text-slate-600 mt-1">Avg Temp (°C)</div>
+            </div>
+        </section>
+
+        <!-- Today's History Section -->
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>📋</span> Today's History
+                </h2>
+                <button id="clear-history-btn"
+                    class="text-sm text-red-600 hover:text-red-700 font-semibold transition-colors">
+                    Clear All
+                </button>
+            </div>
+
+            <div id="entries-container" class="space-y-3">
+                <p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Feed Modal -->
+    <div id="feed-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-sky-50 p-6 border-b border-sky-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>🍼</span> Log Feed
+                    </h3>
+                    <button onclick="closeModal('feed')" class="text-slate-400 hover:text-slate-600 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <form id="feed-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Feed Type</label>
+                    <select id="feed-type" required
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500">
+                        <option value="">Select type...</option>
+                        <option value="breast">Breastfeeding</option>
+                        <option value="bottle">Bottle (Formula)</option>
+                        <option value="bottle_expressed">Bottle (Expressed Milk)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Amount (mL)</label>
+                    <input type="number" id="feed-amount" min="0" max="200"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                        placeholder="60">
+                    <p class="text-xs text-slate-500 mt-1">Leave empty for breastfeeding</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="feed-notes" rows="2"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                        placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Save Entry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Susu Modal -->
+    <div id="susu-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-indigo-50 p-6 border-b border-indigo-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>💧</span> Log Susu (Urine)
+                    </h3>
+                    <button onclick="closeModal('susu')" class="text-slate-400 hover:text-slate-600 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <form id="susu-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Wet Diapers</label>
+                    <input type="number" id="susu-count" min="1" max="5" value="1" required
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Urine Color</label>
+                    <select id="susu-color"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="clear">Clear (Normal)</option>
+                        <option value="pale_yellow">Pale Yellow (Normal)</option>
+                        <option value="dark_yellow">Dark Yellow</option>
+                        <option value="orange">Orange/Brown ⚠️</option>
+                        <option value="red">Red/Pink ⚠️</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="susu-notes" rows="2"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Save Entry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Poti Modal -->
+    <div id="poti-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-amber-50 p-6 border-b border-amber-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>💩</span> Log Poti (Stool)
+                    </h3>
+                    <button onclick="closeModal('poti')" class="text-slate-400 hover:text-slate-600 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <form id="poti-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Soiled Diapers</label>
+                    <input type="number" id="poti-count" min="1" max="5" value="1" required
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Consistency</label>
+                    <select id="poti-consistency"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        <option value="liquid">Liquid/Watery</option>
+                        <option value="soft">Soft (Normal)</option>
+                        <option value="firm">Firm</option>
+                        <option value="hard">Hard ⚠️</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Color</label>
+                    <select id="poti-color"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        <option value="yellow">Yellow (Normal)</option>
+                        <option value="mustard">Mustard Yellow</option>
+                        <option value="green">Green</option>
+                        <option value="brown">Brown</option>
+                        <option value="black">Black/Tarry ⚠️</option>
+                        <option value="red">Red/Bloody ⚠️</option>
+                        <option value="white">White/Pale ⚠️</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="poti-notes" rows="2"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                        placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Save Entry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Temperature Modal -->
+    <div id="temp-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-red-50 p-6 border-b border-red-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>🌡️</span> Log Temperature
+                    </h3>
+                    <button onclick="closeModal('temp')" class="text-slate-400 hover:text-slate-600 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <form id="temp-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Temperature (°C)</label>
+                    <input type="number" id="temp-value" step="0.1" min="35" max="42" required
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                        placeholder="37.0">
+                    <p class="text-xs text-slate-500 mt-1">Normal: 36.5-37.5°C</p>
+                </div>
+                <div id="temp-warning" class="hidden p-4 bg-red-100 border border-red-300 rounded-lg">
+                    <p class="text-sm text-red-800 font-semibold">⚠️ High Temperature Detected</p>
+                    <p class="text-xs text-red-700 mt-1">Consider contacting your pediatrician if fever persists.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="temp-notes" rows="2"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                        placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Save Entry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = '/api';
+
+        // State
+        let entries = [];
+
+        // DOM Elements
+        const entriesContainer = document.getElementById('entries-container');
+
+        // Stats Elements
+        const todayFeedsEl = document.getElementById('today-feeds');
+        const todaySusuEl = document.getElementById('today-susu');
+        const todayPotiEl = document.getElementById('today-poti');
+        const avgTempEl = document.getElementById('avg-temp');
+
+        // Modal Functions
+        function openModal(type) {
+            document.getElementById(`${type}-modal`).classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(type) {
+            document.getElementById(`${type}-modal`).classList.remove('active');
+            document.body.style.overflow = 'auto';
+            document.getElementById(`${type}-form`).reset();
+            
+            // Hide temp warning if visible
+            if (type === 'temp') {
+                document.getElementById('temp-warning').classList.add('hidden');
+            }
+        }
+
+        // Close modal on background click
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                const modals = ['feed', 'susu', 'poti', 'temp'];
+                modals.forEach(type => {
+                    if (event.target.id === `${type}-modal`) {
+                        closeModal(type);
+                    }
+                });
+            }
+        }
+
+        // Temperature warning
+        document.getElementById('temp-value').addEventListener('input', (e) => {
+            const temp = parseFloat(e.target.value);
+            const warning = document.getElementById('temp-warning');
+            if (temp >= 38) {
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+        });
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            loadEntries();
+        });
+
+        // Feed Form Submit
+        document.getElementById('feed-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                feed_type: document.getElementById('feed-type').value,
+                feed_amount: parseInt(document.getElementById('feed-amount').value) || null,
+                notes: document.getElementById('feed-notes').value || null,
+                timestamp: new Date().toISOString()
+            };
+
+            await saveEntry(data, 'feed');
+        });
+
+        // Susu Form Submit
+        document.getElementById('susu-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                susu_count: parseInt(document.getElementById('susu-count').value),
+                notes: `Urine color: ${document.getElementById('susu-color').value}. ${document.getElementById('susu-notes').value || ''}`,
+                timestamp: new Date().toISOString()
+            };
+
+            await saveEntry(data, 'susu');
+        });
+
+        // Poti Form Submit
+        document.getElementById('poti-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                poti_count: parseInt(document.getElementById('poti-count').value),
+                poti_color: document.getElementById('poti-color').value,
+                notes: `Consistency: ${document.getElementById('poti-consistency').value}. ${document.getElementById('poti-notes').value || ''}`,
+                timestamp: new Date().toISOString()
+            };
+
+            await saveEntry(data, 'poti');
+        });
+
+        // Temperature Form Submit
+        document.getElementById('temp-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                temperature: parseFloat(document.getElementById('temp-value').value),
+                notes: document.getElementById('temp-notes').value || null,
+                timestamp: new Date().toISOString()
+            };
+
+            await saveEntry(data, 'temp');
+        });
+
+        // Save Entry
+        async function saveEntry(data, type) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/entries`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal(type);
+                    await loadEntries();
+                    showToast('Entry saved successfully!', 'success');
+                } else {
+                    throw new Error('Failed to save entry');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error saving entry. Please try again.', 'error');
+            }
+        }
+
+        // Load Entries
+        async function loadEntries() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/entries`);
+                if (response.ok) {
+                    entries = await response.json();
+                    renderEntries();
+                    updateStats();
+                } else {
+                    throw new Error('Failed to load entries');
+                }
+            } catch (error) {
+                console.error('Error loading entries:', error);
+                entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
+            }
+        }
+
+        // Render Entries
+        function renderEntries() {
+            const today = new Date().toDateString();
+            const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
+
+            if (todayEntries.length === 0) {
+                entriesContainer.innerHTML = '<p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>';
+                return;
+            }
+
+            entriesContainer.innerHTML = todayEntries
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map(entry => createEntryItem(entry))
+                .join('');
+        }
+
+        // Create Entry Item HTML
+        function createEntryItem(entry) {
+            const date = new Date(entry.timestamp);
+            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            let icon = '';
+            let title = '';
+            let subtitle = '';
+            let bgColor = 'bg-slate-50';
+
+            if (entry.feed_amount || entry.feed_type) {
+                icon = '🍼';
+                title = 'Feed';
+                subtitle = entry.feed_amount ? `${entry.feed_amount}mL ${entry.feed_type ? `(${entry.feed_type})` : ''}` : entry.feed_type || '';
+                bgColor = 'bg-sky-50';
+            } else if (entry.susu_count > 0) {
+                icon = '💧';
+                title = 'Urine';
+                subtitle = `${entry.susu_count} wet diaper${entry.susu_count > 1 ? 's' : ''}`;
+                bgColor = 'bg-indigo-50';
+            } else if (entry.poti_count > 0) {
+                icon = '💩';
+                title = 'Stool';
+                subtitle = `${entry.poti_count} soiled diaper${entry.poti_count > 1 ? 's' : ''}${entry.poti_color ? ` (${entry.poti_color})` : ''}`;
+                bgColor = 'bg-amber-50';
+            } else if (entry.temperature) {
+                icon = '🌡️';
+                title = 'Temperature';
+                subtitle = `${entry.temperature}°C`;
+                bgColor = entry.temperature > 38 ? 'bg-red-50' : 'bg-emerald-50';
+            }
+
+            return `
+                <div class="history-item ${bgColor} rounded-lg p-4 border border-slate-200 flex items-start gap-4">
+                    <div class="text-3xl">${icon}</div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start mb-1">
+                            <div>
+                                <div class="font-bold text-slate-800">${title}</div>
+                                <div class="text-sm text-slate-600">${subtitle}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-semibold text-slate-600">${timeStr}</div>
+                                <button onclick="deleteEntry(${entry.id})" class="text-xs text-red-500 hover:text-red-700 mt-1">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        ${entry.notes ? `
+                            <div class="text-xs text-slate-500 mt-2 italic">
+                                ${entry.notes}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Delete Entry
+        async function deleteEntry(id) {
+            if (!confirm('Delete this entry?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/entries/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    await loadEntries();
+                    showToast('Entry deleted', 'success');
+                } else {
+                    throw new Error('Failed to delete entry');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error deleting entry', 'error');
+            }
+        }
+
+        // Update Stats
+        function updateStats() {
+            const today = new Date().toDateString();
+            const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
+
+            // Feeds count
+            const feedsCount = todayEntries.filter(e => e.feed_amount > 0 || e.feed_type).length;
+            todayFeedsEl.textContent = feedsCount;
+
+            // Susu total
+            const susuTotal = todayEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
+            todaySusuEl.textContent = susuTotal;
+
+            // Poti total
+            const potiTotal = todayEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
+            todayPotiEl.textContent = potiTotal;
+
+            // Average temperature
+            const temps = todayEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
+            if (temps.length > 0) {
+                const avgTemp = (temps.reduce((sum, t) => sum + t, 0) / temps.length).toFixed(1);
+                avgTempEl.textContent = avgTemp;
+                avgTempEl.classList.toggle('text-red-600', avgTemp > 38);
+            } else {
+                avgTempEl.textContent = '--';
+            }
+        }
+
+        // Show Toast Message
+        function showToast(text, type) {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} text-white font-semibold animate-slide-in`;
+            toast.textContent = text;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Clear History
+        document.getElementById('clear-history-btn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to delete ALL entries from today? This cannot be undone.')) return;
+
+            try {
+                // Get today's entries
+                const today = new Date().toDateString();
+                const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
+
+                // Delete each entry
+                for (const entry of todayEntries) {
+                    await fetch(`${API_BASE_URL}/entries/${entry.id}`, {
+                        method: 'DELETE'
+                    });
+                }
+
+                await loadEntries();
+                showToast('All entries cleared', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error clearing entries', 'error');
+            }
+        });
+
+        // Add CSS for toast animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slide-in {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            .animate-slide-in {
+                animation: slide-in 0.3s ease-out;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

@@ -1,11 +1,27 @@
-# Use the lightweight Nginx Alpine image
-FROM nginx:alpine
+# Use Python 3.11 slim image
+FROM python:3.11-slim
 
-# Copy the HTML file to the default Nginx public folder
-COPY ./html/index.html /usr/share/nginx/html/index.html
+# Set working directory
+WORKDIR /app
 
-# Expose port 80 (internal container port)
-EXPOSE 80
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Copy requirements file
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY app.py .
+COPY html ./html
+
+# Expose port 5000 for Flask
+EXPOSE 5000
+
+# Run the Flask application
+CMD ["python", "app.py"]
