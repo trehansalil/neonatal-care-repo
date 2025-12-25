@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 from datetime import datetime
 import os
 import time
@@ -12,7 +12,7 @@ CORS(app)
 # Database configuration
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'db'),
-    'database': os.environ.get('DB_NAME', 'baby_tracker'),
+    'dbname': os.environ.get('DB_NAME', 'baby_tracker'),
     'user': os.environ.get('DB_USER', 'postgres'),
     'password': os.environ.get('DB_PASSWORD', 'postgres'),
     'port': os.environ.get('DB_PORT', '5432')
@@ -25,9 +25,9 @@ def get_db_connection():
     
     for attempt in range(max_retries):
         try:
-            conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+            conn = psycopg.connect(**DB_CONFIG, row_factory=dict_row)
             return conn
-        except psycopg2.OperationalError as e:
+        except psycopg.OperationalError as e:
             if attempt < max_retries - 1:
                 print(f"Database connection attempt {attempt + 1} failed. Retrying in {retry_delay}s...")
                 time.sleep(retry_delay)

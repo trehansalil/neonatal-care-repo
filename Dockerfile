@@ -10,15 +10,16 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
-COPY requirements.txt .
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application files
+# Copy project files
+COPY pyproject.toml .
 COPY app.py .
 COPY html ./html
+
+# Install Python dependencies using uv
+RUN uv pip install --system --no-cache .
 
 # Expose port 5000 for Flask
 EXPOSE 5000

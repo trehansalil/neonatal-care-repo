@@ -54,6 +54,7 @@ A comprehensive web application for managing newborn care with hydronephrosis, i
 ### Prerequisites
 - Docker
 - Docker Compose
+- [uv](https://github.com/astral-sh/uv) (for local development)
 
 ### Quick Start
 
@@ -125,7 +126,7 @@ Configure in `docker-compose.yml`:
 .
 ├── docker-compose.yml      # Docker services configuration
 ├── Dockerfile              # Flask backend container
-├── requirements.txt        # Python dependencies
+├── pyproject.toml          # Python dependencies (uv)
 ├── app.py                  # Flask API backend
 ├── init.sql               # Database initialization
 ├── html/
@@ -151,7 +152,11 @@ docker run -d \
 
 2. **Install Python dependencies:**
 ```bash
-pip install -r requirements.txt
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Sync dependencies
+uv sync
 ```
 
 3. **Set environment variables:**
@@ -165,6 +170,11 @@ export DB_PORT=5432
 
 4. **Run Flask app:**
 ```bash
+# Run with uv
+uv run python app.py
+
+# Or activate virtual environment and run
+source .venv/bin/activate
 python app.py
 ```
 
