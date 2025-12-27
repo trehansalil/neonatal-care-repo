@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Baby Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .entry-card {
             transition: all 0.3s ease;
@@ -124,7 +125,7 @@
                 <span>✍️</span> New Entry
             </h2>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <!-- Feed Card -->
                 <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
                     onclick="openModal('feed')">
@@ -156,11 +157,19 @@
                     <h3 class="font-bold text-slate-800 mb-1">Temp</h3>
                     <p class="text-xs text-slate-500">Track Fever</p>
                 </div>
+
+                <!-- Weight Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('weight')">
+                    <div class="text-5xl mb-3">⚖️</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Weight</h3>
+                    <p class="text-xs text-slate-500">Track Growth</p>
+                </div>
             </div>
         </section>
 
         <!-- Summary Stats -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="text-3xl font-bold text-sky-600" id="today-feeds">0</div>
                 <div class="text-sm text-slate-600 mt-1">Feeds Today</div>
@@ -177,10 +186,14 @@
                 <div class="text-3xl font-bold text-emerald-600" id="avg-temp">--</div>
                 <div class="text-sm text-slate-600 mt-1">Avg Temp (°C)</div>
             </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
+                <div class="text-3xl font-bold text-purple-600" id="current-weight">--</div>
+                <div class="text-sm text-slate-600 mt-1">Weight (g)</div>
+            </div>
         </section>
 
         <!-- Today's History Section -->
-        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8">
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-8">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <span>📋</span> Today's History
@@ -193,6 +206,39 @@
 
             <div id="entries-container" class="space-y-3">
                 <p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>
+            </div>
+        </section>
+
+        <!-- Weight Trend Graph -->
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>📈</span> Weight Trend (Last 7 Days)
+                </h2>
+                <p class="text-sm text-slate-500 mt-1">Track your baby's weight progression</p>
+            </div>
+
+            <div class="relative" style="height: 300px;">
+                <canvas id="weightChart"></canvas>
+            </div>
+
+            <div id="weight-stats" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-xs text-slate-600 mb-1">Starting Weight</div>
+                    <div class="text-lg font-bold text-purple-700" id="start-weight">--</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-xs text-slate-600 mb-1">Current Weight</div>
+                    <div class="text-lg font-bold text-purple-700" id="latest-weight">--</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-xs text-slate-600 mb-1">Total Change</div>
+                    <div class="text-lg font-bold text-purple-700" id="weight-change">--</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-xs text-slate-600 mb-1">Avg Daily Change</div>
+                    <div class="text-lg font-bold text-purple-700" id="avg-change">--</div>
+                </div>
             </div>
         </section>
 
@@ -382,12 +428,52 @@
         </div>
     </div>
 
+    <!-- Weight Modal -->
+    <div id="weight-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-purple-50 p-6 border-b border-purple-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>⚖️</span> Log Weight
+                    </h3>
+                    <button onclick="closeModal('weight')" class="text-slate-400 hover:text-slate-600 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <form id="weight-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Weight (grams)</label>
+                    <input type="number" id="weight-value" step="1" min="1000" max="10000" required
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder="2500">
+                    <p class="text-xs text-slate-500 mt-1">Normal range for newborns: 2500-4000g</p>
+                </div>
+                <div id="weight-info" class="p-4 bg-purple-100 border border-purple-300 rounded-lg">
+                    <p class="text-sm text-purple-800 font-semibold">💡 Weight Tracking Tips</p>
+                    <p class="text-xs text-purple-700 mt-1">Weigh baby at the same time each day for consistency. Weight can fluctuate 50-100g daily.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="weight-notes" rows="2"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Save Entry
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // API Configuration
         const API_BASE_URL = '/api';
 
         // State
         let entries = [];
+        let weightChart = null;
 
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
@@ -397,6 +483,7 @@
         const todaySusuEl = document.getElementById('today-susu');
         const todayPotiEl = document.getElementById('today-poti');
         const avgTempEl = document.getElementById('avg-temp');
+        const currentWeightEl = document.getElementById('current-weight');
 
         // Modal Functions
         function openModal(type) {
@@ -418,7 +505,7 @@
         // Close modal on background click
         window.onclick = function (event) {
             if (event.target.classList.contains('modal')) {
-                const modals = ['feed', 'susu', 'poti', 'temp'];
+                const modals = ['feed', 'susu', 'poti', 'temp', 'weight'];
                 modals.forEach(type => {
                     if (event.target.id === `${type}-modal`) {
                         closeModal(type);
@@ -441,6 +528,7 @@
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             loadEntries();
+            initWeightChart();
         });
 
         // Feed Form Submit
@@ -497,6 +585,19 @@
             await saveEntry(data, 'temp');
         });
 
+        // Weight Form Submit
+        document.getElementById('weight-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                weight: parseInt(document.getElementById('weight-value').value),
+                notes: document.getElementById('weight-notes').value || null,
+                timestamp: new Date().toISOString()
+            };
+
+            await saveEntry(data, 'weight');
+        });
+
         // Save Entry
         async function saveEntry(data, type) {
             try {
@@ -511,6 +612,9 @@
                 if (response.ok) {
                     closeModal(type);
                     await loadEntries();
+                    if (type === 'weight') {
+                        updateWeightChart();
+                    }
                     showToast('Entry saved successfully!', 'success');
                 } else {
                     throw new Error('Failed to save entry');
@@ -529,6 +633,7 @@
                     entries = await response.json();
                     renderEntries();
                     updateStats();
+                    updateWeightChart();
                 } else {
                     throw new Error('Failed to load entries');
                 }
@@ -584,6 +689,11 @@
                 title = 'Temperature';
                 subtitle = `${entry.temperature}°C`;
                 bgColor = entry.temperature > 38 ? 'bg-red-50' : 'bg-emerald-50';
+            } else if (entry.weight) {
+                icon = '⚖️';
+                title = 'Weight';
+                subtitle = `${entry.weight}g`;
+                bgColor = 'bg-purple-50';
             }
 
             return `
@@ -658,6 +768,149 @@
                 avgTempEl.classList.toggle('text-red-600', avgTemp > 38);
             } else {
                 avgTempEl.textContent = '--';
+            }
+
+            // Current weight
+            const weightEntries = entries.filter(e => e.weight > 0).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            if (weightEntries.length > 0) {
+                currentWeightEl.textContent = weightEntries[0].weight;
+            } else {
+                currentWeightEl.textContent = '--';
+            }
+        }
+
+        // Initialize Weight Chart
+        function initWeightChart() {
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            weightChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Weight (g)',
+                        data: [],
+                        borderColor: 'rgb(147, 51, 234)',
+                        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: 'rgb(147, 51, 234)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return `Weight: ${context.parsed.y}g`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + 'g';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update Weight Chart
+        function updateWeightChart() {
+            // Get weight entries from last 7 days
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            const weightEntries = entries
+                .filter(e => e.weight > 0 && new Date(e.timestamp) >= sevenDaysAgo)
+                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            if (weightEntries.length === 0) {
+                weightChart.data.labels = ['No data'];
+                weightChart.data.datasets[0].data = [];
+                weightChart.update();
+                updateWeightStats(null, null, null);
+                return;
+            }
+
+            // Prepare chart data
+            const labels = weightEntries.map(e => {
+                const date = new Date(e.timestamp);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            const data = weightEntries.map(e => e.weight);
+
+            weightChart.data.labels = labels;
+            weightChart.data.datasets[0].data = data;
+            weightChart.update();
+
+            // Calculate stats
+            const startWeight = weightEntries[0].weight;
+            const latestWeight = weightEntries[weightEntries.length - 1].weight;
+            const weightChange = latestWeight - startWeight;
+            const avgDailyChange = weightEntries.length > 1 
+                ? (weightChange / (weightEntries.length - 1)).toFixed(1)
+                : 0;
+
+            updateWeightStats(startWeight, latestWeight, weightChange, avgDailyChange);
+        }
+
+        // Update Weight Stats
+        function updateWeightStats(start, latest, change, avgChange) {
+            document.getElementById('start-weight').textContent = start ? `${start}g` : '--';
+            document.getElementById('latest-weight').textContent = latest ? `${latest}g` : '--';
+            
+            if (change !== null) {
+                const changeEl = document.getElementById('weight-change');
+                const sign = change >= 0 ? '+' : '';
+                changeEl.textContent = `${sign}${change}g`;
+                changeEl.classList.toggle('text-green-700', change > 0);
+                changeEl.classList.toggle('text-red-700', change < 0);
+            } else {
+                document.getElementById('weight-change').textContent = '--';
+            }
+            
+            if (avgChange !== null) {
+                const avgEl = document.getElementById('avg-change');
+                const sign = avgChange >= 0 ? '+' : '';
+                avgEl.textContent = `${sign}${avgChange}g`;
+                avgEl.classList.toggle('text-green-700', avgChange > 0);
+                avgEl.classList.toggle('text-red-700', avgChange < 0);
+            } else {
+                document.getElementById('avg-change').textContent = '--';
             }
         }
 
