@@ -40,6 +40,7 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Create entries table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS entries (
             id SERIAL PRIMARY KEY,
@@ -49,11 +50,23 @@ def init_db():
             susu_count INTEGER DEFAULT 0,
             poti_count INTEGER DEFAULT 0,
             poti_color VARCHAR(50),
+            weight INTEGER,
             notes TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Check if weight column exists, if not add it (migration for existing tables)
+    cur.execute('''
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='entries' AND column_name='weight'
+    ''')
+    
+    if not cur.fetchone():
+        print("Adding weight column to existing entries table...")
+        cur.execute('ALTER TABLE entries ADD COLUMN weight INTEGER')
     
     conn.commit()
     cur.close()
@@ -118,8 +131,8 @@ def create_entry():
             INSERT INTO entries (
                 temperature, feed_amount, feed_type, 
                 susu_count, poti_count, poti_color, 
-                notes, timestamp
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                weight, notes, timestamp
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         ''', (
             data.get('temperature'),
@@ -128,6 +141,7 @@ def create_entry():
             data.get('susu_count', 0),
             data.get('poti_count', 0),
             data.get('poti_color'),
+            data.get('weight'),
             data.get('notes'),
             data.get('timestamp', datetime.now())
         ))
@@ -202,7 +216,8 @@ def get_stats():
                 COALESCE(SUM(poti_count), 0) as total_poti,
                 ROUND(AVG(temperature)::numeric, 1) as avg_temperature,
                 MAX(temperature) as max_temperature,
-                MIN(temperature) as min_temperature
+                MIN(temperature) as min_temperature,
+                MAX(weight) as latest_weight
             FROM entries
             WHERE DATE(timestamp) = %s
         ''', (date,))
