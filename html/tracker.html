@@ -92,6 +92,11 @@
         .history-item:hover {
             background-color: #f1f5f9;
         }
+
+        .datetime-section {
+            background: linear-gradient(to right, #f8fafc, #f1f5f9);
+            border-left: 3px solid #64748b;
+        }
     </style>
 </head>
 
@@ -258,6 +263,23 @@
                 </div>
             </div>
             <form id="feed-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('feed')" class="text-xs text-sky-600 hover:text-sky-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="feed-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                        <input type="time" id="feed-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+                </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Feed Type</label>
                     <select id="feed-type" required
@@ -303,6 +325,23 @@
                 </div>
             </div>
             <form id="susu-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('susu')" class="text-xs text-indigo-600 hover:text-indigo-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="susu-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                        <input type="time" id="susu-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+                </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Wet Diapers</label>
                     <input type="number" id="susu-count" min="1" max="5" value="1" required
@@ -347,6 +386,23 @@
                 </div>
             </div>
             <form id="poti-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('poti')" class="text-xs text-amber-600 hover:text-amber-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="poti-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">
+                        <input type="time" id="poti-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+                </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Soiled Diapers</label>
                     <input type="number" id="poti-count" min="1" max="5" value="1" required
@@ -403,6 +459,23 @@
                 </div>
             </div>
             <form id="temp-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('temp')" class="text-xs text-red-600 hover:text-red-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="temp-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                        <input type="time" id="temp-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+                </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Temperature (°C)</label>
                     <input type="number" id="temp-value" step="0.1" min="35" max="42" required
@@ -442,6 +515,23 @@
                 </div>
             </div>
             <form id="weight-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('weight')" class="text-xs text-purple-600 hover:text-purple-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="weight-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                        <input type="time" id="weight-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+                </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Weight (grams)</label>
                     <input type="number" id="weight-value" step="1" min="1000" max="10000" required
@@ -485,10 +575,41 @@
         const avgTempEl = document.getElementById('avg-temp');
         const currentWeightEl = document.getElementById('current-weight');
 
+        // Helper function to get current datetime in local timezone
+        function getCurrentDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            return {
+                date: `${year}-${month}-${day}`,
+                time: `${hours}:${minutes}`
+            };
+        }
+
+        // Helper function to set current date/time for a form
+        function setCurrentDateTime(type) {
+            const { date, time } = getCurrentDateTime();
+            document.getElementById(`${type}-date`).value = date;
+            document.getElementById(`${type}-time`).value = time;
+        }
+
+        // Helper function to combine date and time inputs
+        function getTimestampFromInputs(type) {
+            const date = document.getElementById(`${type}-date`).value;
+            const time = document.getElementById(`${type}-time`).value;
+            return new Date(`${date}T${time}`).toISOString();
+        }
+
         // Modal Functions
         function openModal(type) {
             document.getElementById(`${type}-modal`).classList.add('active');
             document.body.style.overflow = 'hidden';
+            // Set current date/time when opening modal
+            setCurrentDateTime(type);
         }
 
         function closeModal(type) {
@@ -539,7 +660,7 @@
                 feed_type: document.getElementById('feed-type').value,
                 feed_amount: parseInt(document.getElementById('feed-amount').value) || null,
                 notes: document.getElementById('feed-notes').value || null,
-                timestamp: new Date().toISOString()
+                timestamp: getTimestampFromInputs('feed')
             };
 
             await saveEntry(data, 'feed');
@@ -552,7 +673,7 @@
             const data = {
                 susu_count: parseInt(document.getElementById('susu-count').value),
                 notes: `Urine color: ${document.getElementById('susu-color').value}. ${document.getElementById('susu-notes').value || ''}`,
-                timestamp: new Date().toISOString()
+                timestamp: getTimestampFromInputs('susu')
             };
 
             await saveEntry(data, 'susu');
@@ -566,7 +687,7 @@
                 poti_count: parseInt(document.getElementById('poti-count').value),
                 poti_color: document.getElementById('poti-color').value,
                 notes: `Consistency: ${document.getElementById('poti-consistency').value}. ${document.getElementById('poti-notes').value || ''}`,
-                timestamp: new Date().toISOString()
+                timestamp: getTimestampFromInputs('poti')
             };
 
             await saveEntry(data, 'poti');
@@ -579,7 +700,7 @@
             const data = {
                 temperature: parseFloat(document.getElementById('temp-value').value),
                 notes: document.getElementById('temp-notes').value || null,
-                timestamp: new Date().toISOString()
+                timestamp: getTimestampFromInputs('temp')
             };
 
             await saveEntry(data, 'temp');
@@ -592,7 +713,7 @@
             const data = {
                 weight: parseInt(document.getElementById('weight-value').value),
                 notes: document.getElementById('weight-notes').value || null,
-                timestamp: new Date().toISOString()
+                timestamp: getTimestampFromInputs('weight')
             };
 
             await saveEntry(data, 'weight');
