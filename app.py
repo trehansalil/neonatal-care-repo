@@ -275,6 +275,7 @@ def get_stats():
             SELECT 
                 COUNT(CASE WHEN feed_amount > 0 THEN 1 END) as feed_count,
                 COALESCE(SUM(feed_amount), 0) as total_feed_volume,
+                ROUND(AVG(CASE WHEN feed_amount > 0 THEN feed_amount END)::numeric, 0) as avg_feed_amount,
                 COALESCE(SUM(susu_count), 0) as total_susu,
                 COALESCE(SUM(poti_count), 0) as total_poti,
                 ROUND(AVG(temperature)::numeric, 1) as avg_temperature,

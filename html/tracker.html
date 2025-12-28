@@ -176,8 +176,8 @@
         <!-- Summary Stats -->
         <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-sky-600" id="today-feeds">0</div>
-                <div class="text-sm text-slate-600 mt-1">Feeds Today</div>
+                <div class="text-3xl font-bold text-sky-600" id="today-feeds">0 | 0</div>
+                <div class="text-sm text-slate-600 mt-1">Total | Avg Feeds</div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="text-3xl font-bold text-indigo-600" id="today-susu">0</div>
@@ -956,9 +956,14 @@
             const today = new Date().toDateString();
             const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
 
-            // Feeds count
-            const feedsCount = todayEntries.filter(e => e.feed_amount > 0 || e.feed_type).length;
-            todayFeedsEl.textContent = feedsCount;
+            // Feeds count and average
+            const feedEntries = todayEntries.filter(e => e.feed_amount > 0 || e.feed_type);
+            const feedsCount = feedEntries.length;
+            const feedAmounts = feedEntries.filter(e => e.feed_amount > 0).map(e => e.feed_amount);
+            const avgFeed = feedAmounts.length > 0 
+                ? Math.round(feedAmounts.reduce((sum, amt) => sum + amt, 0) / feedAmounts.length)
+                : 0;
+            todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
 
             // Susu total
             const susuTotal = todayEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
