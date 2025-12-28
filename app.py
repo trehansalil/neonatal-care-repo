@@ -295,6 +295,12 @@ def delete_entry(entry_id):
     try:
         client = get_db_connection()
         
+        # Check if entry exists before attempting deletion
+        result = client.query('SELECT id FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+        
+        if not result.result_rows:
+            return jsonify({'error': 'Entry not found'}), 404
+        
         # ClickHouse uses ALTER TABLE DELETE for deletes
         client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
         
