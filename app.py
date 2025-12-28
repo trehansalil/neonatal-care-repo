@@ -21,6 +21,10 @@ DB_CONFIG = {
 # Timezone configuration - set your local timezone
 LOCAL_TIMEZONE = pytz.timezone(os.environ.get('TZ', 'Asia/Kolkata'))  # Default to IST
 
+# Mutation verification configuration
+MUTATION_VERIFICATION_MAX_RETRIES = 10
+MUTATION_VERIFICATION_RETRY_DELAY = 0.1  # seconds
+
 def get_db_connection():
     """Create a database connection with retry logic"""
     max_retries = 5
@@ -261,12 +265,9 @@ def update_entry(entry_id):
             return jsonify({'error': 'Failed to delete old entry'}), 500
         
         # Wait for the mutation to be processed and verify deletion
-        max_retries = 10
-        retry_delay = 0.1
         deletion_verified = False
         
-        for attempt in range(max_retries):
-            time.sleep(retry_delay)
+        for attempt in range(MUTATION_VERIFICATION_MAX_RETRIES):
             try:
                 verify_result = client.query('SELECT COUNT(*) FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
                 count = verify_result.result_rows[0][0]
@@ -275,7 +276,10 @@ def update_entry(entry_id):
                     break
             except Exception as verify_error:
                 print(f"Error verifying deletion (attempt {attempt + 1}): {verify_error}")
-                continue
+            
+            # Sleep before next retry (only if we haven't verified yet)
+            if not deletion_verified and attempt < MUTATION_VERIFICATION_MAX_RETRIES - 1:
+                time.sleep(MUTATION_VERIFICATION_RETRY_DELAY)
         
         if not deletion_verified:
             return jsonify({'error': 'Failed to verify deletion of old entry. Update aborted to prevent duplicates.'}), 500
