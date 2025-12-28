@@ -103,6 +103,7 @@ def serve_static(path):
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
     """Get all entries"""
+    client = None
     try:
         client = get_db_connection()
         
@@ -137,15 +138,18 @@ def get_entries():
                 'created_at': row[10].isoformat() if row[10] else None
             })
         
-        client.close()
         return jsonify(entries)
     except Exception as e:
         print(f"Error fetching entries: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/entries', methods=['POST'])
 def create_entry():
     """Create a new entry"""
+    client = None
     try:
         data = request.json
         
@@ -189,15 +193,18 @@ def create_entry():
             'notes', 'timestamp', 'created_at'
         ])
         
-        client.close()
         return jsonify({'id': entry_id, 'message': 'Entry created successfully'}), 201
     except Exception as e:
         print(f"Error creating entry: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/entries/<int:entry_id>', methods=['PUT'])
 def update_entry(entry_id):
     """Update a specific entry - uses delete + insert pattern for ClickHouse"""
+    client = None
     try:
         data = request.get_json()
         client = get_db_connection()
@@ -206,12 +213,10 @@ def update_entry(entry_id):
         try:
             result = client.query('SELECT * FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
         except Exception as db_error:
-            client.close()
             print(f"Database error while fetching entry: {db_error}")
             return jsonify({'error': 'Database error occurred while fetching entry'}), 500
         
         if not result.result_rows:
-            client.close()
             return jsonify({'error': 'Entry not found'}), 404
         
         existing = result.result_rows[0]
@@ -273,47 +278,56 @@ def update_entry(entry_id):
             'notes', 'timestamp', 'created_at'
         ])
         
-        client.close()
         return jsonify({'message': 'Entry updated successfully'}), 200
     except Exception as e:
         print(f"Error updating entry: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/entries/<int:entry_id>', methods=['DELETE'])
 def delete_entry(entry_id):
     """Delete a specific entry"""
+    client = None
     try:
         client = get_db_connection()
         
         # ClickHouse uses ALTER TABLE DELETE for deletes
         client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
         
-        client.close()
         return jsonify({'message': 'Entry deleted successfully'}), 200
     except Exception as e:
         print(f"Error deleting entry: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/entries', methods=['DELETE'])
 def delete_all_entries():
     """Delete all entries"""
+    client = None
     try:
         client = get_db_connection()
         
         # Truncate table in ClickHouse
         client.command('TRUNCATE TABLE entries')
         
-        client.close()
         return jsonify({'message': 'All entries deleted successfully'}), 200
     except Exception as e:
         print(f"Error deleting entries: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     """Get daily statistics"""
+    client = None
     try:
         date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
         
@@ -353,22 +367,27 @@ def get_stats():
         else:
             stats = {}
         
-        client.close()
         return jsonify(stats)
     except Exception as e:
         print(f"Error fetching stats: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    client = None
     try:
         client = get_db_connection()
         result = client.query('SELECT 1')
-        client.close()
         return jsonify({'status': 'healthy', 'database': 'connected'}), 200
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
