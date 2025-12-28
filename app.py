@@ -254,29 +254,54 @@ def update_entry(entry_id):
         updated_created_at = existing[10]
         
         # Delete the old entry
-        client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+        try:
+            client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+        except Exception as delete_error:
+            print(f"Error executing DELETE mutation: {delete_error}")
+            return jsonify({'error': 'Failed to delete old entry'}), 500
         
-        # Wait briefly for the mutation to be processed
-        time.sleep(0.1)
+        # Wait for the mutation to be processed and verify deletion
+        max_retries = 10
+        retry_delay = 0.1
+        deletion_verified = False
+        
+        for attempt in range(max_retries):
+            time.sleep(retry_delay)
+            try:
+                verify_result = client.query('SELECT COUNT(*) FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+                count = verify_result.result_rows[0][0]
+                if count == 0:
+                    deletion_verified = True
+                    break
+            except Exception as verify_error:
+                print(f"Error verifying deletion (attempt {attempt + 1}): {verify_error}")
+                continue
+        
+        if not deletion_verified:
+            return jsonify({'error': 'Failed to verify deletion of old entry. Update aborted to prevent duplicates.'}), 500
         
         # Insert the updated entry
-        client.insert('entries', [[
-            updated_id,
-            updated_temp,
-            updated_feed_amount,
-            updated_feed_type,
-            updated_susu,
-            updated_poti,
-            updated_poti_color,
-            updated_weight,
-            updated_notes,
-            updated_timestamp,
-            updated_created_at
-        ]], column_names=[
-            'id', 'temperature', 'feed_amount', 'feed_type',
-            'susu_count', 'poti_count', 'poti_color', 'weight',
-            'notes', 'timestamp', 'created_at'
-        ])
+        try:
+            client.insert('entries', [[
+                updated_id,
+                updated_temp,
+                updated_feed_amount,
+                updated_feed_type,
+                updated_susu,
+                updated_poti,
+                updated_poti_color,
+                updated_weight,
+                updated_notes,
+                updated_timestamp,
+                updated_created_at
+            ]], column_names=[
+                'id', 'temperature', 'feed_amount', 'feed_type',
+                'susu_count', 'poti_count', 'poti_color', 'weight',
+                'notes', 'timestamp', 'created_at'
+            ])
+        except Exception as insert_error:
+            print(f"Error inserting updated entry: {insert_error}")
+            return jsonify({'error': 'Failed to insert updated entry'}), 500
         
         return jsonify({'message': 'Entry updated successfully'}), 200
     except Exception as e:
