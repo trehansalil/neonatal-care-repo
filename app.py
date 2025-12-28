@@ -257,6 +257,9 @@ def update_entry(entry_id):
         
         updated_created_at = existing[10]
         
+        # Log the original entry for recovery in case of INSERT failure
+        print(f"Updating entry {entry_id}. Original data: {existing}")
+        
         # Delete the old entry
         try:
             client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
@@ -277,9 +280,8 @@ def update_entry(entry_id):
             except Exception as verify_error:
                 print(f"Error verifying deletion (attempt {attempt + 1}): {verify_error}")
             
-            # Sleep before next retry (only if we haven't verified yet)
-            if not deletion_verified and attempt < MUTATION_VERIFICATION_MAX_RETRIES - 1:
-                time.sleep(MUTATION_VERIFICATION_RETRY_DELAY)
+            # Sleep before next retry
+            time.sleep(MUTATION_VERIFICATION_RETRY_DELAY)
         
         if not deletion_verified:
             return jsonify({'error': 'Failed to verify deletion of old entry. Update aborted to prevent duplicates.'}), 500
