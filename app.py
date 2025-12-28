@@ -203,7 +203,13 @@ def update_entry(entry_id):
         client = get_db_connection()
         
         # First, fetch the existing entry
-        result = client.query('SELECT * FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+        try:
+            result = client.query('SELECT * FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+        except Exception as db_error:
+            client.close()
+            print(f"Database error while fetching entry: {db_error}")
+            return jsonify({'error': 'Database error occurred while fetching entry'}), 500
+        
         if not result.result_rows:
             client.close()
             return jsonify({'error': 'Entry not found'}), 404
@@ -243,10 +249,7 @@ def update_entry(entry_id):
         updated_created_at = existing[10]
         
         # Delete the old entry
-        client.command(
-            'ALTER TABLE entries DELETE WHERE id = %(id)s',
-            parameters={'id': entry_id}
-        )
+        client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
         
         # Wait briefly for the mutation to be processed
         time.sleep(0.1)
@@ -285,7 +288,7 @@ def delete_entry(entry_id):
         client = get_db_connection()
         
         # ClickHouse uses ALTER TABLE DELETE for deletes
-        client.command(f'ALTER TABLE entries DELETE WHERE id = {entry_id}')
+        client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
         
         client.close()
         return jsonify({'message': 'Entry deleted successfully'}), 200
