@@ -24,5 +24,4 @@ PRIMARY KEY (timestamp, id)
 PARTITION BY toYYYYMM(timestamp)
 SETTINGS index_granularity = 8192;
 
--- Create a sequence for auto-incrementing IDs
--- Note: ClickHouse doesn't have native sequences, so we'll handle this in the application layer
+-- Note: IDs are not auto-incremented in ClickHouse; the application layer must provide unique IDs
