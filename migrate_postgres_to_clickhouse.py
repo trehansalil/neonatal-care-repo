@@ -4,7 +4,6 @@ Migration script to transfer data from PostgreSQL to ClickHouse
 """
 import psycopg
 import clickhouse_connect
-from datetime import datetime
 import os
 
 # PostgreSQL configuration
