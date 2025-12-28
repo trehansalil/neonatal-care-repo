@@ -381,7 +381,7 @@ def health_check():
     client = None
     try:
         client = get_db_connection()
-        result = client.query('SELECT 1')
+        client.query('SELECT 1')
         return jsonify({'status': 'healthy', 'database': 'connected'}), 200
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
