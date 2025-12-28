@@ -41,5 +41,33 @@ services:
       - ./html:/app/html
       - ./app.py:/app/app.py
 
+  # ClickHouse Analytics Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: baby-tracker-clickhouse
+    environment:
+      CLICKHOUSE_DB: baby_analytics
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native protocol
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  clickhouse_data:
+  clickhouse_logs:
