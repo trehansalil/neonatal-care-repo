@@ -156,6 +156,69 @@ def create_entry():
         print(f"Error creating entry: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/entries/<int:entry_id>', methods=['PUT'])
+def update_entry(entry_id):
+    """Update a specific entry"""
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Build update query dynamically based on provided fields
+        update_fields = []
+        update_values = []
+        
+        if 'temperature' in data:
+            update_fields.append('temperature = %s')
+            update_values.append(data['temperature'])
+        if 'feed_amount' in data:
+            update_fields.append('feed_amount = %s')
+            update_values.append(data['feed_amount'])
+        if 'feed_type' in data:
+            update_fields.append('feed_type = %s')
+            update_values.append(data['feed_type'])
+        if 'susu_count' in data:
+            update_fields.append('susu_count = %s')
+            update_values.append(data['susu_count'])
+        if 'poti_count' in data:
+            update_fields.append('poti_count = %s')
+            update_values.append(data['poti_count'])
+        if 'poti_color' in data:
+            update_fields.append('poti_color = %s')
+            update_values.append(data['poti_color'])
+        if 'weight' in data:
+            update_fields.append('weight = %s')
+            update_values.append(data['weight'])
+        if 'notes' in data:
+            update_fields.append('notes = %s')
+            update_values.append(data['notes'])
+        if 'timestamp' in data:
+            update_fields.append('timestamp = %s')
+            update_values.append(data['timestamp'])
+        
+        if not update_fields:
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        # Add entry_id to values for WHERE clause
+        update_values.append(entry_id)
+        
+        query = f"UPDATE entries SET {', '.join(update_fields)} WHERE id = %s"
+        cur.execute(query, update_values)
+        
+        if cur.rowcount == 0:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'message': 'Entry updated successfully'}), 200
+    except Exception as e:
+        print(f"Error updating entry: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/entries/<int:entry_id>', methods=['DELETE'])
 def delete_entry(entry_id):
     """Delete a specific entry"""

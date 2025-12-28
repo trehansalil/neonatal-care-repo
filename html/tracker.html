@@ -564,6 +564,7 @@
         // State
         let entries = [];
         let weightChart = null;
+        let currentEditingEntry = null;
 
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
@@ -605,17 +606,65 @@
         }
 
         // Modal Functions
-        function openModal(type) {
-            document.getElementById(`${type}-modal`).classList.add('active');
+        function openModal(type, entry = null) {
+            currentEditingEntry = entry;
+            const modal = document.getElementById(`${type}-modal`);
+            modal.classList.add('active');
             document.body.style.overflow = 'hidden';
-            // Set current date/time when opening modal
-            setCurrentDateTime(type);
+            
+            // Update modal title
+            const modalTitle = modal.querySelector('h2');
+            if (modalTitle) {
+                const originalTitle = modalTitle.textContent.replace('Edit ', '');
+                modalTitle.textContent = entry ? `Edit ${originalTitle}` : originalTitle;
+            }
+            
+            if (entry) {
+                // Pre-fill form with entry data
+                const entryDate = new Date(entry.timestamp);
+                const dateStr = entryDate.toISOString().split('T')[0];
+                const timeStr = entryDate.toTimeString().slice(0, 5);
+                
+                document.getElementById(`${type}-date`).value = dateStr;
+                document.getElementById(`${type}-time`).value = timeStr;
+                
+                // Fill type-specific fields
+                if (type === 'feed') {
+                    if (entry.feed_type) document.getElementById('feed-type').value = entry.feed_type;
+                    if (entry.feed_amount) document.getElementById('feed-amount').value = entry.feed_amount;
+                    if (entry.notes) document.getElementById('feed-notes').value = entry.notes;
+                } else if (type === 'susu') {
+                    if (entry.susu_count) document.getElementById('susu-count').value = entry.susu_count;
+                    if (entry.notes) document.getElementById('susu-notes').value = entry.notes;
+                } else if (type === 'poti') {
+                    if (entry.poti_count) document.getElementById('poti-count').value = entry.poti_count;
+                    if (entry.poti_color) document.getElementById('poti-color').value = entry.poti_color;
+                    if (entry.notes) document.getElementById('poti-notes').value = entry.notes;
+                } else if (type === 'temp') {
+                    if (entry.temperature) document.getElementById('temp-value').value = entry.temperature;
+                    if (entry.notes) document.getElementById('temp-notes').value = entry.notes;
+                } else if (type === 'weight') {
+                    if (entry.weight) document.getElementById('weight-value').value = entry.weight;
+                    if (entry.notes) document.getElementById('weight-notes').value = entry.notes;
+                }
+            } else {
+                // Set current date/time when creating new entry
+                setCurrentDateTime(type);
+            }
         }
 
         function closeModal(type) {
-            document.getElementById(`${type}-modal`).classList.remove('active');
+            const modal = document.getElementById(`${type}-modal`);
+            modal.classList.remove('active');
             document.body.style.overflow = 'auto';
             document.getElementById(`${type}-form`).reset();
+            currentEditingEntry = null;
+            
+            // Reset modal title
+            const modalTitle = modal.querySelector('h2');
+            if (modalTitle) {
+                modalTitle.textContent = modalTitle.textContent.replace('Edit ', '');
+            }
             
             // Hide temp warning if visible
             if (type === 'temp') {
@@ -722,13 +771,27 @@
         // Save Entry
         async function saveEntry(data, type) {
             try {
-                const response = await fetch(`${API_BASE_URL}/entries`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
+                let response;
+                
+                if (currentEditingEntry) {
+                    // Update existing entry
+                    response = await fetch(`${API_BASE_URL}/entries/${currentEditingEntry.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // Create new entry
+                    response = await fetch(`${API_BASE_URL}/entries`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+                }
 
                 if (response.ok) {
                     closeModal(type);
@@ -736,7 +799,7 @@
                     if (type === 'weight') {
                         updateWeightChart();
                     }
-                    showToast('Entry saved successfully!', 'success');
+                    showToast(currentEditingEntry ? 'Entry updated successfully!' : 'Entry saved successfully!', 'success');
                 } else {
                     throw new Error('Failed to save entry');
                 }
@@ -828,9 +891,14 @@
                             </div>
                             <div class="text-right">
                                 <div class="text-sm font-semibold text-slate-600">${timeStr}</div>
-                                <button onclick="deleteEntry(${entry.id})" class="text-xs text-red-500 hover:text-red-700 mt-1">
-                                    Delete
-                                </button>
+                                <div class="flex gap-2 mt-1">
+                                    <button onclick="editEntry(${entry.id})" class="text-xs text-sky-600 hover:text-sky-700 font-medium">
+                                        Edit
+                                    </button>
+                                    <button onclick="deleteEntry(${entry.id})" class="text-xs text-red-500 hover:text-red-700">
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         ${entry.notes ? `
@@ -841,6 +909,25 @@
                     </div>
                 </div>
             `;
+        }
+
+        // Edit Entry
+        function editEntry(id) {
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+            
+            // Determine which modal to open based on entry type
+            if (entry.feed_amount || entry.feed_type) {
+                openModal('feed', entry);
+            } else if (entry.susu_count > 0) {
+                openModal('susu', entry);
+            } else if (entry.poti_count > 0) {
+                openModal('poti', entry);
+            } else if (entry.temperature) {
+                openModal('temp', entry);
+            } else if (entry.weight) {
+                openModal('weight', entry);
+            }
         }
 
         // Delete Entry
