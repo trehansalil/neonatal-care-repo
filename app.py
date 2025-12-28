@@ -243,7 +243,10 @@ def update_entry(entry_id):
         updated_created_at = existing[10]
         
         # Delete the old entry
-        client.command(f'ALTER TABLE entries DELETE WHERE id = {entry_id}')
+        client.command(
+            'ALTER TABLE entries DELETE WHERE id = %(id)s',
+            parameters={'id': entry_id}
+        )
         
         # Wait briefly for the mutation to be processed
         time.sleep(0.1)
