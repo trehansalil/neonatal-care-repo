@@ -203,7 +203,13 @@ def update_entry(entry_id):
         client = get_db_connection()
         
         # First, fetch the existing entry
-        result = client.query('SELECT * FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+        try:
+            result = client.query('SELECT * FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
+        except Exception as db_error:
+            client.close()
+            print(f"Database error while fetching entry: {db_error}")
+            return jsonify({'error': 'Database error occurred while fetching entry'}), 500
+        
         if not result.result_rows:
             client.close()
             return jsonify({'error': 'Entry not found'}), 404
