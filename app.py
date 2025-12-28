@@ -44,6 +44,11 @@ def get_next_id(client):
     max_id = result.result_rows[0][0] if result.result_rows and result.result_rows[0][0] else 0
     return (max_id or 0) + 1
 
+def entry_exists(client, entry_id):
+    """Check if an entry exists in the database"""
+    result = client.query('SELECT 1 FROM entries WHERE id = %(id)s LIMIT 1', parameters={'id': entry_id})
+    return bool(result.result_rows)
+
 def init_db():
     """Initialize database tables"""
     # First connect without specifying database to create it
@@ -296,9 +301,7 @@ def delete_entry(entry_id):
         client = get_db_connection()
         
         # Check if entry exists before attempting deletion
-        result = client.query('SELECT id FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
-        
-        if not result.result_rows:
+        if not entry_exists(client, entry_id):
             return jsonify({'error': 'Entry not found'}), 404
         
         # ClickHouse uses ALTER TABLE DELETE for deletes
