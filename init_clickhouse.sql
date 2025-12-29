@@ -25,8 +25,7 @@ PARTITION BY toYYYYMM(timestamp)
 SETTINGS index_granularity = 8192;
 
 -- Create backup table for update rollback support
--- Note: This table uses DateTime instead of DateTime64 because it's a simpler schema
--- The actual application in app.py uses DateTime64(3) with timezone for both tables
+-- This matches the entries table structure for proper data type compatibility
 CREATE TABLE IF NOT EXISTS entries_backup (
     id UInt32,
     temperature Nullable(Decimal32(1)),

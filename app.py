@@ -60,8 +60,21 @@ def entry_exists(client, entry_id):
     return bool(result.result_rows)
 
 def backup_entry(client, entry_data, entry_id):
-    """Backup an entry to the entries_backup table before modification"""
+    """
+    Backup an entry to the entries_backup table before modification.
+    
+    Args:
+        client: ClickHouse client connection
+        entry_data: Row data from SELECT * FROM entries query
+                   Expected column order: id, temperature, feed_amount, feed_type,
+                   susu_count, poti_count, poti_color, weight, notes, timestamp, created_at
+        entry_id: The ID of the entry being backed up
+    
+    Returns:
+        bool: True if backup successful, False otherwise
+    """
     try:
+        # Column order matches the entries table structure
         client.insert('entries_backup', [[
             entry_data[0], entry_data[1], entry_data[2], entry_data[3],
             entry_data[4], entry_data[5], entry_data[6], entry_data[7],
@@ -78,7 +91,16 @@ def backup_entry(client, entry_data, entry_id):
         return False
 
 def restore_entry_from_backup(client, entry_id):
-    """Restore an entry from the backup table"""
+    """
+    Restore an entry from the backup table.
+    
+    Args:
+        client: ClickHouse client connection
+        entry_id: The ID of the entry to restore
+    
+    Returns:
+        bool: True if restore successful, False otherwise
+    """
     try:
         backup_result = client.query(
             'SELECT * FROM entries_backup WHERE id = %(id)s ORDER BY backup_timestamp DESC LIMIT 1',
@@ -86,6 +108,7 @@ def restore_entry_from_backup(client, entry_id):
         )
         if backup_result.result_rows:
             backup_data = backup_result.result_rows[0]
+            # Column order matches the entries table structure
             client.insert('entries', [[
                 backup_data[0], backup_data[1], backup_data[2], backup_data[3],
                 backup_data[4], backup_data[5], backup_data[6], backup_data[7],
@@ -422,6 +445,16 @@ def update_entry(entry_id):
         print(f"Error updating entry: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Attempt to clean up backup if one was created
+        if backup_created and client is not None:
+            try:
+                print(f"Attempting to cleanup backup for entry {entry_id} after unexpected error")
+                client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                print(f"Backup cleanup successful after error for entry {entry_id}")
+            except Exception as cleanup_error:
+                print(f"Warning: Failed to cleanup backup after error for entry {entry_id}: {cleanup_error}")
+        
         return jsonify({'error': str(e)}), 500
     finally:
         if client is not None:
