@@ -1,4 +1,8 @@
 -- Initialize the baby tracker database in ClickHouse
+-- NOTE: The application (app.py) will automatically create these tables with the correct
+-- schema including timezone-aware DateTime64 types. This file is primarily for reference
+-- and manual database initialization if needed.
+
 -- Create database
 CREATE DATABASE IF NOT EXISTS baby_tracker;
 

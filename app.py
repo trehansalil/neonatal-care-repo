@@ -102,13 +102,19 @@ def restore_entry_from_backup(client, entry_id):
         bool: True if restore successful, False otherwise
     """
     try:
+        # Select only the original entry columns (excluding backup_timestamp which is column 11)
         backup_result = client.query(
-            'SELECT * FROM entries_backup WHERE id = %(id)s ORDER BY backup_timestamp DESC LIMIT 1',
+            '''SELECT id, temperature, feed_amount, feed_type, susu_count, poti_count, 
+               poti_color, weight, notes, timestamp, created_at 
+               FROM entries_backup 
+               WHERE id = %(id)s 
+               ORDER BY backup_timestamp DESC 
+               LIMIT 1''',
             parameters={'id': entry_id}
         )
         if backup_result.result_rows:
             backup_data = backup_result.result_rows[0]
-            # Column order matches the entries table structure
+            # Column order matches the entries table structure (11 columns)
             client.insert('entries', [[
                 backup_data[0], backup_data[1], backup_data[2], backup_data[3],
                 backup_data[4], backup_data[5], backup_data[6], backup_data[7],
