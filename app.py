@@ -43,10 +43,16 @@ def get_db_connection():
                 raise
 
 def get_next_id(client):
-    """Get the next ID for entries table"""
-    result = client.query('SELECT MAX(id) as max_id FROM entries')
-    max_id = result.result_rows[0][0] if result.result_rows and result.result_rows[0][0] else 0
-    return (max_id or 0) + 1
+    """Generate a new unique ID for the entries table without using MAX(id)."""
+    # Use ClickHouse to generate a random UInt32-compatible ID derived from a UUID,
+    # and verify that it is not already used to avoid collisions.
+    while True:
+        result = client.query(
+            'SELECT cityHash64(generateUUIDv4()) % 4294967295 AS new_id'
+        )
+        new_id = result.result_rows[0][0]
+        if not entry_exists(client, new_id):
+            return new_id
 
 def entry_exists(client, entry_id):
     """Check if an entry exists in the database"""
