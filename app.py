@@ -361,7 +361,7 @@ def delete_all_entries():
         return jsonify({
             'error': 'Confirmation required',
             'message': 'To delete all entries, include header: X-Confirm-Delete-All: I-understand-this-is-permanent'
-        }), 403
+        }), 400
     
     client = None
     try:
