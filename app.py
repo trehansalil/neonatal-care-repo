@@ -25,6 +25,13 @@ LOCAL_TIMEZONE = pytz.timezone(os.environ.get('TZ', 'Asia/Kolkata'))  # Default 
 MUTATION_VERIFICATION_MAX_RETRIES = int(os.environ.get('MUTATION_VERIFICATION_MAX_RETRIES', '10'))
 MUTATION_VERIFICATION_RETRY_DELAY = float(os.environ.get('MUTATION_VERIFICATION_RETRY_DELAY', '0.1'))  # seconds
 
+# Column names for entries table (used in insert operations)
+ENTRY_COLUMNS = [
+    'id', 'temperature', 'feed_amount', 'feed_type',
+    'susu_count', 'poti_count', 'poti_color', 'weight',
+    'notes', 'timestamp', 'created_at'
+]
+
 def get_db_connection():
     """Create a database connection with retry logic"""
     max_retries = 5
@@ -74,16 +81,12 @@ def backup_entry(client, entry_data, entry_id):
         bool: True if backup successful, False otherwise
     """
     try:
-        # Column order matches the entries table structure
+        # Column order matches ENTRY_COLUMNS constant
         client.insert('entries_backup', [[
             entry_data[0], entry_data[1], entry_data[2], entry_data[3],
             entry_data[4], entry_data[5], entry_data[6], entry_data[7],
             entry_data[8], entry_data[9], entry_data[10]
-        ]], column_names=[
-            'id', 'temperature', 'feed_amount', 'feed_type',
-            'susu_count', 'poti_count', 'poti_color', 'weight',
-            'notes', 'timestamp', 'created_at'
-        ])
+        ]], column_names=ENTRY_COLUMNS)
         print(f"Backup created successfully for entry {entry_id}")
         return True
     except Exception as backup_error:
@@ -114,16 +117,12 @@ def restore_entry_from_backup(client, entry_id):
         )
         if backup_result.result_rows:
             backup_data = backup_result.result_rows[0]
-            # Column order matches the entries table structure (11 columns)
+            # Column order matches ENTRY_COLUMNS constant (11 columns)
             client.insert('entries', [[
                 backup_data[0], backup_data[1], backup_data[2], backup_data[3],
                 backup_data[4], backup_data[5], backup_data[6], backup_data[7],
                 backup_data[8], backup_data[9], backup_data[10]
-            ]], column_names=[
-                'id', 'temperature', 'feed_amount', 'feed_type',
-                'susu_count', 'poti_count', 'poti_color', 'weight',
-                'notes', 'timestamp', 'created_at'
-            ])
+            ]], column_names=ENTRY_COLUMNS)
             print(f"Rollback successful: restored entry {entry_id} from backup")
             return True
         else:
@@ -298,11 +297,7 @@ def create_entry():
             data.get('notes'),
             timestamp,
             datetime.now(LOCAL_TIMEZONE)
-        ]], column_names=[
-            'id', 'temperature', 'feed_amount', 'feed_type',
-            'susu_count', 'poti_count', 'poti_color', 'weight',
-            'notes', 'timestamp', 'created_at'
-        ])
+        ]], column_names=ENTRY_COLUMNS)
         
         return jsonify({'id': entry_id, 'message': 'Entry created successfully'}), 201
     except Exception as e:
@@ -424,11 +419,7 @@ def update_entry(entry_id):
                 updated_notes,
                 updated_timestamp,
                 updated_created_at
-            ]], column_names=[
-                'id', 'temperature', 'feed_amount', 'feed_type',
-                'susu_count', 'poti_count', 'poti_color', 'weight',
-                'notes', 'timestamp', 'created_at'
-            ])
+            ]], column_names=ENTRY_COLUMNS)
             print(f"Successfully inserted updated entry {entry_id}")
         except Exception as insert_error:
             print(f"Error inserting updated entry: {insert_error}. Attempting rollback from backup.")
