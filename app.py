@@ -22,8 +22,8 @@ DB_CONFIG = {
 LOCAL_TIMEZONE = pytz.timezone(os.environ.get('TZ', 'Asia/Kolkata'))  # Default to IST
 
 # Mutation verification configuration
-MUTATION_VERIFICATION_MAX_RETRIES = 10
-MUTATION_VERIFICATION_RETRY_DELAY = 0.1  # seconds
+MUTATION_VERIFICATION_MAX_RETRIES = int(os.environ.get('MUTATION_VERIFICATION_MAX_RETRIES', '10'))
+MUTATION_VERIFICATION_RETRY_DELAY = float(os.environ.get('MUTATION_VERIFICATION_RETRY_DELAY', '0.1'))  # seconds
 
 def get_db_connection():
     """Create a database connection with retry logic"""
