@@ -354,7 +354,15 @@ def delete_entry(entry_id):
 
 @app.route('/api/entries', methods=['DELETE'])
 def delete_all_entries():
-    """Delete all entries"""
+    """Delete all entries - requires confirmation header for safety"""
+    # Safety check: require special confirmation header
+    confirmation_header = request.headers.get('X-Confirm-Delete-All')
+    if confirmation_header != 'I-understand-this-is-permanent':
+        return jsonify({
+            'error': 'Confirmation required',
+            'message': 'To delete all entries, include header: X-Confirm-Delete-All: I-understand-this-is-permanent'
+        }), 403
+    
     client = None
     try:
         client = get_db_connection()
