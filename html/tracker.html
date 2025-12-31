@@ -626,6 +626,16 @@
             document.getElementById(`${type}-time`).value = time;
         }
 
+        // Parse poti notes to extract consistency and free-text notes
+        function parsePotiNotes(noteText) {
+            if (!noteText) return { consistency: null, text: '' };
+            const match = noteText.match(/^Consistency:\s*([^\.\n]+)\.?(.*)$/i);
+            if (!match) return { consistency: null, text: noteText.trim() };
+            const consistency = match[1].trim().toLowerCase();
+            const text = (match[2] || '').trim();
+            return { consistency, text };
+        }
+
         // Helper function to combine date and time inputs
         function getTimestampFromInputs(type) {
             const date = document.getElementById(`${type}-date`).value;
@@ -667,7 +677,11 @@
                 } else if (type === 'poti') {
                     if (entry.poti_count) document.getElementById('poti-count').value = entry.poti_count;
                     if (entry.poti_color) document.getElementById('poti-color').value = entry.poti_color;
-                    if (entry.notes) document.getElementById('poti-notes').value = entry.notes;
+                    const { consistency, text } = parsePotiNotes(entry.notes);
+                    if (consistency) {
+                        document.getElementById('poti-consistency').value = consistency;
+                    }
+                    if (text) document.getElementById('poti-notes').value = text;
                 } else if (type === 'temp') {
                     if (entry.temperature) document.getElementById('temp-value').value = entry.temperature;
                     if (entry.notes) document.getElementById('temp-notes').value = entry.notes;
