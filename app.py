@@ -42,7 +42,12 @@ ENTRY_COLUMNS = [
 # This ensures strong consistency but can cause latency in replicated setups.
 # In single-node deployments, this provides immediate consistency.
 # Set to 0 for async (no wait), 1 for wait on initiator replica, 2 for wait on all replicas.
-MUTATIONS_SYNC_LEVEL = int(os.environ.get('MUTATIONS_SYNC_LEVEL', '2'))
+try:
+    MUTATIONS_SYNC_LEVEL = int(os.environ.get('MUTATIONS_SYNC_LEVEL', '2'))
+except (ValueError, TypeError) as e:
+    print(f"Invalid MUTATIONS_SYNC_LEVEL value: {os.environ.get('MUTATIONS_SYNC_LEVEL')}. "
+          f"Falling back to default 2. Error: {e}")
+    MUTATIONS_SYNC_LEVEL = 2
 
 def get_db_connection():
     """Create a database connection with retry logic"""
