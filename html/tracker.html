@@ -645,10 +645,11 @@
         }
 
         // Helper function to combine date and time inputs
+        // Return a local-naive timestamp string so the backend treats it as local time
         function getTimestampFromInputs(type) {
             const date = document.getElementById(`${type}-date`).value;
             const time = document.getElementById(`${type}-time`).value;
-            return new Date(`${date}T${time}`).toISOString();
+            return `${date}T${time}`;
         }
 
         // Modal Functions
@@ -668,7 +669,11 @@
             if (entry) {
                 // Pre-fill form with entry data
                 const entryDate = new Date(entry.timestamp);
-                const dateStr = entryDate.toISOString().split('T')[0];
+                // Use local date parts to avoid UTC shift when prefilling
+                const year = entryDate.getFullYear();
+                const month = String(entryDate.getMonth() + 1).padStart(2, '0');
+                const day = String(entryDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
                 const timeStr = entryDate.toTimeString().slice(0, 5);
                 
                 document.getElementById(`${type}-date`).value = dateStr;
