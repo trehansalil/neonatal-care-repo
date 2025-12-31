@@ -425,17 +425,19 @@ def update_entry(entry_id):
                     print(f"Warning: Failed to cleanup backup after rollback for entry {entry_id}: {cleanup_error}")
                 return jsonify({'error': 'Failed to insert updated entry. Original entry restored from backup.'}), 409
             else:
-                # Rollback failed; the original entry may be lost. Attempt to clean up the backup
-                # since it no longer helps and would otherwise remain orphaned.
-                try:
-                    client.command(
-                        'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
-                        parameters={'backup_id': backup_id}
-                    )
-                    print(f"Backup cleanup attempted after failed rollback for entry {entry_id}")
-                except Exception as cleanup_error:
-                    print(f"Warning: Failed to cleanup backup after failed rollback for entry {entry_id}: {cleanup_error}")
-                return jsonify({'error': 'CRITICAL: Failed to insert updated entry and rollback failed. Entry may be lost. Check entries_backup table.'}), 500
+                # CRITICAL: Both insert and rollback failed. Do NOT delete the backup here.
+                # The backup row in entries_backup is intentionally retained so that an
+                # administrator can manually restore the original entry using backup_id.
+                print(
+                    f"CRITICAL: Failed to insert updated entry and rollback failed for entry {entry_id}. "
+                    f"Backup retained with backup_id={backup_id} for manual recovery."
+                )
+                return jsonify({
+                    'error': 'CRITICAL: Failed to insert updated entry and rollback failed. '
+                             'Original entry may be missing, but a backup has been retained for manual recovery.',
+                    'entry_id': entry_id,
+                    'backup_id': backup_id
+                }), 500
         
         # STEP 4: Clean up the backup entry after successful update
         try:
