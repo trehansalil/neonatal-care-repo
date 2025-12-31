@@ -2,10 +2,20 @@
 """
 Migration script to transfer data from PostgreSQL to ClickHouse
 """
-import psycopg
-import clickhouse_connect
 import os
+import sys
 
+try:
+    import psycopg
+except ImportError as exc:
+    print(
+        "This migration script requires the 'psycopg' package to connect to PostgreSQL.\n"
+        "Install it with: pip install psycopg[binary]",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from exc
+
+import clickhouse_connect
 # PostgreSQL configuration
 PG_CONFIG = {
     'host': os.environ.get('PG_HOST', 'localhost'),
