@@ -629,19 +629,22 @@
         // Parse poti notes to extract consistency and free-text notes
         // Valid consistency values are: loose, soft, normal, hard, watery
         function parsePotiNotes(noteText) {
-            if (!noteText) return { consistency: null, text: '' };
+            if (!noteText) return { consistency: null, text: '', error: null };
             const match = noteText.match(/^Consistency:\s*([^\.\n]+)\.?(.*)$/i);
-            if (!match) return { consistency: null, text: noteText.trim() };
+            if (!match) return { consistency: null, text: noteText.trim(), error: null };
             const consistency = match[1].trim().toLowerCase();
             const text = (match[2] || '').trim();
             
             // Validate consistency value against expected values
             const validConsistencies = ['loose', 'soft', 'normal', 'hard', 'watery'];
             if (!validConsistencies.includes(consistency)) {
-                console.warn(`Unexpected consistency value: ${consistency}. Expected one of: ${validConsistencies.join(', ')}`);
+                const errorMessage = `Unexpected consistency value: ${consistency}. Expected one of: ${validConsistencies.join(', ')}`;
+                console.warn(errorMessage);
+                // Treat entire note as free-text when consistency is invalid
+                return { consistency: null, text: noteText.trim(), error: errorMessage };
             }
             
-            return { consistency, text };
+            return { consistency, text, error: null };
         }
 
         // Helper function to combine date and time inputs
