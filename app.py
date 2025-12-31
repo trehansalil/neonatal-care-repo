@@ -78,42 +78,46 @@ def backup_entry(client, entry_data, entry_id):
         entry_id: The ID of the entry being backed up
     
     Returns:
-        bool: True if backup successful, False otherwise
+        str or None: The backup_id (UUID) if successful, None otherwise
     """
     try:
-        # Column order matches ENTRY_COLUMNS constant
+        # Generate a unique backup ID for this operation to prevent race conditions
+        import uuid
+        backup_id = str(uuid.uuid4())
+        
+        # Column order matches ENTRY_COLUMNS constant, plus backup_id
         client.insert('entries_backup', [[
             entry_data[0], entry_data[1], entry_data[2], entry_data[3],
             entry_data[4], entry_data[5], entry_data[6], entry_data[7],
-            entry_data[8], entry_data[9], entry_data[10]
-        ]], column_names=ENTRY_COLUMNS)
-        print(f"Backup created successfully for entry {entry_id}")
-        return True
+            entry_data[8], entry_data[9], entry_data[10], backup_id
+        ]], column_names=ENTRY_COLUMNS + ['backup_id'])
+        print(f"Backup created successfully for entry {entry_id} with backup_id {backup_id}")
+        return backup_id
     except Exception as backup_error:
         print(f"Error creating backup: {backup_error}")
-        return False
+        return None
 
-def restore_entry_from_backup(client, entry_id):
+def restore_entry_from_backup(client, entry_id, backup_id):
     """
-    Restore an entry from the backup table.
+    Restore an entry from the backup table using a specific backup_id.
     
     Args:
         client: ClickHouse client connection
         entry_id: The ID of the entry to restore
+        backup_id: The unique backup identifier to restore from
     
     Returns:
         bool: True if restore successful, False otherwise
     """
     try:
-        # Select only the original entry columns (excluding backup_timestamp which is column 11)
+        # Select only the original entry columns using the specific backup_id
         backup_result = client.query(
             '''SELECT id, temperature, feed_amount, feed_type, susu_count, poti_count, 
                poti_color, weight, notes, timestamp, created_at 
                FROM entries_backup 
-               WHERE id = %(id)s 
-               ORDER BY backup_timestamp DESC 
+               WHERE id = %(id)s AND backup_id = %(backup_id)s
                LIMIT 1''',
-            parameters={'id': entry_id}
+            parameters={'id': entry_id, 'backup_id': backup_id}
         )
         if backup_result.result_rows:
             backup_data = backup_result.result_rows[0]
@@ -123,10 +127,10 @@ def restore_entry_from_backup(client, entry_id):
                 backup_data[4], backup_data[5], backup_data[6], backup_data[7],
                 backup_data[8], backup_data[9], backup_data[10]
             ]], column_names=ENTRY_COLUMNS)
-            print(f"Rollback successful: restored entry {entry_id} from backup")
+            print(f"Rollback successful: restored entry {entry_id} from backup {backup_id}")
             return True
         else:
-            print(f"No backup found for entry {entry_id}")
+            print(f"No backup found for entry {entry_id} with backup_id {backup_id}")
             return False
     except Exception as rollback_error:
         print(f"Error during rollback: {rollback_error}")
@@ -182,10 +186,11 @@ def init_db():
             notes Nullable(String),
             timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
             created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
-            backup_timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}') DEFAULT now64(3, '{LOCAL_TIMEZONE.zone}')
+            backup_timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}') DEFAULT now64(3, '{LOCAL_TIMEZONE.zone}'),
+            backup_id String DEFAULT generateUUIDv4()
         ) ENGINE = MergeTree()
-        ORDER BY (id, backup_timestamp)
-        PRIMARY KEY (id, backup_timestamp)
+        ORDER BY (id, backup_timestamp, backup_id)
+        PRIMARY KEY (id, backup_timestamp, backup_id)
         SETTINGS index_granularity = 8192
     ''')
     
@@ -311,7 +316,7 @@ def create_entry():
 def update_entry(entry_id):
     """Update a specific entry - uses backup-before-delete pattern with automatic rollback for data safety"""
     client = None
-    backup_created = False
+    backup_id = None
     try:
         data = request.get_json()
         client = get_db_connection()
@@ -361,10 +366,11 @@ def update_entry(entry_id):
         updated_created_at = existing[10]
         
         # STEP 1: Backup the original entry before making any changes
+        # The backup_id uniquely identifies this backup to prevent race conditions
         print(f"Creating backup for entry {entry_id} before update")
-        if not backup_entry(client, existing, entry_id):
+        backup_id = backup_entry(client, existing, entry_id)
+        if not backup_id:
             return jsonify({'error': 'Failed to create backup before update'}), 500
-        backup_created = True
         
         # STEP 2: Delete the old entry
         # Note: We must delete before inserting because the ID is part of the primary key
@@ -376,7 +382,7 @@ def update_entry(entry_id):
             print(f"Error executing DELETE mutation: {delete_error}")
             # Cleanup backup since we didn't proceed with deletion
             try:
-                client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup backup after delete failure: {cleanup_error}")
             return jsonify({'error': 'Failed to delete old entry'}), 500
@@ -399,11 +405,11 @@ def update_entry(entry_id):
         
         if not deletion_verified:
             print(f"Deletion verification failed, attempting rollback for entry {entry_id}")
-            # Attempt to restore from backup
-            if restore_entry_from_backup(client, entry_id):
+            # Attempt to restore from backup using the specific backup_id
+            if restore_entry_from_backup(client, entry_id, backup_id):
                 # Cleanup backup since rollback succeeded
                 try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after successful rollback: {cleanup_error}")
                 return jsonify({'error': 'Failed to verify deletion of old entry. Original entry restored from backup.'}), 500
@@ -428,11 +434,11 @@ def update_entry(entry_id):
             print(f"Successfully inserted updated entry {entry_id}")
         except Exception as insert_error:
             print(f"Error inserting updated entry: {insert_error}. Attempting rollback from backup.")
-            # ROLLBACK: Restore the original entry from backup
-            if restore_entry_from_backup(client, entry_id):
+            # ROLLBACK: Restore the original entry from backup using the specific backup_id
+            if restore_entry_from_backup(client, entry_id, backup_id):
                 # Cleanup backup after successful rollback to avoid orphaned backup entries
                 try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
                     print(f"Backup cleanup successful after rollback for entry {entry_id}")
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after rollback for entry {entry_id}: {cleanup_error}")
@@ -442,7 +448,7 @@ def update_entry(entry_id):
         
         # STEP 4: Clean up the backup entry after successful update
         try:
-            client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+            client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
             print(f"Backup cleanup successful for entry {entry_id}")
         except Exception as cleanup_error:
             # Non-critical error - the update succeeded
@@ -455,10 +461,10 @@ def update_entry(entry_id):
         traceback.print_exc()
         
         # Attempt to clean up backup if one was created
-        if backup_created and client is not None:
+        if backup_id and client is not None:
             try:
                 print(f"Attempting to cleanup backup for entry {entry_id} after unexpected error")
-                client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
                 print(f"Backup cleanup successful after error for entry {entry_id}")
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup backup after error for entry {entry_id}: {cleanup_error}")
