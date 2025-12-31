@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import time
 import pytz
+import uuid
 
 app = Flask(__name__, static_folder='html', static_url_path='')
 CORS(app)
@@ -82,7 +83,6 @@ def backup_entry(client, entry_data, entry_id):
     """
     try:
         # Generate a unique backup ID for this operation to prevent race conditions
-        import uuid
         backup_id = str(uuid.uuid4())
         
         # Column order matches ENTRY_COLUMNS constant, plus backup_id
@@ -187,7 +187,7 @@ def init_db():
             timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
             created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
             backup_timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}') DEFAULT now64(3, '{LOCAL_TIMEZONE.zone}'),
-            backup_id String DEFAULT generateUUIDv4()
+            backup_id String
         ) ENGINE = MergeTree()
         ORDER BY (id, backup_timestamp, backup_id)
         PRIMARY KEY (id, backup_timestamp, backup_id)
