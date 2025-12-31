@@ -24,10 +24,8 @@ DB_CONFIG = {
 try:
     tz_string = os.environ.get('TZ', 'Asia/Kolkata')
     LOCAL_TIMEZONE = pytz.timezone(tz_string)
-    # Validate the timezone string to prevent SQL injection
-    # The zone attribute from pytz should be safe, but we add extra validation
-    if not LOCAL_TIMEZONE.zone.replace('/', '').replace('_', '').replace('-', '').replace('+', '').isalnum():
-        raise ValueError(f"Invalid timezone format: {LOCAL_TIMEZONE.zone}")
+    # pytz.timezone() already validates the timezone string and raises an exception for invalid zones
+    # The zone attribute is safe to use in SQL as it comes from pytz's validated timezone database
 except Exception as e:
     print(f"Error setting timezone: {e}. Falling back to Asia/Kolkata")
     LOCAL_TIMEZONE = pytz.timezone('Asia/Kolkata')
@@ -67,10 +65,11 @@ def get_next_id(client):
     """Generate a new unique ID for the entries table without using MAX(id)."""
     # Use ClickHouse to generate a random UInt32-compatible ID derived from a UUID,
     # and verify that it is not already used to avoid collisions.
+    # Generate IDs from 1 to 4294967295 (avoiding 0)
     max_retries = 1000
     for attempt in range(max_retries):
         result = client.query(
-            'SELECT cityHash64(generateUUIDv4()) % 4294967296 AS new_id'
+            'SELECT cityHash64(generateUUIDv4()) % 4294967295 + 1 AS new_id'
         )
         new_id = result.result_rows[0][0]
         if not entry_exists(client, new_id):
