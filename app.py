@@ -430,6 +430,12 @@ def update_entry(entry_id):
             print(f"Error inserting updated entry: {insert_error}. Attempting rollback from backup.")
             # ROLLBACK: Restore the original entry from backup
             if restore_entry_from_backup(client, entry_id):
+                # Cleanup backup after successful rollback to avoid orphaned backup entries
+                try:
+                    client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                    print(f"Backup cleanup successful after rollback for entry {entry_id}")
+                except Exception as cleanup_error:
+                    print(f"Warning: Failed to cleanup backup after rollback for entry {entry_id}: {cleanup_error}")
                 return jsonify({'error': 'Failed to insert updated entry. Original entry restored from backup.'}), 500
             else:
                 return jsonify({'error': 'CRITICAL: Failed to insert updated entry and rollback failed. Entry may be lost. Check backup table.'}), 500
