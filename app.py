@@ -185,7 +185,7 @@ def init_db():
             weight Nullable(UInt16),
             notes Nullable(String),
             timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
-            created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
+            created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}') DEFAULT now64(3, '{LOCAL_TIMEZONE.zone}'),
             backup_timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}') DEFAULT now64(3, '{LOCAL_TIMEZONE.zone}'),
             backup_id String NOT NULL
         ) ENGINE = MergeTree()
