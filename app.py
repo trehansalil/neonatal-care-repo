@@ -401,6 +401,11 @@ def update_entry(entry_id):
             print(f"Deletion verification failed, attempting rollback for entry {entry_id}")
             # Attempt to restore from backup
             if restore_entry_from_backup(client, entry_id):
+                # Cleanup backup since rollback succeeded
+                try:
+                    client.command('ALTER TABLE entries_backup DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+                except Exception as cleanup_error:
+                    print(f"Warning: Failed to cleanup backup after successful rollback: {cleanup_error}")
                 return jsonify({'error': 'Failed to verify deletion of old entry. Original entry restored from backup.'}), 500
             else:
                 return jsonify({'error': 'Failed to verify deletion of old entry. Rollback also failed.'}), 500
