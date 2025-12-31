@@ -23,10 +23,6 @@ DB_CONFIG = {
 # Timezone configuration - set your local timezone
 LOCAL_TIMEZONE = pytz.timezone(os.environ.get('TZ', 'Asia/Kolkata'))  # Default to IST
 
-# Mutation verification configuration
-MUTATION_VERIFICATION_MAX_RETRIES = int(os.environ.get('MUTATION_VERIFICATION_MAX_RETRIES', '10'))
-MUTATION_VERIFICATION_RETRY_DELAY = float(os.environ.get('MUTATION_VERIFICATION_RETRY_DELAY', '0.1'))  # seconds
-
 # Column names for entries table (used in insert operations)
 ENTRY_COLUMNS = [
     'id', 'temperature', 'feed_amount', 'feed_type',
