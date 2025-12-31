@@ -12,7 +12,8 @@ CORS(app)
 
 # Database configuration
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'clickhouse'),
+    # Default to localhost for easy local dev; docker-compose passes DB_HOST=clickhouse
+    'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '8123')),
     'database': os.environ.get('DB_NAME', 'baby_tracker'),
     'username': os.environ.get('DB_USER', 'clickhouse'),
@@ -35,8 +36,8 @@ ENTRY_COLUMNS = [
 
 def get_db_connection():
     """Create a database connection with retry logic"""
-    max_retries = 5
-    retry_delay = 2
+    max_retries = 10
+    retry_delay = 3
     
     for attempt in range(max_retries):
         try:
@@ -380,49 +381,22 @@ def update_entry(entry_id):
         # and ClickHouse doesn't allow duplicate primary keys. However, we have a backup
         # ready for rollback if the subsequent insert fails.
         try:
-            client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+            # Wait for mutation to finish so we can safely insert updated row
+            client.command(
+                'ALTER TABLE entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=2',
+                parameters={'id': entry_id}
+            )
         except Exception as delete_error:
             print(f"Error executing DELETE mutation: {delete_error}")
             # Cleanup backup since we didn't proceed with deletion
             try:
-                client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
+                client.command(
+                    'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
+                    parameters={'backup_id': backup_id}
+                )
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup backup after delete failure: {cleanup_error}")
             return jsonify({'error': 'Failed to delete old entry'}), 500
-        
-        # Wait for the mutation to be processed and verify deletion
-        deletion_verified = False
-        
-        for attempt in range(MUTATION_VERIFICATION_MAX_RETRIES):
-            try:
-                verify_result = client.query('SELECT COUNT(*) FROM entries WHERE id = %(id)s', parameters={'id': entry_id})
-                count = verify_result.result_rows[0][0]
-                if count == 0:
-                    deletion_verified = True
-                    break
-            except Exception as verify_error:
-                print(f"Error verifying deletion (attempt {attempt + 1}): {verify_error}")
-            
-            # Sleep before next retry
-            time.sleep(MUTATION_VERIFICATION_RETRY_DELAY)
-        
-        if not deletion_verified:
-            print(f"Deletion verification failed, attempting rollback for entry {entry_id}")
-            # Attempt to restore from backup using the specific backup_id
-            if restore_entry_from_backup(client, entry_id, backup_id):
-                # Cleanup backup since rollback succeeded
-                try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
-                except Exception as cleanup_error:
-                    print(f"Warning: Failed to cleanup backup after successful rollback: {cleanup_error}")
-                return jsonify({'error': 'Failed to verify deletion of old entry. Original entry restored from backup.'}), 409
-            else:
-                # Rollback failed; attempt to cleanup backup to avoid orphaned entries
-                try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
-                except Exception as cleanup_error:
-                    print(f"Warning: Failed to cleanup backup after rollback failure: {cleanup_error}")
-                return jsonify({'error': 'Failed to verify deletion of old entry. Rollback also failed.'}), 500
         
         # STEP 3: Insert the updated entry
         try:
@@ -446,7 +420,10 @@ def update_entry(entry_id):
             if restore_entry_from_backup(client, entry_id, backup_id):
                 # Cleanup backup after successful rollback to avoid orphaned backup entries
                 try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
+                    client.command(
+                        'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
+                        parameters={'backup_id': backup_id}
+                    )
                     print(f"Backup cleanup successful after rollback for entry {entry_id}")
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after rollback for entry {entry_id}: {cleanup_error}")
@@ -455,7 +432,10 @@ def update_entry(entry_id):
                 # Rollback failed; the original entry may be lost. Attempt to clean up the backup
                 # since it no longer helps and would otherwise remain orphaned.
                 try:
-                    client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
+                    client.command(
+                        'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
+                        parameters={'backup_id': backup_id}
+                    )
                     print(f"Backup cleanup attempted after failed rollback for entry {entry_id}")
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after failed rollback for entry {entry_id}: {cleanup_error}")
@@ -463,7 +443,10 @@ def update_entry(entry_id):
         
         # STEP 4: Clean up the backup entry after successful update
         try:
-            client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
+            client.command(
+                'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
+                parameters={'backup_id': backup_id}
+            )
             print(f"Backup cleanup successful for entry {entry_id}")
         except Exception as cleanup_error:
             # Non-critical error - the update succeeded
@@ -479,7 +462,10 @@ def update_entry(entry_id):
         if backup_id and client is not None:
             try:
                 print(f"Attempting to cleanup backup for entry {entry_id} after unexpected error")
-                client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
+                client.command(
+                    'ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s SETTINGS mutations_sync=2',
+                    parameters={'backup_id': backup_id}
+                )
                 print(f"Backup cleanup successful after error for entry {entry_id}")
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup backup after error for entry {entry_id}: {cleanup_error}")
@@ -501,7 +487,10 @@ def delete_entry(entry_id):
             return jsonify({'error': 'Entry not found'}), 404
         
         # ClickHouse uses ALTER TABLE DELETE for deletes
-        client.command('ALTER TABLE entries DELETE WHERE id = %(id)s', parameters={'id': entry_id})
+        client.command(
+            'ALTER TABLE entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=2',
+            parameters={'id': entry_id}
+        )
         
         return jsonify({'message': 'Entry deleted successfully'}), 200
     except Exception as e:
