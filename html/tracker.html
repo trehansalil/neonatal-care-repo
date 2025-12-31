@@ -627,12 +627,20 @@
         }
 
         // Parse poti notes to extract consistency and free-text notes
+        // Valid consistency values are: loose, soft, normal, hard, watery
         function parsePotiNotes(noteText) {
             if (!noteText) return { consistency: null, text: '' };
             const match = noteText.match(/^Consistency:\s*([^\.\n]+)\.?(.*)$/i);
             if (!match) return { consistency: null, text: noteText.trim() };
             const consistency = match[1].trim().toLowerCase();
             const text = (match[2] || '').trim();
+            
+            // Validate consistency value against expected values
+            const validConsistencies = ['loose', 'soft', 'normal', 'hard', 'watery'];
+            if (!validConsistencies.includes(consistency)) {
+                console.warn(`Unexpected consistency value: ${consistency}. Expected one of: ${validConsistencies.join(', ')}`);
+            }
+            
             return { consistency, text };
         }
 

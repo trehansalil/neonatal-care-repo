@@ -1,7 +1,13 @@
 -- Initialize the baby tracker database in ClickHouse
 -- NOTE: The application (app.py) will automatically create these tables with the correct
--- schema including timezone-aware DateTime64 types. This file is primarily for reference
--- and manual database initialization if needed.
+-- schema including timezone-aware DateTime64 types on startup. This file is provided for:
+-- 1. Reference documentation of the schema structure
+-- 2. Manual database initialization if needed (e.g., for testing or external tools)
+-- 3. Schema review and version control purposes
+-- 
+-- The application's init_db() function in app.py is the single source of truth for
+-- schema creation at runtime. If you modify this file, ensure the changes are also
+-- reflected in app.py's init_db() function to maintain consistency.
 
 -- Create database
 CREATE DATABASE IF NOT EXISTS baby_tracker;
