@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS entries_backup (
 ) ENGINE = MergeTree()
 ORDER BY (id, backup_timestamp, backup_id)
 PRIMARY KEY (id, backup_timestamp, backup_id)
+TTL backup_timestamp + INTERVAL 1 DAY
 SETTINGS index_granularity = 8192;
 
 -- Note: IDs are not auto-incremented in ClickHouse; the application layer must provide unique IDs
