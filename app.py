@@ -73,9 +73,11 @@ def backup_entry(client, entry_data, entry_id):
     
     Args:
         client: ClickHouse client connection
-        entry_data: Row data from SELECT * FROM entries query
-                   Expected column order: id, temperature, feed_amount, feed_type,
-                   susu_count, poti_count, poti_color, weight, notes, timestamp, created_at
+        entry_data: Row data from SELECT * FROM entries query.
+                   Must contain exactly 11 columns matching ENTRY_COLUMNS constant:
+                   id, temperature, feed_amount, feed_type, susu_count, poti_count, 
+                   poti_color, weight, notes, timestamp, created_at.
+                   The backup_id is generated separately and appended during insert.
         entry_id: The ID of the entry being backed up
     
     Returns:
@@ -413,7 +415,7 @@ def update_entry(entry_id):
                     client.command('ALTER TABLE entries_backup DELETE WHERE backup_id = %(backup_id)s', parameters={'backup_id': backup_id})
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after successful rollback: {cleanup_error}")
-                return jsonify({'error': 'Failed to verify deletion of old entry. Original entry restored from backup.'}), 500
+                return jsonify({'error': 'Failed to verify deletion of old entry. Original entry restored from backup.'}), 409
             else:
                 # Rollback failed; attempt to cleanup backup to avoid orphaned entries
                 try:
@@ -448,7 +450,7 @@ def update_entry(entry_id):
                     print(f"Backup cleanup successful after rollback for entry {entry_id}")
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after rollback for entry {entry_id}: {cleanup_error}")
-                return jsonify({'error': 'Failed to insert updated entry. Original entry restored from backup.'}), 500
+                return jsonify({'error': 'Failed to insert updated entry. Original entry restored from backup.'}), 409
             else:
                 # Rollback failed; the original entry may be lost. Attempt to clean up the backup
                 # since it no longer helps and would otherwise remain orphaned.
@@ -457,7 +459,7 @@ def update_entry(entry_id):
                     print(f"Backup cleanup attempted after failed rollback for entry {entry_id}")
                 except Exception as cleanup_error:
                     print(f"Warning: Failed to cleanup backup after failed rollback for entry {entry_id}: {cleanup_error}")
-                return jsonify({'error': 'CRITICAL: Failed to insert updated entry and rollback failed. Entry may be lost. Check backup table.'}), 500
+                return jsonify({'error': 'CRITICAL: Failed to insert updated entry and rollback failed. Entry may be lost. Check entries_backup table.'}), 500
         
         # STEP 4: Clean up the backup entry after successful update
         try:

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS entries_backup (
     timestamp DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
     created_at DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
     backup_timestamp DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
-    backup_id String
+    backup_id String NOT NULL
 ) ENGINE = MergeTree()
 ORDER BY (id, backup_timestamp, backup_id)
 PRIMARY KEY (id, backup_timestamp, backup_id)
