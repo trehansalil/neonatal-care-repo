@@ -99,9 +99,12 @@ def backup_entry(client, entry_data, entry_id):
         str or None: The backup_id (UUID) if successful, None otherwise
     
     Note:
-        The entries_backup table has 12 columns total: the 11 columns from ENTRY_COLUMNS
-        plus backup_id (generated here). The backup_timestamp column uses DEFAULT now64()
-        and is automatically set by ClickHouse, so we don't include it in the insert.
+        The entries_backup table has 13 columns total: the 11 columns from ENTRY_COLUMNS
+        (id, temperature, feed_amount, feed_type, susu_count, poti_count, poti_color,
+        weight, notes, timestamp, created_at) plus backup_id and backup_timestamp.
+        The backup_timestamp column uses DEFAULT now64() and is automatically set by
+        ClickHouse, so we don't include it in the INSERT; we only insert the 11 original
+        columns plus backup_id.
     """
     try:
         # Generate a unique backup ID for this operation to prevent race conditions
