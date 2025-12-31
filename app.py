@@ -178,7 +178,7 @@ def init_db():
     
     try:
         # Create database
-        client.command('CREATE DATABASE IF NOT EXISTS baby_tracker')
+        client.command(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
     finally:
         client.close()
     
