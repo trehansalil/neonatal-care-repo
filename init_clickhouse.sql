@@ -18,7 +18,7 @@ USE baby_tracker;
 -- Create entries table using MergeTree engine for optimal performance
 -- Note: If used manually, replace 'Asia/Kolkata' with your timezone (app.py uses LOCAL_TIMEZONE)
 CREATE TABLE IF NOT EXISTS entries (
-    id UInt32,
+    id UInt64 DEFAULT generateSerialID('entries_id_sequence'),
     temperature Nullable(Decimal32(1)),
     feed_amount Nullable(UInt16),
     feed_type Nullable(String),
@@ -38,9 +38,8 @@ SETTINGS index_granularity = 8192;
 -- Create backup table for update rollback support
 -- This matches the entries table structure for proper data type compatibility
 -- Note: If used manually, replace 'Asia/Kolkata' with your timezone (app.py uses LOCAL_TIMEZONE)
--- Note: backup_id must be explicitly provided by the application (generated as UUID)
 CREATE TABLE IF NOT EXISTS entries_backup (
-    id UInt32,
+    id UInt64,
     temperature Nullable(Decimal32(1)),
     feed_amount Nullable(UInt16),
     feed_type Nullable(String),
@@ -52,11 +51,11 @@ CREATE TABLE IF NOT EXISTS entries_backup (
     timestamp DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
     created_at DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
     backup_timestamp DateTime64(3, 'Asia/Kolkata') DEFAULT now64(3, 'Asia/Kolkata'),
-    backup_id String NOT NULL
+    backup_id UInt64 DEFAULT generateSerialID('entries_backup_id_sequence')
 ) ENGINE = MergeTree()
 ORDER BY (id, backup_timestamp, backup_id)
 PRIMARY KEY (id, backup_timestamp, backup_id)
 TTL backup_timestamp + INTERVAL 1 DAY
 SETTINGS index_granularity = 8192;
 
--- Note: IDs are not auto-incremented in ClickHouse; the application layer must provide unique IDs
+-- Note: IDs auto-increment via generateSerialID in the application schema
