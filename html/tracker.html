@@ -945,9 +945,53 @@
         // History filters
         function setupHistoryFilters() {
             const chips = document.querySelectorAll('.filter-chip');
+            const LONG_PRESS_MS = 600;
+
             chips.forEach(chip => {
-                chip.addEventListener('click', () => toggleTypeFilter(chip));
+                let pressTimer = null;
+                let longPressTriggered = false;
+
+                const startPress = () => {
+                    longPressTriggered = false;
+                    pressTimer = setTimeout(() => {
+                        longPressTriggered = true;
+                        isolateFilter(chip.dataset.type);
+                    }, LONG_PRESS_MS);
+                };
+
+                const clearPress = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                };
+
+                chip.addEventListener('click', () => {
+                    if (longPressTriggered) return;
+                    toggleTypeFilter(chip);
+                });
+
+                chip.addEventListener('mousedown', startPress);
+                chip.addEventListener('touchstart', startPress);
+                chip.addEventListener('mouseup', clearPress);
+                chip.addEventListener('mouseleave', clearPress);
+                chip.addEventListener('touchend', clearPress);
+                chip.addEventListener('touchcancel', clearPress);
             });
+        }
+
+        function isolateFilter(type) {
+            if (!type) return;
+            typeFilters.clear();
+            typeFilters.add(type);
+
+            const chips = document.querySelectorAll('.filter-chip');
+            chips.forEach(chip => {
+                const isActive = chip.dataset.type === type;
+                chip.classList.toggle('active', isActive);
+            });
+
+            renderEntries();
         }
 
         function toggleTypeFilter(chip) {
