@@ -233,6 +233,28 @@
                 </button>
             </div>
 
+            <div class="flex flex-wrap gap-3 items-end mb-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Start</label>
+                    <div class="flex gap-2">
+                        <input type="date" id="history-start-date" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                        <input type="time" id="history-start-time" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">End</label>
+                    <div class="flex gap-2">
+                        <input type="date" id="history-end-date" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                        <input type="time" id="history-end-time" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="history-preset-today" class="filter-chip">Today</button>
+                    <button id="history-preset-24h" class="filter-chip">Last 24h</button>
+                </div>
+                <button id="history-apply-range" class="filter-chip active">Apply</button>
+            </div>
+
             <div class="flex flex-wrap items-center gap-2 mb-4">
                 <span class="text-sm font-semibold text-slate-700 mr-1">Filter:</span>
                 <button class="filter-chip active" data-type="feed">🍼 Feed</button>
@@ -627,6 +649,7 @@
         let currentMetric = 'weight-avg';
         let currentTimeRange = 'week';
         const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
+        let historyRange = { start: null, end: null };
 
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
@@ -687,6 +710,12 @@
             const date = document.getElementById(`${type}-date`).value;
             const time = document.getElementById(`${type}-time`).value;
             return `${date}T${time}`;
+        }
+
+        function parseDateTime(dateStr, timeStr) {
+            if (!dateStr || !timeStr) return null;
+            const ts = new Date(`${dateStr}T${timeStr}`);
+            return isNaN(ts) ? null : ts;
         }
 
         // Determine entry type for filtering and UI labeling
@@ -814,6 +843,7 @@
             });
 
             setupHistoryFilters();
+            setupHistoryRange();
         });
 
         // Feed Form Submit
@@ -934,7 +964,8 @@
                     updateStats();
                     updateTrendChart();
                 } else {
-                    throw new Error('Failed to load entries');
+                    console.error('Failed to load entries');
+                    entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
                 }
             } catch (error) {
                 console.error('Error loading entries:', error);
@@ -944,7 +975,7 @@
 
         // History filters
         function setupHistoryFilters() {
-            const chips = document.querySelectorAll('.filter-chip');
+            const chips = document.querySelectorAll('.filter-chip[data-type]');
             const LONG_PRESS_MS = 600;
 
             chips.forEach(chip => {
@@ -978,6 +1009,85 @@
                 chip.addEventListener('touchend', clearPress);
                 chip.addEventListener('touchcancel', clearPress);
             });
+        }
+
+        // History date/time range
+        function setupHistoryRange() {
+            setHistoryPresetToday();
+
+            document.getElementById('history-apply-range').addEventListener('click', (e) => {
+                e.preventDefault();
+                applyHistoryRangeFromInputs();
+            });
+
+            document.getElementById('history-preset-today').addEventListener('click', (e) => {
+                e.preventDefault();
+                setHistoryPresetToday();
+                renderEntries();
+                updateStats();
+            });
+
+            document.getElementById('history-preset-24h').addEventListener('click', (e) => {
+                e.preventDefault();
+                setHistoryPreset24h();
+                renderEntries();
+                updateStats();
+            });
+        }
+
+        function setHistoryPresetToday() {
+            const now = new Date();
+            const start = new Date(now);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(now);
+            end.setHours(23, 59, 59, 999);
+            setHistoryRangeInputs(start, end);
+            historyRange = { start, end };
+        }
+
+        function setHistoryPreset24h() {
+            const end = new Date();
+            const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+            setHistoryRangeInputs(start, end);
+            historyRange = { start, end };
+        }
+
+        function setHistoryRangeInputs(start, end) {
+            const startDateEl = document.getElementById('history-start-date');
+            const startTimeEl = document.getElementById('history-start-time');
+            const endDateEl = document.getElementById('history-end-date');
+            const endTimeEl = document.getElementById('history-end-time');
+
+            const pad = (n) => String(n).padStart(2, '0');
+
+            startDateEl.value = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+            startTimeEl.value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+            endDateEl.value = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+            endTimeEl.value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+        }
+
+        function applyHistoryRangeFromInputs() {
+            const start = parseDateTime(
+                document.getElementById('history-start-date').value,
+                document.getElementById('history-start-time').value
+            );
+            const end = parseDateTime(
+                document.getElementById('history-end-date').value,
+                document.getElementById('history-end-time').value
+            );
+
+            if (!start || !end) {
+                showToast('Please set both start and end date/time', 'error');
+                return;
+            }
+            if (end < start) {
+                showToast('End must be after start', 'error');
+                return;
+            }
+
+            historyRange = { start, end };
+            renderEntries();
+            updateStats();
         }
 
         function isolateFilter(type) {
@@ -1016,10 +1126,14 @@
 
         // Render Entries
         function renderEntries() {
-            const today = new Date().toDateString();
-            const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
-
-            const filteredEntries = todayEntries.filter(entry => typeFilters.has(getEntryType(entry)));
+            const filteredEntries = entries
+                .filter(entry => {
+                    const ts = new Date(entry.timestamp);
+                    if (historyRange.start && ts < historyRange.start) return false;
+                    if (historyRange.end && ts > historyRange.end) return false;
+                    return true;
+                })
+                .filter(entry => typeFilters.has(getEntryType(entry)));
 
             if (filteredEntries.length === 0) {
                 entriesContainer.innerHTML = '<p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>';
@@ -1142,11 +1256,15 @@
 
         // Update Stats
         function updateStats() {
-            const today = new Date().toDateString();
-            const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
+            const rangeEntries = entries.filter(e => {
+                const ts = new Date(e.timestamp);
+                if (historyRange.start && ts < historyRange.start) return false;
+                if (historyRange.end && ts > historyRange.end) return false;
+                return true;
+            });
 
             // Feeds count and average
-            const feedEntries = todayEntries.filter(e => e.feed_amount > 0 || e.feed_type);
+            const feedEntries = rangeEntries.filter(e => e.feed_amount > 0 || e.feed_type);
             const feedsCount = feedEntries.length;
             const feedAmounts = feedEntries.filter(e => e.feed_amount > 0).map(e => e.feed_amount);
             const avgFeed = feedAmounts.length > 0 
@@ -1155,15 +1273,15 @@
             todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
 
             // Susu total
-            const susuTotal = todayEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
+            const susuTotal = rangeEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
             todaySusuEl.textContent = susuTotal;
 
             // Poti total
-            const potiTotal = todayEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
+            const potiTotal = rangeEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
             todayPotiEl.textContent = potiTotal;
 
             // Average temperature
-            const temps = todayEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
+            const temps = rangeEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
             if (temps.length > 0) {
                 const avgTemp = (temps.reduce((sum, t) => sum + t, 0) / temps.length).toFixed(1);
                 avgTempEl.textContent = avgTemp;
@@ -1173,7 +1291,7 @@
             }
 
             // Current weight
-            const weightEntries = entries.filter(e => e.weight > 0).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const weightEntries = rangeEntries.filter(e => e.weight > 0).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             if (weightEntries.length > 0) {
                 currentWeightEl.textContent = weightEntries[0].weight;
             } else {
