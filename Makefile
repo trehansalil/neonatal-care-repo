@@ -1,4 +1,4 @@
-.PHONY: ipconfig dev-up dev-down clean dev-logs dev-restart export-data
+.PHONY: ipconfig dev-up dev-down clean dev-logs dev-restart dev-export-data
 
 ipconfig:
 	ifconfig | grep "inet " | grep -v 127.0.0.1
@@ -23,5 +23,5 @@ dev-logs:
 dev-restart:
 	docker compose restart
 
-export-data:
+dev-export-data:
 	uv run python3 clickhouse_export_import.py export
