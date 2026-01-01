@@ -32,6 +32,8 @@ DB_CONFIG = {
 
 TABLES = ["entries", "entries_backup"]
 
+UINT32_MAX = 4_294_967_295
+
 
 def get_client():
     return clickhouse_connect.get_client(**DB_CONFIG)
@@ -94,6 +96,15 @@ def parse_value(value, type_str: str):
     return value
 
 
+def coerce_uint32(value: int) -> int:
+    """Ensure value fits into UInt32; wrap if out of range."""
+    ivalue = int(value)
+    if 0 <= ivalue <= UINT32_MAX:
+        return ivalue
+    wrapped = (ivalue % UINT32_MAX) or 1
+    return wrapped
+
+
 def import_table(client, table: str, input_dir: str, truncate: bool) -> int:
     schema_path = os.path.join(input_dir, f"{table}_schema.json")
     data_path = os.path.join(input_dir, f"{table}.jsonl")
@@ -107,6 +118,13 @@ def import_table(client, table: str, input_dir: str, truncate: bool) -> int:
     columns = [col for col, _ in schema]
     types = {col: col_type for col, col_type in schema}
 
+    # Align types with live table (handles migrations like UInt64 -> UInt32)
+    live_schema = describe_table(client, table)
+    live_types = {col: col_type for col, col_type in live_schema}
+    for col in columns:
+        if col in live_types:
+            types[col] = live_types[col]
+
     if truncate:
         client.command(f"TRUNCATE TABLE {table}")
 
@@ -114,12 +132,25 @@ def import_table(client, table: str, input_dir: str, truncate: bool) -> int:
     batch: List[List] = []
     batch_size = 5_000
 
+    adjusted_ids = 0
+
     with open(data_path, "r", encoding="utf-8") as data_file:
         for line in data_file:
             if not line.strip():
                 continue
             row_obj: Dict[str, object] = json.loads(line)
-            parsed_row = [parse_value(row_obj.get(col), types[col]) for col in columns]
+            parsed_row: List[object] = []
+            for col in columns:
+                value = row_obj.get(col)
+                parsed = parse_value(value, types[col])
+                if col == "id" and types[col].startswith("UInt32"):
+                    if parsed is None:
+                        raise ValueError("id cannot be None for UInt32 column")
+                    coerced = coerce_uint32(parsed)
+                    if coerced != parsed:
+                        adjusted_ids += 1
+                    parsed = coerced
+                parsed_row.append(parsed)
             batch.append(parsed_row)
             if len(batch) >= batch_size:
                 client.insert(table, batch, column_names=columns)
@@ -129,6 +160,9 @@ def import_table(client, table: str, input_dir: str, truncate: bool) -> int:
     if batch:
         client.insert(table, batch, column_names=columns)
         inserted += len(batch)
+
+    if adjusted_ids:
+        print(f"Adjusted {adjusted_ids} ids to fit UInt32 for table {table}")
 
     return inserted
 
