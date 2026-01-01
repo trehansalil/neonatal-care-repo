@@ -97,6 +97,30 @@
             background: linear-gradient(to right, #f8fafc, #f1f5f9);
             border-left: 3px solid #64748b;
         }
+
+        .filter-chip {
+            border: 1px solid #cbd5e1;
+            border-radius: 9999px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #475569;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+        }
+
+        .filter-chip:hover {
+            background: #e2e8f0;
+        }
+
+        .filter-chip.active {
+            background: #0ea5e9;
+            color: white;
+            border-color: #0284c7;
+            box-shadow: 0 4px 10px rgba(14, 165, 233, 0.25);
+        }
     </style>
 </head>
 
@@ -207,6 +231,15 @@
                     class="text-sm text-red-600 hover:text-red-700 font-semibold transition-colors">
                     Clear All
                 </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="text-sm font-semibold text-slate-700 mr-1">Filter:</span>
+                <button class="filter-chip active" data-type="feed">🍼 Feed</button>
+                <button class="filter-chip active" data-type="susu">💧 Susu</button>
+                <button class="filter-chip active" data-type="poti">💩 Poti</button>
+                <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
+                <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
             </div>
 
             <div id="entries-container" class="space-y-3">
@@ -593,6 +626,7 @@
         let currentEditingEntry = null;
         let currentMetric = 'weight-avg';
         let currentTimeRange = 'week';
+        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
 
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
@@ -653,6 +687,16 @@
             const date = document.getElementById(`${type}-date`).value;
             const time = document.getElementById(`${type}-time`).value;
             return `${date}T${time}`;
+        }
+
+        // Determine entry type for filtering and UI labeling
+        function getEntryType(entry) {
+            if (entry.feed_amount || entry.feed_type) return 'feed';
+            if (entry.susu_count > 0) return 'susu';
+            if (entry.poti_count > 0) return 'poti';
+            if (entry.temperature) return 'temp';
+            if (entry.weight) return 'weight';
+            return 'unknown';
         }
 
         // Modal Functions
@@ -768,6 +812,8 @@
                 currentTimeRange = e.target.value;
                 updateTrendChart();
             });
+
+            setupHistoryFilters();
         });
 
         // Feed Form Submit
@@ -896,17 +942,47 @@
             }
         }
 
+        // History filters
+        function setupHistoryFilters() {
+            const chips = document.querySelectorAll('.filter-chip');
+            chips.forEach(chip => {
+                chip.addEventListener('click', () => toggleTypeFilter(chip));
+            });
+        }
+
+        function toggleTypeFilter(chip) {
+            const type = chip.dataset.type;
+            if (!type) return;
+
+            if (typeFilters.has(type)) {
+                // Keep at least one filter active to avoid empty state confusion
+                if (typeFilters.size === 1) {
+                    showToast('At least one type must stay selected', 'error');
+                    return;
+                }
+                typeFilters.delete(type);
+                chip.classList.remove('active');
+            } else {
+                typeFilters.add(type);
+                chip.classList.add('active');
+            }
+
+            renderEntries();
+        }
+
         // Render Entries
         function renderEntries() {
             const today = new Date().toDateString();
             const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === today);
 
-            if (todayEntries.length === 0) {
+            const filteredEntries = todayEntries.filter(entry => typeFilters.has(getEntryType(entry)));
+
+            if (filteredEntries.length === 0) {
                 entriesContainer.innerHTML = '<p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>';
                 return;
             }
 
-            entriesContainer.innerHTML = todayEntries
+            entriesContainer.innerHTML = filteredEntries
                 .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                 .map(entry => createEntryItem(entry))
                 .join('');
