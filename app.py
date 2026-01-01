@@ -259,18 +259,33 @@ def get_entries():
     try:
         client = get_db_connection()
         
-        # Optional date filter
-        date_filter = request.args.get('date')
-        if date_filter:
+        # Optional date/time range filters
+        start_param = request.args.get('start')
+        end_param = request.args.get('end')
+
+        def parse_ts(value):
+            if not value:
+                return None
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                return LOCAL_TIMEZONE.localize(dt)
+            return dt.astimezone(LOCAL_TIMEZONE)
+
+        start_ts = parse_ts(start_param)
+        end_ts = parse_ts(end_param)
+
+        if start_ts or end_ts:
             query = '''
                 SELECT * FROM entries 
-                WHERE toDate(timestamp) = toDate(%(date)s)
+                WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
+                  AND (%(end)s IS NULL OR timestamp <= %(end)s)
                 ORDER BY timestamp DESC
+                LIMIT 1000
             '''
-            result = client.query(query, parameters={'date': date_filter})
+            result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
         else:
-            # Get last 100 entries
-            query = 'SELECT * FROM entries ORDER BY timestamp DESC LIMIT 100'
+            # Get last 500 entries by default
+            query = 'SELECT * FROM entries ORDER BY timestamp DESC LIMIT 500'
             result = client.query(query)
         
         # Convert result to list of dictionaries

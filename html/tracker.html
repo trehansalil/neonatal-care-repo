@@ -221,11 +221,11 @@
             </div>
         </section>
 
-        <!-- Today's History Section -->
+        <!-- Activity Log Section -->
         <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-8">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    <span>📋</span> Today's History
+                    <span>📋</span> Activity Log
                 </h2>
                 <button id="clear-history-btn"
                     class="text-sm text-red-600 hover:text-red-700 font-semibold transition-colors">
@@ -712,10 +712,13 @@
             return `${date}T${time}`;
         }
 
-        function parseDateTime(dateStr, timeStr) {
+        function parseDateTime(dateStr, timeStr, asRangeEnd = false) {
             if (!dateStr || !timeStr) return null;
             const ts = new Date(`${dateStr}T${timeStr}`);
-            return isNaN(ts) ? null : ts;
+            if (isNaN(ts)) return null;
+            if (asRangeEnd) ts.setSeconds(59, 999); // make end inclusive
+            else ts.setSeconds(0, 0);
+            return ts;
         }
 
         // Determine entry type for filtering and UI labeling
@@ -957,7 +960,10 @@
         // Load Entries
         async function loadEntries() {
             try {
-                const response = await fetch(`${API_BASE_URL}/entries`);
+                const params = new URLSearchParams();
+                if (historyRange.start) params.set('start', historyRange.start.toISOString());
+                if (historyRange.end) params.set('end', historyRange.end.toISOString());
+                const response = await fetch(`${API_BASE_URL}/entries${params.toString() ? `?${params.toString()}` : ''}`);
                 if (response.ok) {
                     entries = await response.json();
                     renderEntries();
@@ -1014,6 +1020,17 @@
         // History date/time range
         function setupHistoryRange() {
             setHistoryPresetToday();
+
+            const startDateEl = document.getElementById('history-start-date');
+            const startTimeEl = document.getElementById('history-start-time');
+            const endDateEl = document.getElementById('history-end-date');
+            const endTimeEl = document.getElementById('history-end-time');
+
+            const inputs = [startDateEl, startTimeEl, endDateEl, endTimeEl];
+            inputs.forEach((el) => {
+                el.addEventListener('change', () => applyHistoryRangeFromInputs());
+                el.addEventListener('blur', () => applyHistoryRangeFromInputs());
+            });
 
             document.getElementById('history-apply-range').addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1073,7 +1090,8 @@
             );
             const end = parseDateTime(
                 document.getElementById('history-end-date').value,
-                document.getElementById('history-end-time').value
+                document.getElementById('history-end-time').value,
+                true
             );
 
             if (!start || !end) {
