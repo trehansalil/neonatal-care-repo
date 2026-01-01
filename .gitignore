@@ -30,5 +30,6 @@ ENV/
 
 # Node modules (if any)
 node_modules/
+backups/
 
 .env
