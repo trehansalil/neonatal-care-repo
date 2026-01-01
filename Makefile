@@ -25,3 +25,8 @@ dev-restart:
 
 dev-export-data:
 	uv run python3 clickhouse_export_import.py export
+
+dev-import-data:
+	LATEST_BACKUP=$$(ls -dt ./backups/clickhouse_export_* | head -1) && \
+		uv run python3 \
+			clickhouse_export_import.py import --input-dir $$LATEST_BACKUP --truncate-first
