@@ -1,4 +1,4 @@
-.PHONY: ipconfig dev-up dev-down clean dev-logs dev-restart dev-export-data
+.PHONY: ipconfig dev-up dev-down clean dev-logs dev-restart dev-export-data generate-schema-sql
 
 ipconfig:
 	ifconfig | grep "inet " | grep -v 127.0.0.1
@@ -30,3 +30,7 @@ dev-import-data:
 	LATEST_BACKUP=$$(ls -dt ./backups/clickhouse_export_* | head -1) && \
 		uv run python3 \
 			clickhouse_export_import.py import --input-dir $$LATEST_BACKUP --truncate-first
+
+# Generate init_clickhouse.sql from app.py schema
+generate-schema-sql:
+	python3 generate_schema_sql.py

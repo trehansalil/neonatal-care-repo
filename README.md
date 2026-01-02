@@ -96,20 +96,27 @@ docker-compose down -v
 
 ## Database Schema
 
-```sql
-CREATE TABLE entries (
-    id SERIAL PRIMARY KEY,
-    temperature DECIMAL(4,1),
-    feed_amount INTEGER,
-    feed_type VARCHAR(50),
-    susu_count INTEGER DEFAULT 0,
-    poti_count INTEGER DEFAULT 0,
-    poti_color VARCHAR(50),
-    notes TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+The database schema is defined in `app.py`'s `init_db()` function, which is the single source of truth for the runtime schema. For reference and manual initialization, a SQL file is auto-generated from the Python code.
+
+### Schema Management
+
+**Important**: The schema in `app.py` is the authoritative source. After modifying the schema in `app.py`, regenerate the SQL reference file:
+
+```bash
+# Regenerate init_clickhouse.sql from app.py
+make generate-schema-sql
+# OR
+python3 generate_schema_sql.py
 ```
+
+The `init_clickhouse.sql` file is auto-generated and should not be edited directly. It serves as:
+1. Reference documentation for the schema structure
+2. Manual database initialization (for testing or external tools)
+3. Schema review and version control
+
+### Tables
+
+See `init_clickhouse.sql` for the current schema, or check `app.py`'s `init_db()` function for the runtime definition.
 
 ## Environment Variables
 
@@ -124,15 +131,18 @@ Configure in `docker-compose.yml`:
 
 ```
 .
-├── docker-compose.yml      # Docker services configuration
-├── Dockerfile              # Flask backend container
-├── pyproject.toml          # Python dependencies (uv)
-├── app.py                  # Flask API backend
-├── init.sql               # Database initialization
+├── docker-compose.yml          # Docker services configuration
+├── Dockerfile                  # Flask backend container
+├── Makefile                    # Development commands
+├── pyproject.toml              # Python dependencies (uv)
+├── app.py                      # Flask API backend (source of truth for schema)
+├── init_clickhouse.sql         # Auto-generated SQL reference (DO NOT EDIT)
+├── generate_schema_sql.py      # Script to generate init_clickhouse.sql from app.py
+├── clickhouse_export_import.py # Data export/import utility
 ├── html/
-│   ├── index.html         # Main guide page
-│   └── tracker.html       # Tracker page
-└── README.md              # This file
+│   ├── index.html              # Main guide page
+│   └── tracker.html            # Tracker page
+└── README.md                   # This file
 ```
 
 ## Development
