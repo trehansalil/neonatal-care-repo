@@ -113,7 +113,6 @@ def process_create_statement(statement):
     return '\n'.join(result_lines)
 
 
-
 def generate_sql_file(database_name, create_statements):
     """Generate the init_clickhouse.sql file with proper documentation."""
     

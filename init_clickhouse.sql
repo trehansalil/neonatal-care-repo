@@ -1,7 +1,7 @@
 -- Initialize the baby tracker database in ClickHouse
 -- 
 -- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY
--- Generated on: 2026-01-02 19:06:23 UTC
+-- Generated on: 2026-01-02 19:08:28 UTC
 -- Source: app.py init_db() function
 -- Generator: generate_schema_sql.py
 -- 
