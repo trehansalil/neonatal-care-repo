@@ -14,7 +14,7 @@ Usage:
 
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def extract_schema_from_app():
@@ -28,17 +28,30 @@ def extract_schema_from_app():
         content = f.read()
     
     # Find the init_db function
-    init_db_match = re.search(r'def init_db\(\):.*?(?=\ndef\s|\nif\s__name__|$)', content, re.DOTALL)
+    # Looking for the function definition until the next function or end of file
+    init_db_match = re.search(
+        r'def init_db\(\):.*?(?=\ndef\s|\nif\s__name__|$)', 
+        content, 
+        re.DOTALL
+    )
     if not init_db_match:
-        raise ValueError("Could not find init_db() function in app.py")
+        raise ValueError(
+            "Could not find init_db() function in app.py. "
+            "Ensure the function exists and is properly formatted."
+        )
     
     init_db_content = init_db_match.group(0)
     
     # Extract CREATE TABLE statements (looking for triple-quoted strings)
+    # Note: This assumes the schema is in triple-quoted f-strings as client.command(f'''...')
+    # If the format changes significantly, this script will need to be updated.
     create_statements = re.findall(r"client\.command\(f?'''(.*?)'''", init_db_content, re.DOTALL)
     
     if not create_statements:
-        raise ValueError("Could not find CREATE TABLE statements in init_db()")
+        raise ValueError(
+            "Could not find CREATE TABLE statements in init_db(). "
+            "Ensure they are in client.command(f'''...''') format."
+        )
     
     # Get the database name from DB_CONFIG
     db_name_match = re.search(r"'database':\s*os\.environ\.get\('DB_NAME',\s*'([^']+)'\)", content)
@@ -104,7 +117,7 @@ def process_create_statement(statement):
 def generate_sql_file(database_name, create_statements):
     """Generate the init_clickhouse.sql file with proper documentation."""
     
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
     
     header = f"""-- Initialize the baby tracker database in ClickHouse
 -- 
