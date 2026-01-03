@@ -438,6 +438,18 @@
             </div>
         </section>
 
+        <!-- Total Feed Volume -->
+        <section class="mb-6 log-section">
+            <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
+                    <div class="text-3xl font-bold text-sky-700" id="total-feed-ml">0 ml</div>
+                    <p class="text-sm text-slate-500 mt-1">Across selected range</p>
+                </div>
+                <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-sky-50 text-2xl">🍼</div>
+            </div>
+        </section>
+
         <!-- Summary Stats -->
         <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 log-section">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
@@ -970,6 +982,7 @@
 
         // Stats Elements
         const todayFeedsEl = document.getElementById('today-feeds');
+        const totalFeedMlEl = document.getElementById('total-feed-ml');
         const todaySusuEl = document.getElementById('today-susu');
         const todayPotiEl = document.getElementById('today-poti');
         const avgTempEl = document.getElementById('avg-temp');
@@ -1851,10 +1864,12 @@
             const feedEntries = rangeEntries.filter(e => e.feed_amount > 0 || e.feed_type);
             const feedsCount = feedEntries.length;
             const feedAmounts = feedEntries.filter(e => e.feed_amount > 0).map(e => e.feed_amount);
+            const totalFeedMl = feedAmounts.reduce((sum, amt) => sum + amt, 0);
             const avgFeed = feedAmounts.length > 0 
                 ? Math.round(feedAmounts.reduce((sum, amt) => sum + amt, 0) / feedAmounts.length)
                 : 0;
             todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
+            totalFeedMlEl.textContent = `${Math.round(totalFeedMl)} ml`;
 
             // Susu total
             const susuTotal = rangeEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
