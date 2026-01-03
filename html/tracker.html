@@ -1712,7 +1712,28 @@
         // Create Entry Item HTML
         function createEntryItem(entry) {
             const date = new Date(entry.timestamp);
-            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const isToday = date.toDateString() === new Date().toDateString();
+            const spansMultipleDays = historyRange?.start && historyRange?.end
+                ? historyRange.start.toDateString() !== historyRange.end.toDateString()
+                : false;
+            // const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            // const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            // const timeStr = (spansMultipleDays || !isToday) ? `${dateLabel} | ${timeLabel}` : timeLabel;
+
+            const dateTimeLabel = date.toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            });
+
+            const timeStr = (spansMultipleDays || !isToday) ? dateTimeLabel : date.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            });
 
             let icon = '';
             let title = '';
