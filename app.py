@@ -264,12 +264,22 @@ def get_entries():
         end_param = request.args.get('end')
 
         def parse_ts(value):
+            """Parse a timestamp string and return a naive datetime in local time.
+
+            ClickHouse stores the `timestamp` column with a timezone, and the Python
+            client will convert timezone-aware datetimes to UTC before sending. If we
+            pass tz-aware values here, the comparison window shifts by the timezone
+            offset (e.g., IST +05:30), which was causing end-of-day filters to miss
+            late-evening records. By returning a naive datetime already in local
+            wall time, we align with the column's timezone and avoid double shifts.
+            """
             if not value:
                 return None
             dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
             if dt.tzinfo is None:
-                return LOCAL_TIMEZONE.localize(dt)
-            return dt.astimezone(LOCAL_TIMEZONE)
+                return dt  # already local wall time
+            # Convert to local timezone, then drop tzinfo so comparisons stay in local wall time
+            return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
 
         start_ts = parse_ts(start_param)
         end_ts = parse_ts(end_param)

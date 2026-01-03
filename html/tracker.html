@@ -1035,6 +1035,20 @@
             return ts;
         }
 
+        // Format a Date object as local datetime string (YYYY-MM-DDTHH:mm:ss) without timezone
+        // This ensures the backend interprets it as local time, not UTC
+        function formatDateTimeForBackend(date) {
+            if (!date) return null;
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            const ms = String(date.getMilliseconds()).padStart(3, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`;
+        }
+
         // Determine entry type for filtering and UI labeling
         function getEntryType(entry) {
             if (entry.feed_amount || entry.feed_type) return 'feed';
@@ -1146,11 +1160,13 @@
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             restoreViewPrefs();
-            loadEntries();
-            initTrendChart();
-            setupHistoryFilters();
+            // Setup ranges and controls before the first fetch so both history and trend pull the right window
             setupHistoryRange();
+            setupHistoryFilters();
+            initTrendChart();
             setupTrendControls();
+            // Now load entries with both history and trend ranges established
+            loadEntries();
             setupMobileTabs();
         });
 
@@ -1249,9 +1265,8 @@
                 if (response.ok) {
                     closeModal(type);
                     await loadEntries();
-                    if (type === 'weight') {
-                        updateTrendChart();
-                    }
+                    // Always update trend chart after any entry change
+                    updateTrendChart();
                     showToast(currentEditingEntry ? 'Entry updated successfully!' : 'Entry saved successfully!', 'success');
                 } else {
                     throw new Error('Failed to save entry');
@@ -1266,8 +1281,26 @@
         async function loadEntries() {
             try {
                 const params = new URLSearchParams();
-                if (historyRange.start) params.set('start', historyRange.start.toISOString());
-                if (historyRange.end) params.set('end', historyRange.end.toISOString());
+                // Fetch enough data for both the history list and the trend chart by using the earliest start
+                // and latest end across the two ranges. Send datetime in local format (no timezone) so the
+                // backend interprets it as local time.
+                const rangeStarts = [historyRange?.start, trendRange?.start].filter(Boolean);
+                const rangeEnds = [historyRange?.end, trendRange?.end].filter(Boolean);
+                const fetchStart = rangeStarts.length
+                    ? rangeStarts.reduce((earliest, current) => current < earliest ? current : earliest)
+                    : null;
+                const fetchEnd = rangeEnds.length
+                    ? rangeEnds.reduce((latest, current) => current > latest ? current : latest)
+                    : null;
+
+                if (fetchStart) {
+                    const startStr = formatDateTimeForBackend(fetchStart);
+                    params.set('start', startStr);
+                }
+                if (fetchEnd) {
+                    const endStr = formatDateTimeForBackend(fetchEnd);
+                    params.set('end', endStr);
+                }
                 const response = await fetch(`${API_BASE_URL}/entries${params.toString() ? `?${params.toString()}` : ''}`);
                 if (response.ok) {
                     entries = await response.json();
@@ -1342,18 +1375,16 @@
                 applyHistoryRangeFromInputs();
             });
 
-            document.getElementById('history-preset-today').addEventListener('click', (e) => {
+            document.getElementById('history-preset-today').addEventListener('click', async (e) => {
                 e.preventDefault();
                 setHistoryPresetToday();
-                renderEntries();
-                updateStats();
+                await loadEntries();
             });
 
-            document.getElementById('history-preset-24h').addEventListener('click', (e) => {
+            document.getElementById('history-preset-24h').addEventListener('click', async (e) => {
                 e.preventDefault();
                 setHistoryPreset24h();
-                renderEntries();
-                updateStats();
+                await loadEntries();
             });
         }
 
@@ -1407,19 +1438,19 @@
                 });
             }
 
-            const applyTrendRange = () => {
+            const applyTrendRange = async () => {
                 const parsed = parseTrendRangeFromInputs(trendStartInput, trendEndInput);
                 if (!parsed) return;
                 clearPresetStates();
                 trendRange = parsed;
-                updateTrendChart();
+                await loadEntries();
             };
 
             if (applyTrendRangeBtn) {
-                applyTrendRangeBtn.addEventListener('click', (e) => {
+                applyTrendRangeBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
                     applyTrendRangeBtn.disabled = true;
-                    applyTrendRange();
+                    await applyTrendRange();
                     applyTrendRangeBtn.disabled = false;
                 });
             }
@@ -1444,7 +1475,7 @@
                 });
             };
 
-            const setPreset = (days, btn) => {
+            const setPreset = async (days, btn) => {
                 clearPresetStates();
                 if (btn) {
                     const activeClasses = ['bg-white', 'shadow-sm', 'text-slate-800'];
@@ -1461,12 +1492,12 @@
                 trendRange = { start, end };
                 setTrendRangeInputs(trendStartInput, trendEndInput, start, end);
                 updateRangeLabel(rangeLabel, formatRangeLabel(start, end));
-                updateTrendChart();
+                await loadEntries();
             };
 
-            if (presetTodayBtn) presetTodayBtn.addEventListener('click', (e) => { e.preventDefault(); setPreset(1, presetTodayBtn); });
-            if (preset7Btn) preset7Btn.addEventListener('click', (e) => { e.preventDefault(); setPreset(7, preset7Btn); });
-            if (preset30Btn) preset30Btn.addEventListener('click', (e) => { e.preventDefault(); setPreset(30, preset30Btn); });
+            if (presetTodayBtn) presetTodayBtn.addEventListener('click', async (e) => { e.preventDefault(); await setPreset(1, presetTodayBtn); });
+            if (preset7Btn) preset7Btn.addEventListener('click', async (e) => { e.preventDefault(); await setPreset(7, preset7Btn); });
+            if (preset30Btn) preset30Btn.addEventListener('click', async (e) => { e.preventDefault(); await setPreset(30, preset30Btn); });
 
             // Restore State
             const storedMetric = localStorage.getItem(STORAGE_KEYS.metric);
@@ -1484,8 +1515,6 @@
 
             // Default to 7 days
             setDefaultTrendRange(trendStartInput, trendEndInput, rangeLabel, preset7Btn);
-            // Ensure correct preset styling for default
-            setPreset(7, preset7Btn);
         }
 
         function setupMobileTabs() {
@@ -1570,8 +1599,7 @@
             }
 
             historyRange = { start, end };
-            renderEntries();
-            updateStats();
+            loadEntries();
         }
 
         function setDefaultTrendRange(startInput, endInput, rangeLabelEl, presetBtn = null) {
@@ -1587,7 +1615,10 @@
                 updateRangeLabel(rangeLabelEl, formatRangeLabel(start, end));
             }
             if (presetBtn) {
-                presetBtn.classList.add('active');
+                const activeClasses = ['bg-white', 'shadow-sm', 'text-slate-800'];
+                const inactiveClasses = ['text-slate-600', 'hover:bg-white', 'hover:shadow-sm'];
+                presetBtn.classList.remove(...inactiveClasses);
+                presetBtn.classList.add(...activeClasses);
             }
         }
 
