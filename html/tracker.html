@@ -175,6 +175,14 @@
             border-color: #bfdbfe;
         }
 
+        .metric-tab.cumulative-active {
+            background: #0284c7;
+            color: #fff;
+            border-color: #0284c7;
+            box-shadow: 0 8px 18px rgba(14, 165, 233, 0.35);
+            padding: 10px 20px;
+        }
+
         .trend-controls {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -578,13 +586,13 @@
                 <div class="flex flex-col lg:flex-row gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-6">
                     
                     <!-- Primary Metric (Scrollable on mobile) -->
-                    <div class="flex items-center gap-4 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1" id="metric-segment">
-                        <button data-metric="weight-avg" class="metric-tab active">Weight</button>
-                        <button data-metric="temp-avg" class="metric-tab">Temp</button>
-                        <button data-metric="feed-total" class="metric-tab">Feeds</button>
-                        <button data-metric="susu-count" class="metric-tab">Susu</button>
-                        <button data-metric="poti-count" class="metric-tab">Poti</button>
-                        <button data-metric="diaper-count" class="metric-tab">Diapers</button>
+                    <div class="flex items-center gap-5 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1" id="metric-segment">
+                        <button data-metric="weight-avg" data-label="Weight" data-icon="⚖️" class="metric-tab active">Weight</button>
+                        <button data-metric="temp-avg" data-label="Temp" data-icon="🌡️" class="metric-tab">Temp</button>
+                        <button data-metric="feed-total" data-label="Feeds" data-icon="🍼" class="metric-tab">Feeds</button>
+                        <button data-metric="susu-count" data-label="Susu" data-icon="💧" class="metric-tab">Susu</button>
+                        <button data-metric="poti-count" data-label="Poti" data-icon="💩" class="metric-tab">Poti</button>
+                        <button data-metric="diaper-count" data-label="Diapers" data-icon="🧷" class="metric-tab">Diapers</button>
                     </div>
 
                     <!-- Secondary Controls -->
@@ -1524,14 +1532,28 @@
 
             const longPressMs = 600;
 
+            const updateMetricButtonContent = (btn, showIcon) => {
+                const label = btn.dataset.label || btn.textContent.trim();
+                const icon = btn.dataset.icon;
+                if (showIcon && icon) {
+                    btn.innerHTML = `<span class="mr-1">${icon}</span><span>${label}</span>`;
+                } else {
+                    btn.textContent = label;
+                }
+            };
+
             function setCumulativeUI() {
                 if (cumulativeBadge) {
                     cumulativeBadge.classList.toggle('hidden', !isCumulative);
                 }
                 const activeBtn = document.querySelector('#metric-segment .metric-tab.active');
-                document.querySelectorAll('#metric-segment .metric-tab').forEach(b => b.classList.remove('ring', 'ring-2', 'ring-blue-300'));
+                document.querySelectorAll('#metric-segment .metric-tab').forEach(b => {
+                    b.classList.remove('cumulative-active');
+                    updateMetricButtonContent(b, false);
+                });
                 if (isCumulative && activeBtn) {
-                    activeBtn.classList.add('ring', 'ring-2', 'ring-blue-300');
+                    activeBtn.classList.add('cumulative-active');
+                    updateMetricButtonContent(activeBtn, true);
                     activeBtn.title = 'Cumulative view (long-press to toggle)';
                 } else if (activeBtn) {
                     activeBtn.title = 'Long-press to toggle cumulative';
