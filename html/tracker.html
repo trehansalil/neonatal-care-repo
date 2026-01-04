@@ -604,26 +604,33 @@
                 </button>
             </div>
 
-            <div class="flex flex-wrap gap-3 items-end mb-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Start</label>
-                    <div class="flex gap-2">
-                        <input type="date" id="history-start-date" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                        <input type="time" id="history-start-time" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            <!-- Range & Presets -->
+            <div class="mb-6">
+                <!-- Range Summary Button -->
+                <button onclick="openModal('range')" class="w-full md:w-auto flex items-center justify-between md:justify-start gap-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-3 transition-all group mb-3 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm group-hover:scale-105 transition-transform">
+                            📅
+                        </div>
+                        <div class="text-left">
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">Range</div>
+                            <div id="range-summary-text" class="text-sm font-bold text-slate-800">Today · 00:00–23:59</div>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">End</label>
-                    <div class="flex gap-2">
-                        <input type="date" id="history-end-date" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                        <input type="time" id="history-end-time" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <div class="text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
+                </button>
+
+                <!-- Preset Chips -->
+                <div class="chip-scroll pb-2">
+                    <button class="filter-chip" onclick="applyPreset('6h')">Last 6h</button>
+                    <button class="filter-chip" onclick="applyPreset('12h')">Last 12h</button>
+                    <button class="filter-chip active" onclick="applyPreset('today')">Today</button>
+                    <button class="filter-chip" onclick="applyPreset('yesterday')">Yesterday</button>
+                    <button class="filter-chip" onclick="applyPreset('24h')">Last 24h</button>
+                    <button class="filter-chip" onclick="applyPreset('week')">This week</button>
                 </div>
-                <div class="flex gap-2">
-                    <button id="history-preset-today" class="filter-chip">Today</button>
-                    <button id="history-preset-24h" class="filter-chip">Last 24h</button>
-                </div>
-                <button id="history-apply-range" class="filter-chip active">Apply</button>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 mb-4">
@@ -1096,6 +1103,108 @@
                     Save Entry
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- Range Picker Modal -->
+    <div id="range-modal" class="modal">
+        <div class="modal-content h-full md:h-auto md:max-h-[80vh] flex flex-col w-full md:w-[500px]">
+            <!-- Header -->
+            <div class="bg-white p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-slate-800">Select Range</h3>
+                <button onclick="closeModal('range')" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="p-4 border-b border-slate-100 shrink-0">
+                <div class="flex bg-slate-100 p-1 rounded-xl">
+                    <button id="range-tab-presets" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all bg-white shadow-sm text-sky-600" onclick="switchRangeTab('presets')">Presets</button>
+                    <button id="range-tab-custom" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all" onclick="switchRangeTab('custom')">Custom</button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <!-- Presets View -->
+                <div id="range-view-presets" class="space-y-2">
+                    <button onclick="selectPresetAndClose('6h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">Last 6 hours</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                    <button onclick="selectPresetAndClose('12h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">Last 12 hours</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                    <button onclick="selectPresetAndClose('today')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">Today</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                    <button onclick="selectPresetAndClose('yesterday')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">Yesterday</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                    <button onclick="selectPresetAndClose('24h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">Last 24 hours</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                    <button onclick="selectPresetAndClose('week')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                        <span class="font-semibold text-slate-700">This Week</span>
+                        <span class="text-slate-400 group-hover:text-sky-500">→</span>
+                    </button>
+                </div>
+
+                <!-- Custom View -->
+                <div id="range-view-custom" class="hidden space-y-6">
+                    <!-- Date Selection -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date Range</label>
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-xs text-slate-500 mb-1 block font-semibold">From</label>
+                                    <input type="date" id="custom-start-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-500 mb-1 block font-semibold">To</label>
+                                    <input type="date" id="custom-end-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time Selection -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Time Range</label>
+                            <button onclick="setCustomEndTimeNow()" class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1 rounded-md hover:bg-sky-100 transition-colors">Set End to Now</button>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-xs text-slate-500 mb-1 block font-semibold">Start Time</label>
+                                    <input type="time" id="custom-start-time" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-500 mb-1 block font-semibold">End Time</label>
+                                    <input type="time" id="custom-end-time" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-xs text-slate-400 text-center italic">
+                        Tip: End time will auto-adjust if earlier than start time.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer (Sticky) -->
+            <div class="p-4 border-t border-slate-100 bg-white shrink-0 flex gap-3">
+                <button onclick="closeModal('range')" class="flex-1 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onclick="applyCustomRange()" class="flex-1 py-3 rounded-xl font-bold text-white bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-200 transition-all">Apply Range</button>
+            </div>
         </div>
     </div>
 
@@ -1589,35 +1698,8 @@
 
         // History date/time range
         function setupHistoryRange() {
-            setHistoryPresetToday();
-
-            const startDateEl = document.getElementById('history-start-date');
-            const startTimeEl = document.getElementById('history-start-time');
-            const endDateEl = document.getElementById('history-end-date');
-            const endTimeEl = document.getElementById('history-end-time');
-
-            const inputs = [startDateEl, startTimeEl, endDateEl, endTimeEl];
-            inputs.forEach((el) => {
-                el.addEventListener('change', () => applyHistoryRangeFromInputs());
-                el.addEventListener('blur', () => applyHistoryRangeFromInputs());
-            });
-
-            document.getElementById('history-apply-range').addEventListener('click', (e) => {
-                e.preventDefault();
-                applyHistoryRangeFromInputs();
-            });
-
-            document.getElementById('history-preset-today').addEventListener('click', async (e) => {
-                e.preventDefault();
-                setHistoryPresetToday();
-                await loadEntries();
-            });
-
-            document.getElementById('history-preset-24h').addEventListener('click', async (e) => {
-                e.preventDefault();
-                setHistoryPreset24h();
-                await loadEntries();
-            });
+            // Initialize with Today
+            applyPreset('today');
         }
 
         function setupTrendControls() {
@@ -1846,59 +1928,141 @@
             }
         }
 
-        function setHistoryPresetToday() {
+        // --- Range Picker Logic ---
+
+        function switchRangeTab(tab) {
+            const presetsBtn = document.getElementById('range-tab-presets');
+            const customBtn = document.getElementById('range-tab-custom');
+            const presetsView = document.getElementById('range-view-presets');
+            const customView = document.getElementById('range-view-custom');
+
+            if (tab === 'presets') {
+                presetsBtn.classList.add('bg-white', 'shadow-sm', 'text-sky-600');
+                customBtn.classList.remove('bg-white', 'shadow-sm', 'text-sky-600');
+                presetsView.classList.remove('hidden');
+                customView.classList.add('hidden');
+            } else {
+                customBtn.classList.add('bg-white', 'shadow-sm', 'text-sky-600');
+                presetsBtn.classList.remove('bg-white', 'shadow-sm', 'text-sky-600');
+                customView.classList.remove('hidden');
+                presetsView.classList.add('hidden');
+                
+                // Initialize custom inputs with current range if not set
+                if (!document.getElementById('custom-start-date').value && historyRange.start) {
+                    const start = historyRange.start;
+                    const end = historyRange.end || new Date();
+                    
+                    const pad = n => String(n).padStart(2, '0');
+                    document.getElementById('custom-start-date').value = `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
+                    document.getElementById('custom-start-time').value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+                    document.getElementById('custom-end-date').value = `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`;
+                    document.getElementById('custom-end-time').value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+                }
+            }
+        }
+
+        async function selectPresetAndClose(preset) {
+            await applyPreset(preset);
+            closeModal('range');
+        }
+
+        function setCustomEndTimeNow() {
             const now = new Date();
-            const start = new Date(now);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(now);
-            end.setHours(23, 59, 59, 999);
-            setHistoryRangeInputs(start, end);
-            historyRange = { start, end };
+            const pad = n => String(n).padStart(2, '0');
+            document.getElementById('custom-end-date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            document.getElementById('custom-end-time').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
         }
 
-        function setHistoryPreset24h() {
-            const end = new Date();
-            const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-            setHistoryRangeInputs(start, end);
-            historyRange = { start, end };
-        }
+        async function applyCustomRange() {
+            const sDate = document.getElementById('custom-start-date').value;
+            const sTime = document.getElementById('custom-start-time').value;
+            const eDate = document.getElementById('custom-end-date').value;
+            const eTime = document.getElementById('custom-end-time').value;
 
-        function setHistoryRangeInputs(start, end) {
-            const startDateEl = document.getElementById('history-start-date');
-            const startTimeEl = document.getElementById('history-start-time');
-            const endDateEl = document.getElementById('history-end-date');
-            const endTimeEl = document.getElementById('history-end-time');
-
-            const pad = (n) => String(n).padStart(2, '0');
-
-            startDateEl.value = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
-            startTimeEl.value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
-            endDateEl.value = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
-            endTimeEl.value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
-        }
-
-        function applyHistoryRangeFromInputs() {
-            const start = parseDateTime(
-                document.getElementById('history-start-date').value,
-                document.getElementById('history-start-time').value
-            );
-            const end = parseDateTime(
-                document.getElementById('history-end-date').value,
-                document.getElementById('history-end-time').value,
-                true
-            );
-
-            if (!start || !end) {
-                showToast('Please set both start and end date/time', 'error');
+            if (!sDate || !sTime || !eDate || !eTime) {
+                showToast('Please fill all date and time fields', 'error');
                 return;
             }
+
+            const start = parseDateTime(sDate, sTime);
+            const end = parseDateTime(eDate, eTime, true);
+
             if (end < start) {
-                showToast('End must be after start', 'error');
+                showToast('End time cannot be before start time', 'error');
                 return;
             }
 
             historyRange = { start, end };
-            loadEntries();
+            updateRangeSummary('Custom Range');
+            await loadEntries();
+            closeModal('range');
+        }
+
+        async function applyPreset(preset) {
+            const end = new Date();
+            let start = new Date();
+            let label = '';
+
+            switch (preset) {
+                case '6h':
+                    start = new Date(end.getTime() - 6 * 60 * 60 * 1000);
+                    label = 'Last 6 Hours';
+                    break;
+                case '12h':
+                    start = new Date(end.getTime() - 12 * 60 * 60 * 1000);
+                    label = 'Last 12 Hours';
+                    break;
+                case '24h':
+                    start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+                    label = 'Last 24 Hours';
+                    break;
+                case 'today':
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 999);
+                    label = 'Today';
+                    break;
+                case 'yesterday':
+                    start.setDate(start.getDate() - 1);
+                    start.setHours(0, 0, 0, 0);
+                    end.setDate(end.getDate() - 1);
+                    end.setHours(23, 59, 59, 999);
+                    label = 'Yesterday';
+                    break;
+                case 'week':
+                    const day = start.getDay();
+                    const diff = start.getDate() - day + (day == 0 ? -6 : 1); 
+                    start.setDate(diff);
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 999);
+                    label = 'This Week';
+                    break;
+            }
+
+            historyRange = { start, end };
+            updateRangeSummary(label, preset);
+            await loadEntries();
+        }
+
+        function updateRangeSummary(label, activePreset = null) {
+            const summaryEl = document.getElementById('range-summary-text');
+            
+            const formatTime = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const formatDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            
+            if (historyRange.start.toDateString() === historyRange.end.toDateString()) {
+                summaryEl.innerHTML = `${label} · <span class="font-normal text-slate-500">${formatTime(historyRange.start)}–${formatTime(historyRange.end)}</span>`;
+            } else {
+                summaryEl.innerHTML = `${label} · <span class="font-normal text-slate-500">${formatDate(historyRange.start)}–${formatDate(historyRange.end)}</span>`;
+            }
+
+            document.querySelectorAll('.chip-scroll .filter-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+
+            if (activePreset) {
+                const activeChip = Array.from(document.querySelectorAll('.chip-scroll .filter-chip')).find(c => c.getAttribute('onclick').includes(`'${activePreset}'`));
+                if (activeChip) activeChip.classList.add('active');
+            }
         }
 
         function setDefaultTrendRange(startInput, endInput, rangeLabelEl, presetBtn = null) {
