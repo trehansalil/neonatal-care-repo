@@ -583,6 +583,7 @@
                         <button data-metric="feed-total" class="metric-tab">Feeds</button>
                         <button data-metric="susu-count" class="metric-tab">Susu</button>
                         <button data-metric="poti-count" class="metric-tab">Poti</button>
+                        <button data-metric="diaper-count" class="metric-tab">Diapers</button>
                     </div>
 
                     <!-- Secondary Controls -->
@@ -597,6 +598,7 @@
                                 <option value="feed-total">vs Feeds</option>
                                 <option value="susu-count">vs Susu</option>
                                 <option value="poti-count">vs Poti</option>
+                                <option value="diaper-count">vs Diapers</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -2317,6 +2319,14 @@
             return { labels, values };
         }
 
+        function computeDiaperCount(entries) {
+            return entries.reduce((sum, entry) => {
+                const itemType = getEntryItemType(entry);
+                if (itemType !== 'diaper') return sum;
+                return sum + (entry.susu_count || 0) + (entry.poti_count || 0);
+            }, 0);
+        }
+
         // Calculate metric value for a group of entries
         function calculateMetricValue(entries, metric) {
             switch(metric) {
@@ -2343,6 +2353,9 @@
                     
                 case 'susu-count':
                     return entries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
+
+                case 'diaper-count':
+                    return computeDiaperCount(entries);
                     
                 default:
                     return 0;
@@ -2356,7 +2369,8 @@
                 'temp-avg': { border: 'rgb(239, 68, 68)', bg: 'rgba(239, 68, 68, 0.12)' },
                 'feed-total': { border: 'rgb(245, 158, 11)', bg: 'rgba(245, 158, 11, 0.12)' },
                 'susu-count': { border: 'rgb(16, 185, 129)', bg: 'rgba(16, 185, 129, 0.12)' },
-                'poti-count': { border: 'rgb(139, 92, 246)', bg: 'rgba(139, 92, 246, 0.12)' }
+                'poti-count': { border: 'rgb(139, 92, 246)', bg: 'rgba(139, 92, 246, 0.12)' },
+                'diaper-count': { border: 'rgb(56, 189, 248)', bg: 'rgba(56, 189, 248, 0.12)' }
             };
             const fallback = [
                 { border: 'rgb(14, 165, 233)', bg: 'rgba(14, 165, 233, 0.14)' },
@@ -2377,7 +2391,8 @@
                 'feed-avg': 'Average Feed Volume',
                 'feed-count': 'Feed Count',
                 'poti-count': 'Soiled Diapers',
-                'susu-count': 'Wet Diapers'
+                'susu-count': 'Wet Diapers',
+                'diaper-count': 'Diapers'
             };
             return titles[metric] || 'Trend';
         }
@@ -2391,7 +2406,8 @@
                 'feed-avg': 'ml',
                 'feed-count': '',
                 'poti-count': '',
-                'susu-count': ''
+                'susu-count': '',
+                'diaper-count': ''
             };
             return units[metric] || '';
         }
