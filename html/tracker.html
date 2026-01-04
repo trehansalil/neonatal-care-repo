@@ -541,6 +541,7 @@
                     <div>
                         <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                             <span>📈</span> <span id="chart-title">Trend Analysis</span>
+                            <span id="cumulative-badge" class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Cumulative</span>
                         </h2>
                         <p class="text-sm text-slate-500 mt-1">Visualize growth and vitals</p>
                     </div>
@@ -587,8 +588,7 @@
                     </div>
 
                     <!-- Secondary Controls -->
-                    <div class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3">
-                        
+                    <div class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3 flex-wrap">
                         <!-- Compare Dropdown -->
                         <div class="relative min-w-[140px]">
                             <select id="compare-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
@@ -997,13 +997,15 @@
         let currentMetric = 'weight-avg';
         let currentTimeRange = 'week';
         let compareMetric = null;
+        let isCumulative = false;
         const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
         let historyRange = { start: null, end: null };
         let trendRange = { start: null, end: null };
         const STORAGE_KEYS = {
             metric: 'tracker.metric',
             range: 'tracker.range',
-            view: 'tracker.view'
+            view: 'tracker.view',
+            cumulative: 'tracker.cumulative'
         };
 
         // DOM Elements
@@ -1509,6 +1511,7 @@
             const metricButtons = document.querySelectorAll('#metric-segment button');
             const aggregationSelect = document.getElementById('aggregation-select');
             const compareSelect = document.getElementById('compare-select');
+            const cumulativeBadge = document.getElementById('cumulative-badge');
             const rangeLabel = document.getElementById('range-label');
             const trendStartInput = document.getElementById('trend-start-date');
             const trendEndInput = document.getElementById('trend-end-date');
@@ -1519,13 +1522,60 @@
             const toggleCustomDateBtn = document.getElementById('toggle-custom-date');
             const customDatePanel = document.getElementById('custom-date-panel');
 
+            const longPressMs = 600;
+
+            function setCumulativeUI() {
+                if (cumulativeBadge) {
+                    cumulativeBadge.classList.toggle('hidden', !isCumulative);
+                }
+                const activeBtn = document.querySelector('#metric-segment .metric-tab.active');
+                document.querySelectorAll('#metric-segment .metric-tab').forEach(b => b.classList.remove('ring', 'ring-2', 'ring-blue-300'));
+                if (isCumulative && activeBtn) {
+                    activeBtn.classList.add('ring', 'ring-2', 'ring-blue-300');
+                    activeBtn.title = 'Cumulative view (long-press to toggle)';
+                } else if (activeBtn) {
+                    activeBtn.title = 'Long-press to toggle cumulative';
+                }
+            }
+
             // Metric Buttons
             metricButtons.forEach(btn => {
+                let pressTimer = null;
+                let longPressHandled = false;
+
+                const clearPress = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                };
+
+                btn.addEventListener('pointerdown', () => {
+                    longPressHandled = false;
+                    clearPress();
+                    pressTimer = setTimeout(() => {
+                        longPressHandled = true;
+                        isCumulative = !isCumulative;
+                        localStorage.setItem(STORAGE_KEYS.cumulative, isCumulative ? '1' : '0');
+                        setCumulativeUI();
+                        updateTrendChart();
+                    }, longPressMs);
+                });
+
+                ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+                    btn.addEventListener(evt, clearPress);
+                });
+
                 btn.addEventListener('click', () => {
+                    if (longPressHandled) {
+                        longPressHandled = false;
+                        return;
+                    }
                     metricButtons.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentMetric = btn.dataset.metric;
                     localStorage.setItem(STORAGE_KEYS.metric, currentMetric);
+                    setCumulativeUI();
                     updateTrendChart();
                 });
             });
@@ -1547,7 +1597,6 @@
                     updateTrendChart();
                 });
             }
-
             // Custom Date Toggle
             if (toggleCustomDateBtn && customDatePanel) {
                 toggleCustomDateBtn.addEventListener('click', () => {
@@ -1619,6 +1668,7 @@
             // Restore State
             const storedMetric = localStorage.getItem(STORAGE_KEYS.metric);
             const storedRange = localStorage.getItem(STORAGE_KEYS.range);
+            const storedCumulative = localStorage.getItem(STORAGE_KEYS.cumulative);
             
             if (storedMetric) {
                 currentMetric = storedMetric;
@@ -1629,6 +1679,11 @@
                 currentTimeRange = storedRange;
                 aggregationSelect.value = currentTimeRange;
             }
+
+            if (storedCumulative === '1') {
+                isCumulative = true;
+            }
+            setCumulativeUI();
 
             // Default to 7 days
             setDefaultTrendRange(trendStartInput, trendEndInput, rangeLabel, preset7Btn);
@@ -2114,9 +2169,10 @@
             }
 
             const grouped = groupByTime(filteredEntries, groupBy, metric, start);
+            const primaryValues = isCumulative ? toCumulative(grouped.values) : grouped.values;
 
             trendChart.data.labels = grouped.labels;
-            trendChart.data.datasets[0].data = grouped.values;
+            trendChart.data.datasets[0].data = primaryValues;
             const colors = getMetricColor(metric, 0);
             trendChart.data.datasets[0].label = getMetricTitle(metric);
             trendChart.data.datasets[0].borderColor = colors.border;
@@ -2201,12 +2257,12 @@
 
             trendChart.update();
 
-            if (grouped.values.length > 0) {
-                const startVal = grouped.values[0];
-                const latest = grouped.values[grouped.values.length - 1];
+            if (primaryValues.length > 0) {
+                const startVal = primaryValues[0];
+                const latest = primaryValues[primaryValues.length - 1];
                 const change = latest - startVal;
-                const avgChange = grouped.values.length > 1
-                    ? change / (grouped.values.length - 1)
+                const avgChange = primaryValues.length > 1
+                    ? change / (primaryValues.length - 1)
                     : 0;
                 updateTrendStats(startVal, latest, change, avgChange, unit);
             }
@@ -2325,6 +2381,14 @@
                 if (itemType !== 'diaper') return sum;
                 return sum + (entry.susu_count || 0) + (entry.poti_count || 0);
             }, 0);
+        }
+
+        function toCumulative(values) {
+            let running = 0;
+            return values.map(v => {
+                running += v;
+                return running;
+            });
         }
 
         // Calculate metric value for a group of entries
