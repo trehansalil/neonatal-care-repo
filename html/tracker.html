@@ -458,11 +458,11 @@
             </div>
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="text-3xl font-bold text-indigo-600" id="today-susu">0</div>
-                <div class="text-sm text-slate-600 mt-1">Wet Diapers</div>
+                <div class="text-sm text-slate-600 mt-1">Wet Items</div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="text-3xl font-bold text-amber-600" id="today-poti">0</div>
-                <div class="text-sm text-slate-600 mt-1">Soiled Diapers</div>
+                <div class="text-sm text-slate-600 mt-1">Soiled Items</div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="text-3xl font-bold text-emerald-600" id="avg-temp">--</div>
@@ -743,9 +743,17 @@
                     <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Wet Diapers</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Wet Items</label>
                     <input type="number" id="susu-count" min="1" max="5" value="1" required
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Item Type</label>
+                    <select id="susu-item-type"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="diaper">Diaper</option>
+                        <option value="nappy">Nappy</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Urine Color</label>
@@ -804,9 +812,17 @@
                     <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Soiled Diapers</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Soiled Items</label>
                     <input type="number" id="poti-count" min="1" max="5" value="1" required
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Item Type</label>
+                    <select id="poti-item-type"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        <option value="diaper">Diaper</option>
+                        <option value="nappy">Nappy</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Consistency</label>
@@ -1010,25 +1026,71 @@
             document.getElementById(`${type}-time`).value = time;
         }
 
-        // Parse poti notes to extract consistency and free-text notes
+        // Generic note metadata parser for "Label: value" prefixes
+        function parseNoteField(noteText, label, validValues = []) {
+            if (!noteText) return { value: null, remaining: '', error: null };
+            const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`${escapedLabel}:\\s*([^\\.\\n]+)\\.?\\s*(.*)`, 'i');
+            const match = noteText.match(regex);
+            if (!match) return { value: null, remaining: noteText.trim(), error: null };
+
+            const value = match[1].trim().toLowerCase();
+            const remaining = (match[2] || '').trim();
+
+            if (validValues.length && !validValues.includes(value)) {
+                const errorMessage = `Unexpected ${label.toLowerCase()} value: ${value}. Expected one of: ${validValues.join(', ')}`;
+                console.warn(errorMessage);
+                return { value: null, remaining: noteText.trim(), error: errorMessage };
+            }
+
+            return { value, remaining, error: null };
+        }
+
+        // Rebuild notes with structured metadata prefixes so we can parse later
+        function buildNotes(metadataParts, freeText) {
+            const meta = metadataParts
+                .filter(part => part.value)
+                .map(part => `${part.label}: ${part.value}`)
+                .join('. ');
+            const text = freeText?.trim();
+            return [meta, text].filter(Boolean).join('. ').trim();
+        }
+
+        // Parse susu notes to extract item type, urine color, and remaining text
+        function parseSusuNotes(noteText) {
+            if (!noteText) return { itemType: null, color: null, text: '', errors: [] };
+
+            const itemParsed = parseNoteField(noteText, 'Item', ['diaper', 'nappy']);
+            const colorParsed = parseNoteField(itemParsed.remaining, 'Urine color', ['clear', 'pale_yellow', 'dark_yellow', 'orange', 'red']);
+
+            return {
+                itemType: itemParsed.value,
+                color: colorParsed.value,
+                text: colorParsed.remaining || itemParsed.remaining,
+                errors: [itemParsed.error, colorParsed.error].filter(Boolean)
+            };
+        }
+
+        // Parse poti notes to extract item type, consistency, and free-text notes
         // Valid consistency values are: loose, soft, normal, hard, watery
         function parsePotiNotes(noteText) {
-            if (!noteText) return { consistency: null, text: '', error: null };
-            const match = noteText.match(/^Consistency:\s*([^\.\n]+)\.?(.*)$/i);
-            if (!match) return { consistency: null, text: noteText.trim(), error: null };
-            const consistency = match[1].trim().toLowerCase();
-            const text = (match[2] || '').trim();
-            
-            // Validate consistency value against expected values
-            const validConsistencies = ['loose', 'soft', 'normal', 'hard', 'watery'];
-            if (!validConsistencies.includes(consistency)) {
-                const errorMessage = `Unexpected consistency value: ${consistency}. Expected one of: ${validConsistencies.join(', ')}`;
-                console.warn(errorMessage);
-                // Treat entire note as free-text when consistency is invalid
-                return { consistency: null, text: noteText.trim(), error: errorMessage };
-            }
-            
-            return { consistency, text, error: null };
+            if (!noteText) return { itemType: null, consistency: null, text: '', errors: [] };
+
+            const itemParsed = parseNoteField(noteText, 'Item', ['diaper', 'nappy']);
+            const consistencyParsed = parseNoteField(itemParsed.remaining, 'Consistency', ['loose', 'soft', 'normal', 'hard', 'watery']);
+
+            return {
+                itemType: itemParsed.value,
+                consistency: consistencyParsed.value,
+                text: consistencyParsed.remaining || itemParsed.remaining,
+                errors: [itemParsed.error, consistencyParsed.error].filter(Boolean)
+            };
+        }
+
+        function formatItemSubtitle(count, descriptor, itemType) {
+            const base = itemType === 'nappy' ? 'nappy' : itemType === 'diaper' ? 'diaper' : 'item';
+            const pluralBase = count === 1 ? base : `${base}s`;
+            return `${count} ${descriptor} ${pluralBase}`;
         }
 
         // Helper function to combine date and time inputs
@@ -1106,15 +1168,27 @@
                     if (entry.notes) document.getElementById('feed-notes').value = entry.notes;
                 } else if (type === 'susu') {
                     if (entry.susu_count) document.getElementById('susu-count').value = entry.susu_count;
-                    if (entry.notes) document.getElementById('susu-notes').value = entry.notes;
+                    const { itemType, color, text } = parseSusuNotes(entry.notes);
+                    if (itemType) document.getElementById('susu-item-type').value = itemType;
+                    if (color) document.getElementById('susu-color').value = color;
+                    if (text) {
+                        document.getElementById('susu-notes').value = text;
+                    } else if (entry.notes && !color && !itemType) {
+                        document.getElementById('susu-notes').value = entry.notes;
+                    }
                 } else if (type === 'poti') {
                     if (entry.poti_count) document.getElementById('poti-count').value = entry.poti_count;
                     if (entry.poti_color) document.getElementById('poti-color').value = entry.poti_color;
-                    const { consistency, text } = parsePotiNotes(entry.notes);
+                    const { itemType, consistency, text } = parsePotiNotes(entry.notes);
+                    if (itemType) document.getElementById('poti-item-type').value = itemType;
                     if (consistency) {
                         document.getElementById('poti-consistency').value = consistency;
                     }
-                    if (text) document.getElementById('poti-notes').value = text;
+                    if (text) {
+                        document.getElementById('poti-notes').value = text;
+                    } else if (entry.notes && !consistency && !itemType) {
+                        document.getElementById('poti-notes').value = entry.notes;
+                    }
                 } else if (type === 'temp') {
                     if (entry.temperature) document.getElementById('temp-value').value = entry.temperature;
                     if (entry.notes) document.getElementById('temp-notes').value = entry.notes;
@@ -1203,7 +1277,10 @@
             
             const data = {
                 susu_count: parseInt(document.getElementById('susu-count').value),
-                notes: `Urine color: ${document.getElementById('susu-color').value}. ${document.getElementById('susu-notes').value || ''}`,
+                notes: buildNotes([
+                    { label: 'Item', value: document.getElementById('susu-item-type').value },
+                    { label: 'Urine color', value: document.getElementById('susu-color').value }
+                ], document.getElementById('susu-notes').value),
                 timestamp: getTimestampFromInputs('susu')
             };
 
@@ -1217,7 +1294,10 @@
             const data = {
                 poti_count: parseInt(document.getElementById('poti-count').value),
                 poti_color: document.getElementById('poti-color').value,
-                notes: `Consistency: ${document.getElementById('poti-consistency').value}. ${document.getElementById('poti-notes').value || ''}`,
+                notes: buildNotes([
+                    { label: 'Item', value: document.getElementById('poti-item-type').value },
+                    { label: 'Consistency', value: document.getElementById('poti-consistency').value }
+                ], document.getElementById('poti-notes').value),
                 timestamp: getTimestampFromInputs('poti')
             };
 
@@ -1761,12 +1841,14 @@
             } else if (entry.susu_count > 0) {
                 icon = '💧';
                 title = 'Urine';
-                subtitle = `${entry.susu_count} wet diaper${entry.susu_count > 1 ? 's' : ''}`;
+                const { itemType } = parseSusuNotes(entry.notes);
+                subtitle = formatItemSubtitle(entry.susu_count, 'wet', itemType);
                 bgColor = 'bg-indigo-50';
             } else if (entry.poti_count > 0) {
                 icon = '💩';
                 title = 'Stool';
-                subtitle = `${entry.poti_count} soiled diaper${entry.poti_count > 1 ? 's' : ''}${entry.poti_color ? ` (${entry.poti_color})` : ''}`;
+                const { itemType } = parsePotiNotes(entry.notes);
+                subtitle = `${formatItemSubtitle(entry.poti_count, 'soiled', itemType)}${entry.poti_color ? ` (${entry.poti_color})` : ''}`;
                 bgColor = 'bg-amber-50';
             } else if (entry.temperature) {
                 icon = '🌡️';
