@@ -440,13 +440,24 @@
 
         <!-- Total Feed Volume -->
         <section class="mb-6 log-section">
-            <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
-                    <div class="text-3xl font-bold text-sky-700" id="total-feed-ml">0 ml</div>
-                    <p class="text-sm text-slate-500 mt-1">Across selected range</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
+                        <div class="text-3xl font-bold text-sky-700" id="total-feed-ml">0 ml</div>
+                        <p class="text-sm text-slate-500 mt-1">Across selected range</p>
+                    </div>
+                    <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-sky-50 text-2xl">🍼</div>
                 </div>
-                <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-sky-50 text-2xl">🍼</div>
+
+                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Diapers Used</p>
+                        <div class="text-3xl font-bold text-indigo-700" id="total-diapers">0</div>
+                        <p class="text-sm text-slate-500 mt-1">Across selected range</p>
+                    </div>
+                    <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-2xl">🧷</div>
+                </div>
             </div>
         </section>
 
@@ -999,6 +1010,7 @@
         // Stats Elements
         const todayFeedsEl = document.getElementById('today-feeds');
         const totalFeedMlEl = document.getElementById('total-feed-ml');
+        const totalDiapersEl = document.getElementById('total-diapers');
         const todaySusuEl = document.getElementById('today-susu');
         const todayPotiEl = document.getElementById('today-poti');
         const avgTempEl = document.getElementById('avg-temp');
@@ -1132,6 +1144,16 @@
             if (entry.temperature) return 'temp';
             if (entry.weight) return 'weight';
             return 'unknown';
+        }
+
+        function getEntryItemType(entry) {
+            if (entry.susu_count > 0) {
+                return parseSusuNotes(entry.notes).itemType;
+            }
+            if (entry.poti_count > 0) {
+                return parsePotiNotes(entry.notes).itemType;
+            }
+            return null;
         }
 
         // Modal Functions
@@ -1960,6 +1982,16 @@
             // Poti total
             const potiTotal = rangeEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
             todayPotiEl.textContent = potiTotal;
+
+            // Combined diaper total
+            const diaperTotal = rangeEntries.reduce((sum, e) => {
+                const itemType = getEntryItemType(e);
+                if (itemType === 'diaper') {
+                    return sum + (e.susu_count || 0) + (e.poti_count || 0);
+                }
+                return sum;
+            }, 0);
+            totalDiapersEl.textContent = diaperTotal;
 
             // Average temperature
             const temps = rangeEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
