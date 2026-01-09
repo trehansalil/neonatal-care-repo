@@ -548,13 +548,27 @@
         <!-- Total Feed Volume -->
         <section class="mb-6 log-section">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
-                        <div class="text-3xl font-bold text-sky-700" id="total-feed-ml">0 ml</div>
-                        <p class="text-sm text-slate-500 mt-1">Across selected range</p>
+                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between gap-4">
+                    <div class="flex justify-between items-start w-full">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
+                            <div class="text-3xl font-bold text-sky-700 leading-tight" id="total-feed-ml">0 ml</div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Daily Goal</p>
+                            <div class="text-lg font-bold text-slate-600" id="target-feed-ml">--</div>
+                        </div>
                     </div>
-                    <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-sky-50 text-2xl">🍼</div>
+                    
+                    <div class="w-full">
+                        <div class="relative w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="feed-progress-bar" class="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <p class="text-xs text-slate-500 font-medium" id="feed-progress-text">0% of daily target</p>
+                            <p class="text-[10px] text-slate-400" id="target-basis-text">Add weight for goal</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
@@ -2560,6 +2574,52 @@
                 : 0;
             todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
             totalFeedMlEl.textContent = `${Math.round(totalFeedMl)} ml`;
+
+            // --- Feed Target Progress ---
+            // Calculate goal based on the weight effective at the end of the selected range
+            const applicableWeights = entries
+                .filter(e => e.weight > 0 && e.timestamp)
+                .filter(e => {
+                    if (historyRange.end) return new Date(e.timestamp) <= historyRange.end;
+                    return true;
+                })
+                .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+            const latestWeight = applicableWeights.length > 0 ? applicableWeights[0].weight : 0;
+            
+            const targetEl = document.getElementById('target-feed-ml');
+            const progressBar = document.getElementById('feed-progress-bar');
+            const progressText = document.getElementById('feed-progress-text');
+            const basisText = document.getElementById('target-basis-text');
+            
+            if (latestWeight > 0) {
+                const weightKg = (latestWeight / 1000).toFixed(2);
+                const dailyTarget = Math.round((latestWeight / 1000) * 150);
+                
+                if (targetEl) targetEl.textContent = `Goal: ${dailyTarget}`;
+                
+                let days = 1;
+                if (historyRange.start && historyRange.end) {
+                    const diffTime = Math.abs(historyRange.end - historyRange.start);
+                    days = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+                }
+
+                const dailyAvg = totalFeedMl / days;
+                const percent = Math.min(100, Math.round((dailyAvg / dailyTarget) * 100));
+                
+                if (progressBar) {
+                    progressBar.style.width = `${percent}%`;
+                    if (percent < 50) progressBar.className = 'absolute top-0 left-0 h-full bg-rose-500 rounded-full transition-all duration-500';
+                    else if (percent < 85) progressBar.className = 'absolute top-0 left-0 h-full bg-amber-400 rounded-full transition-all duration-500';
+                    else progressBar.className = 'absolute top-0 left-0 h-full bg-emerald-500 rounded-full transition-all duration-500';
+                }
+                
+                if (progressText) progressText.textContent = days > 1 ? `${percent}% of daily avg` : `${percent}% of daily goal`;
+                if (basisText) basisText.textContent = `Based on last: ${weightKg}kg`;
+            } else {
+                 if (targetEl) targetEl.textContent = '--';
+                 if (progressBar) progressBar.style.width = '0%';
+            }
 
             // Susu total
             const susuTotal = rangeEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
