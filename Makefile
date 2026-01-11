@@ -1,4 +1,9 @@
-.PHONY: ipconfig dev-up dev-down clean dev-logs dev-restart dev-export-data
+.PHONY: setup ipconfig dev-up dev-down clean dev-logs dev-restart dev-export-data
+
+setup:
+	brew install ffmpeg
+	pip install uv
+	uv sync
 
 ipconfig:
 	ifconfig | grep "inet " | grep -v 127.0.0.1
