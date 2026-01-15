@@ -502,7 +502,7 @@
                 <span>✍️</span> New Entry
             </h2>
 
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <!-- Feed Card -->
                 <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
                     onclick="openModal('feed')">
@@ -541,6 +541,14 @@
                     <div class="text-5xl mb-3">⚖️</div>
                     <h3 class="font-bold text-slate-800 mb-1">Weight</h3>
                     <p class="text-xs text-slate-500">Track Growth</p>
+                </div>
+
+                <!-- Speech Log Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('speech')">
+                    <div class="text-5xl mb-3">🎙️</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Speech Log</h3>
+                    <p class="text-xs text-slate-500">Record & transcribe</p>
                 </div>
             </div>
         </section>
@@ -654,6 +662,7 @@
                 <button class="filter-chip active" data-type="poti">💩 Poti</button>
                 <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
                 <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
+                <button class="filter-chip active" data-type="speech">🎙️ Speech</button>
             </div>
 
             <div id="entries-container" class="space-y-3">
@@ -1120,6 +1129,149 @@
         </div>
     </div>
 
+    <!-- Speech Log Modal -->
+    <div id="speech-modal" class="modal">
+        <div class="modal-content h-full md:h-auto md:max-h-[90vh] flex flex-col w-full md:w-[640px]">
+            <div class="bg-rose-50 p-5 border-b border-rose-100 flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-500">Voice Notes</p>
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">🎙️ Speech Log</h2>
+                    <p class="text-sm text-slate-600">Record, transcribe, and file a quick voice note.</p>
+                </div>
+                <button onclick="closeModal('speech')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+            </div>
+
+            <form id="speech-form" class="p-5 md:p-6 space-y-4 flex-1 flex flex-col overflow-y-auto">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('speech')" class="text-xs text-rose-600 hover:text-rose-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="speech-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                        <input type="time" id="speech-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Status</p>
+                            <p id="speech-status" class="text-sm font-bold text-slate-800">Ready to record</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase font-semibold">Duration</p>
+                            <p id="speech-timer" class="text-2xl font-mono font-bold text-slate-900">00:00</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg bg-white border border-slate-200 p-3">
+                        <div class="flex items-end gap-1 h-20 md:h-16" id="speech-waveform">
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                        </div>
+                        <audio id="speech-audio" controls class="w-full mt-3 hidden"></audio>
+                    </div>
+
+                    <div class="speech-controls grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                        <button type="button" onclick="startSpeechRecording()" id="speech-record-btn"
+                            class="control-btn bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-3 rounded-xl shadow-sm flex-1">
+                            ⏺️ Record
+                        </button>
+                        <button type="button" onclick="pauseSpeechRecording()" id="speech-pause-btn"
+                            class="control-btn bg-amber-100 text-amber-800 font-semibold px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex-1">
+                            ⏸️ Pause
+                        </button>
+                        <button type="button" onclick="resumeSpeechRecording()" id="speech-resume-btn"
+                            class="control-btn bg-indigo-100 text-indigo-800 font-semibold px-4 py-3 rounded-xl border border-indigo-200 shadow-sm flex-1">
+                            ▶️ Resume
+                        </button>
+                        <button type="button" onclick="stopSpeechRecording()" id="speech-stop-btn"
+                            class="control-btn bg-slate-800 text-white font-bold px-4 py-3 rounded-xl shadow-sm col-span-2 sm:flex-1">
+                            ◼️ Stop
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500">Tip: On desktop use R to start and Space to pause/resume while focused on this modal.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <label class="block text-sm font-semibold text-slate-700">Transcription</label>
+                        <textarea id="speech-transcription" rows="5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500" placeholder="Auto or manual notes..."></textarea>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="hydrateSpeechTranscription()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg">Fill from mic</button>
+                            <button type="button" onclick="clearSpeechDraft()" class="text-sm bg-white border border-slate-200 text-slate-600 font-semibold px-3 py-2 rounded-lg">Reset text</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
+                            <select id="speech-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                                <option value="general">General Notes</option>
+                                <option value="feeding">Feeding</option>
+                                <option value="sleep">Sleep</option>
+                                <option value="health">Health</option>
+                                <option value="milestone">Milestone</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Recording Type</label>
+                            <select id="speech-mode" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                                <option value="auto">Auto</option>
+                                <option value="manual">Manual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Notes (optional)</label>
+                            <input id="speech-notes" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm" placeholder="Context or reminder" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Clip Length</label>
+                            <input id="speech-duration" type="text" readonly class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm" value="00:00" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>🕑</span> Recent clips
+                        </p>
+                        <button type="button" onclick="renderSpeechRecent()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold">Refresh</button>
+                    </div>
+                    <div id="speech-recent" class="space-y-2 text-sm text-slate-600">
+                        <p class="text-slate-500 text-sm">No speech clips yet.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="button" onclick="discardSpeech()" class="w-full sm:w-40 px-4 py-3 border border-slate-200 rounded-xl text-slate-700 font-semibold hover:bg-slate-50">Discard</button>
+                    <button type="button" onclick="saveSpeechEntry()" class="w-full sm:flex-1 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm">Save to log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Range Picker Modal -->
     <div id="range-modal" class="modal">
         <div class="modal-content h-full md:h-auto md:max-h-[80vh] flex flex-col w-full md:w-[500px]">
@@ -1225,16 +1377,20 @@
     <script>
         // API Configuration
         const API_BASE_URL = '/api';
+        const SPEECH_UPLOAD_URL = `${API_BASE_URL}/speech/upload`;
+        const SPEECH_TRANSCRIBE_URL = `${API_BASE_URL}/speech/transcribe`;
+        const SPEECH_ENTRIES_URL = `${API_BASE_URL}/speech_entries`;
 
         // State
         let entries = [];
+        let speechEntries = [];
         let trendChart = null;
         let currentEditingEntry = null;
         let currentMetric = 'weight-avg';
         let currentTimeRange = 'week';
         let compareMetric = null;
         let isCumulative = false;
-        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
+        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight', 'speech']);
         let historyRange = { start: null, end: null };
         let trendRange = { start: null, end: null };
         const STORAGE_KEYS = {
@@ -1244,8 +1400,29 @@
             cumulative: 'tracker.cumulative'
         };
 
+        // Speech recording state
+        let speechRecorder = null;
+        let speechStream = null;
+        let speechChunks = [];
+        let speechTimerInterval = null;
+        let speechStartTime = null;
+        let speechDraft = null;
+        let speechStatus = 'idle';
+
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
+        const speechTimerEl = document.getElementById('speech-timer');
+        const speechStatusEl = document.getElementById('speech-status');
+        const speechBars = document.querySelectorAll('.speech-bar');
+        const speechAudioEl = document.getElementById('speech-audio');
+        const speechTranscriptionEl = document.getElementById('speech-transcription');
+        const speechNotesEl = document.getElementById('speech-notes');
+        const speechCategoryEl = document.getElementById('speech-category');
+        const speechModeEl = document.getElementById('speech-mode');
+        const speechDurationEl = document.getElementById('speech-duration');
+        const speechDateEl = document.getElementById('speech-date');
+        const speechTimeEl = document.getElementById('speech-time');
+        const speechRecentEl = document.getElementById('speech-recent');
 
         // Stats Elements
         const todayFeedsEl = document.getElementById('today-feeds');
@@ -1376,8 +1553,17 @@
             return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`;
         }
 
+        // Format milliseconds into mm:ss
+        function formatDuration(ms = 0) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
         // Determine entry type for filtering and UI labeling
         function getEntryType(entry) {
+            if (entry.type === 'speech' || entry.audioUrl || entry.mode === 'speech') return 'speech';
             if (entry.feed_amount || entry.feed_type) return 'feed';
             if (entry.susu_count > 0) return 'susu';
             if (entry.poti_count > 0) return 'poti';
@@ -1396,10 +1582,300 @@
             return null;
         }
 
+        // --- Speech Recording Helpers ---
+        function resetSpeechBars(active = false) {
+            speechBars.forEach(bar => {
+                const height = active ? 30 + Math.random() * 50 : 8;
+                bar.style.height = `${Math.round(height)}%`;
+                bar.style.backgroundColor = active ? '#fb7185' : '#e2e8f0';
+            });
+        }
+
+        function updateSpeechUI() {
+            const duration = speechDraft?.duration_ms || (speechStartTime ? Date.now() - speechStartTime : 0);
+            if (speechTimerEl) speechTimerEl.textContent = formatDuration(duration);
+            if (speechDurationEl) speechDurationEl.value = formatDuration(duration);
+
+            const statusCopy = {
+                idle: 'Ready to record',
+                recording: 'Recording...',
+                paused: 'Paused',
+                stopped: 'Stopped'
+            };
+            if (speechStatusEl) speechStatusEl.textContent = statusCopy[speechStatus] || 'Ready to record';
+
+            const recordBtn = document.getElementById('speech-record-btn');
+            const pauseBtn = document.getElementById('speech-pause-btn');
+            const resumeBtn = document.getElementById('speech-resume-btn');
+            const stopBtn = document.getElementById('speech-stop-btn');
+
+            if (recordBtn) recordBtn.disabled = speechStatus === 'recording';
+            if (pauseBtn) pauseBtn.disabled = speechStatus !== 'recording';
+            if (resumeBtn) resumeBtn.disabled = speechStatus !== 'paused';
+            if (stopBtn) stopBtn.disabled = speechStatus === 'idle';
+
+            if (speechAudioEl) {
+                if (speechDraft?.audioUrl) {
+                    speechAudioEl.src = speechDraft.audioUrl;
+                    speechAudioEl.classList.remove('hidden');
+                } else {
+                    speechAudioEl.pause();
+                    speechAudioEl.removeAttribute('src');
+                    speechAudioEl.classList.add('hidden');
+                }
+            }
+        }
+
+        function stopSpeechTimer() {
+            if (speechTimerInterval) {
+                clearInterval(speechTimerInterval);
+                speechTimerInterval = null;
+            }
+        }
+
+        function handleSpeechStop() {
+            stopSpeechTimer();
+            const duration = speechStartTime ? Date.now() - speechStartTime : 0;
+            const blob = speechChunks.length ? new Blob(speechChunks, { type: 'audio/webm' }) : null;
+            const audioUrl = blob ? URL.createObjectURL(blob) : null;
+            const filename = `speech_${Date.now()}.webm`;
+
+            speechDraft = {
+                ...(speechDraft || {}),
+                id: speechDraft?.id || `speech-${Date.now()}`,
+                type: 'speech',
+                duration_ms: duration,
+                audioUrl,
+                blob,
+                filename
+            };
+            speechStatus = 'stopped';
+            resetSpeechBars(false);
+            updateSpeechUI();
+        }
+
+        async function startSpeechRecording() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showToast('Microphone not supported in this browser.', 'error');
+                    return;
+                }
+
+                speechStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                speechRecorder = new MediaRecorder(speechStream);
+                speechChunks = [];
+
+                speechRecorder.ondataavailable = (e) => {
+                    if (e.data?.size > 0) speechChunks.push(e.data);
+                };
+                speechRecorder.onstop = handleSpeechStop;
+
+                speechRecorder.start();
+                speechStartTime = Date.now();
+                speechStatus = 'recording';
+                resetSpeechBars(true);
+                speechTimerInterval = setInterval(() => {
+                    resetSpeechBars(true);
+                    updateSpeechUI();
+                }, 300);
+                updateSpeechUI();
+            } catch (err) {
+                console.error('Mic error', err);
+                showToast('Please allow microphone access to record.', 'error');
+            }
+        }
+
+        function pauseSpeechRecording() {
+            if (speechRecorder && speechRecorder.state === 'recording') {
+                speechRecorder.pause();
+                speechStatus = 'paused';
+                resetSpeechBars(false);
+                updateSpeechUI();
+            }
+        }
+
+        function resumeSpeechRecording() {
+            if (speechRecorder && speechRecorder.state === 'paused') {
+                speechRecorder.resume();
+                speechStatus = 'recording';
+                resetSpeechBars(true);
+                updateSpeechUI();
+            }
+        }
+
+        function stopSpeechRecording() {
+            if (speechRecorder && speechRecorder.state !== 'inactive') {
+                speechRecorder.stop();
+            } else {
+                speechStatus = 'idle';
+                updateSpeechUI();
+            }
+            if (speechStream) {
+                speechStream.getTracks().forEach(track => track.stop());
+                speechStream = null;
+            }
+        }
+
+        function hydrateSpeechTranscription() {
+            if (!speechTranscriptionEl) return;
+            if (!speechTranscriptionEl.value && speechDraft?.transcription) {
+                speechTranscriptionEl.value = speechDraft.transcription;
+                return;
+            }
+            if (!speechTranscriptionEl.value) {
+                speechTranscriptionEl.value = 'Transcription pending - update after stop or paste your note.';
+            }
+        }
+
+        function clearSpeechDraft() {
+            if (speechTranscriptionEl) speechTranscriptionEl.value = '';
+            if (speechNotesEl) speechNotesEl.value = '';
+        }
+
+        function resetSpeechState() {
+            stopSpeechTimer();
+            if (speechRecorder && speechRecorder.state !== 'inactive') {
+                try { speechRecorder.stop(); } catch (err) { console.warn(err); }
+            }
+            if (speechStream) {
+                speechStream.getTracks().forEach(track => track.stop());
+                speechStream = null;
+            }
+            speechRecorder = null;
+            speechChunks = [];
+            speechStartTime = null;
+            speechDraft = null;
+            speechStatus = 'idle';
+            resetSpeechBars(false);
+            updateSpeechUI();
+        }
+
+        function discardSpeech() {
+            resetSpeechState();
+            closeModal('speech');
+        }
+
+        async function saveSpeechEntry() {
+            if (!speechDraft) {
+                showToast('Record a clip before saving.', 'error');
+                return;
+            }
+
+            const ts = parseDateTime(speechDateEl?.value, speechTimeEl?.value) || new Date();
+            let uploadResult = null;
+            let objectKey = speechDraft.object_key;
+            let audioUrl = speechDraft.audioUrl || speechDraft.audio_url;
+
+            if (speechDraft.blob) {
+                const formData = new FormData();
+                formData.append('file', speechDraft.blob, speechDraft.filename || 'speech.webm');
+                formData.append('duration_ms', speechDraft.duration_ms || 0);
+                formData.append('timestamp', ts.toISOString());
+                formData.append('category', speechCategoryEl?.value || 'general');
+                formData.append('mode', speechModeEl?.value || 'auto');
+                formData.append('notes', speechNotesEl?.value?.trim() || '');
+
+                try {
+                    const uploadResp = await fetch(SPEECH_UPLOAD_URL, { method: 'POST', body: formData });
+                    if (!uploadResp.ok) {
+                        const errorPayload = await uploadResp.json().catch(() => ({}));
+                        throw new Error(errorPayload.error || 'Upload failed');
+                    }
+                    uploadResult = await uploadResp.json();
+                    objectKey = uploadResult.object_key;
+                    audioUrl = uploadResult.url;
+                } catch (err) {
+                    console.error('Speech upload error', err);
+                    showToast('Upload failed. Please try again.', 'error');
+                    return;
+                }
+            }
+
+            if (!objectKey) {
+                showToast('Missing audio object. Please record again.', 'error');
+                return;
+            }
+
+            let transcription = speechTranscriptionEl?.value?.trim() || speechDraft.transcription || '';
+            if (!transcription && objectKey) {
+                try {
+                    const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ object_key: objectKey })
+                    });
+                    if (tResp.ok) {
+                        const tJson = await tResp.json();
+                        transcription = tJson.transcript || transcription;
+                    }
+                } catch (err) {
+                    console.warn('Transcription failed', err);
+                }
+            }
+
+            const payload = {
+                object_key: objectKey,
+                audio_url: audioUrl,
+                transcription,
+                category: speechCategoryEl?.value || 'general',
+                mode: speechModeEl?.value || 'auto',
+                duration_ms: speechDraft.duration_ms || 0,
+                notes: speechNotesEl?.value?.trim() || '',
+                timestamp: ts.toISOString()
+            };
+
+            try {
+                const isEdit = Boolean(currentEditingEntry && currentEditingEntry.id);
+                const resp = await fetch(isEdit ? `${SPEECH_ENTRIES_URL}/${currentEditingEntry.id}` : SPEECH_ENTRIES_URL, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error('save failed');
+                const saved = await resp.json();
+                speechEntries = [saved, ...speechEntries.filter(e => e.id !== saved.id)];
+                renderSpeechRecent();
+                renderEntries();
+                showToast('Speech saved.', 'success');
+                resetSpeechState();
+                closeModal('speech');
+            } catch (err) {
+                console.error(err);
+                showToast('Could not save speech entry', 'error');
+            }
+        }
+
+        function renderSpeechRecent() {
+            if (!speechRecentEl) return;
+            if (!speechEntries.length) {
+                speechRecentEl.innerHTML = '<p class="text-slate-500 text-sm">No speech clips yet.</p>';
+                return;
+            }
+
+            const rows = speechEntries.slice(0, 3).map(entry => {
+                const ts = new Date(entry.timestamp);
+                return `
+                    <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 truncate">${entry.transcription || 'Voice note'}</p>
+                            <p class="text-xs text-slate-500">${formatDuration(entry.duration_ms)} · ${ts.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        ${(entry.audioUrl || entry.audio_url) ? `<audio controls src="${entry.audioUrl || entry.audio_url}" class="ml-3 w-28"></audio>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            speechRecentEl.innerHTML = rows;
+        }
+
         // Modal Functions
         function openModal(type, entry = null) {
             currentEditingEntry = entry;
             const modal = document.getElementById(`${type}-modal`);
+            if (type === 'speech') {
+                resetSpeechState();
+                renderSpeechRecent();
+            }
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
             
@@ -1457,6 +1933,18 @@
                 } else if (type === 'weight') {
                     if (entry.weight) document.getElementById('weight-value').value = entry.weight;
                     if (entry.notes) document.getElementById('weight-notes').value = entry.notes;
+                } else if (type === 'speech') {
+                    if (entry.transcription && speechTranscriptionEl) speechTranscriptionEl.value = entry.transcription;
+                    if (entry.notes && speechNotesEl) speechNotesEl.value = entry.notes;
+                    if (speechCategoryEl && entry.category) speechCategoryEl.value = entry.category;
+                    if (speechModeEl && entry.mode) speechModeEl.value = entry.mode;
+                    speechDraft = { ...entry };
+                    speechStatus = 'stopped';
+                    if (entry.audioUrl && speechAudioEl) {
+                        speechAudioEl.src = entry.audioUrl;
+                        speechAudioEl.classList.remove('hidden');
+                    }
+                    updateSpeechUI();
                 }
             } else {
                 // Set current date/time when creating new entry
@@ -1468,7 +1956,8 @@
             const modal = document.getElementById(`${type}-modal`);
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
-            document.getElementById(`${type}-form`).reset();
+            const form = document.getElementById(`${type}-form`);
+            if (form) form.reset();
             currentEditingEntry = null;
             
             // Reset modal title
@@ -1481,12 +1970,17 @@
             if (type === 'temp') {
                 document.getElementById('temp-warning').classList.add('hidden');
             }
+
+            if (type === 'speech') {
+                resetSpeechState();
+                renderSpeechRecent();
+            }
         }
 
         // Close modal on background click
         window.onclick = function (event) {
             if (event.target.classList.contains('modal')) {
-                const modals = ['feed', 'susu', 'poti', 'temp', 'weight'];
+                const modals = ['feed', 'susu', 'poti', 'temp', 'weight', 'speech'];
                 modals.forEach(type => {
                     if (event.target.id === `${type}-modal`) {
                         closeModal(type);
@@ -1517,6 +2011,8 @@
             // Now load entries with both history and trend ranges established
             loadEntries();
             setupMobileTabs();
+            resetSpeechBars(false);
+            renderSpeechRecent();
         });
 
         // Feed Form Submit
@@ -1636,36 +2132,30 @@
         async function loadEntries() {
             try {
                 const params = new URLSearchParams();
-                // Fetch enough data for both the history list and the trend chart by using the earliest start
-                // and latest end across the two ranges. Send datetime in local format (no timezone) so the
-                // backend interprets it as local time.
                 const rangeStarts = [historyRange?.start, trendRange?.start].filter(Boolean);
                 const rangeEnds = [historyRange?.end, trendRange?.end].filter(Boolean);
-                const fetchStart = rangeStarts.length
-                    ? rangeStarts.reduce((earliest, current) => current < earliest ? current : earliest)
-                    : null;
-                const fetchEnd = rangeEnds.length
-                    ? rangeEnds.reduce((latest, current) => current > latest ? current : latest)
-                    : null;
+                const fetchStart = rangeStarts.length ? rangeStarts.reduce((earliest, current) => current < earliest ? current : earliest) : null;
+                const fetchEnd = rangeEnds.length ? rangeEnds.reduce((latest, current) => current > latest ? current : latest) : null;
 
-                if (fetchStart) {
-                    const startStr = formatDateTimeForBackend(fetchStart);
-                    params.set('start', startStr);
+                if (fetchStart) params.set('start', formatDateTimeForBackend(fetchStart));
+                if (fetchEnd) params.set('end', formatDateTimeForBackend(fetchEnd));
+
+                const query = params.toString() ? `?${params.toString()}` : '';
+                const [entriesResp, speechResp] = await Promise.all([
+                    fetch(`${API_BASE_URL}/entries${query}`),
+                    fetch(`${API_BASE_URL}/speech_entries${query}`)
+                ]);
+
+                if (!entriesResp.ok || !speechResp.ok) {
+                    throw new Error('Failed to load entries');
                 }
-                if (fetchEnd) {
-                    const endStr = formatDateTimeForBackend(fetchEnd);
-                    params.set('end', endStr);
-                }
-                const response = await fetch(`${API_BASE_URL}/entries${params.toString() ? `?${params.toString()}` : ''}`);
-                if (response.ok) {
-                    entries = await response.json();
-                    renderEntries();
-                    updateStats();
-                    updateTrendChart();
-                } else {
-                    console.error('Failed to load entries');
-                    entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
-                }
+
+                entries = await entriesResp.json();
+                speechEntries = await speechResp.json();
+
+                renderEntries();
+                updateStats();
+                updateTrendChart();
             } catch (error) {
                 console.error('Error loading entries:', error);
                 entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
@@ -2324,7 +2814,7 @@
         }
 
         async function duplicateEntry(id) {
-            const entry = entries.find(e => e.id === id);
+            const entry = [...entries, ...speechEntries].find(e => e.id === id);
             if (!entry) return;
 
             // Create a copy without ID and with current time
@@ -2339,8 +2829,37 @@
             else if (newEntry.temperature !== undefined) type = 'temp';
             else if (newEntry.weight !== undefined) type = 'weight';
 
-            await saveEntry(newEntry, type);
-            showToast('Entry duplicated', 'success');
+            if (type === 'speech') {
+                try {
+                    const payload = {
+                        object_key: newEntry.object_key,
+                        audio_url: newEntry.audioUrl || newEntry.audio_url,
+                        transcription: newEntry.transcription,
+                        category: newEntry.category,
+                        mode: newEntry.mode,
+                        duration_ms: newEntry.duration_ms,
+                        notes: newEntry.notes,
+                        timestamp: new Date().toISOString()
+                    };
+                    const resp = await fetch(SPEECH_ENTRIES_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!resp.ok) throw new Error('dup failed');
+                    const saved = await resp.json();
+                    speechEntries = [saved, ...speechEntries];
+                    renderEntries();
+                    renderSpeechRecent();
+                    showToast('Speech entry duplicated', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Could not duplicate speech entry', 'error');
+                }
+            } else {
+                await saveEntry(newEntry, type);
+                showToast('Entry duplicated', 'success');
+            }
         }
 
         function toggleSection(id) {
@@ -2358,7 +2877,9 @@
 
         // Render Entries
         function renderEntries() {
-            const filteredEntries = entries
+            const allEntries = [...entries, ...speechEntries];
+
+            const filteredEntries = allEntries
                 .filter(entry => {
                     const ts = new Date(entry.timestamp);
                     if (historyRange.start && ts < historyRange.start) return false;
@@ -2464,6 +2985,11 @@
                 title = 'Weight';
                 subtitle = `${entry.weight}g`;
                 bgColor = 'bg-purple-50';
+            } else if (getEntryType(entry) === 'speech') {
+                icon = '🎙️';
+                title = 'Speech';
+                subtitle = `${formatDuration(entry.duration_ms)} · ${entry.category ? entry.category : 'Voice note'}`;
+                bgColor = 'bg-rose-50';
             }
 
             return `
@@ -2501,7 +3027,18 @@
                                     <span class="opacity-70">📝</span> <span class="italic">${entry.notes}</span>
                                 </div>
                             ` : ''}
+                            ${(getEntryType(entry) === 'speech' && entry.transcription) ? `
+                                <div class="text-xs text-slate-600 mt-1.5 overflow-hidden text-ellipsis">
+                                    "${entry.transcription}"
+                                </div>
+                            ` : ''}
                         </div>
+
+                        ${getEntryType(entry) === 'speech' && (entry.audioUrl || entry.audio_url) ? `
+                            <div class="w-28 flex-shrink-0">
+                                <audio controls src="${entry.audioUrl || entry.audio_url}" class="w-full"></audio>
+                            </div>
+                        ` : ''}
 
                         <!-- Desktop Menu Trigger -->
                         <button class="desktop-menu-btn hidden md:block opacity-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-opacity rounded-full hover:bg-black/5" 
@@ -2517,7 +3054,7 @@
 
         // Edit Entry
         function editEntry(id) {
-            const entry = entries.find(e => e.id === id);
+            const entry = [...entries, ...speechEntries].find(e => e.id === id);
             if (!entry) return;
             
             // Determine which modal to open based on entry type
@@ -2531,12 +3068,31 @@
                 openModal('temp', entry);
             } else if (entry.weight) {
                 openModal('weight', entry);
+            } else if (getEntryType(entry) === 'speech') {
+                openModal('speech', entry);
             }
         }
 
         // Delete Entry
         async function deleteEntry(id) {
             if (!confirm('Delete this entry?')) return;
+
+            // Handle local speech entries separately
+            const speechMatch = speechEntries.find(e => e.id === id);
+            if (speechMatch) {
+                try {
+                    const resp = await fetch(`${SPEECH_ENTRIES_URL}/${id}`, { method: 'DELETE' });
+                    if (!resp.ok) throw new Error('Failed');
+                    speechEntries = speechEntries.filter(e => e.id !== id);
+                    renderEntries();
+                    renderSpeechRecent();
+                    showToast('Speech entry removed', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error deleting speech entry', 'error');
+                }
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE_URL}/entries/${id}`, {

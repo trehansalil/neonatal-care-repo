@@ -5,7 +5,6 @@ Handles configuration from .env files and Azure Key Vault based on environment.
 
 import os
 from functools import lru_cache
-from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -28,6 +27,14 @@ class Settings(BaseSettings):
     azure_openai_endpoint: str = Field(default="", alias="AZURE_OPENAI_ENDPOINT")
     azure_openai_key: str = Field(default="", alias="AZURE_OPENAI_KEY")
     azure_openai_deployment: str = Field(default="", alias="AZURE_OPENAI_DEPLOYMENT")
+
+    # MinIO / S3
+    minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
+    minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
+    minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
+    minio_bucket_name: str = Field(default="neonatal-data", alias="MINIO_BUCKET_NAME")
+    minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
+
     azure_openai_api_version: str = Field(default="2024-02-15-preview", alias="AZURE_OPENAI_API_VERSION")
     
     # AssemblyAI
@@ -44,7 +51,7 @@ class Settings(BaseSettings):
     
     # Application Settings
     max_upload_size_mb: int = Field(default=100, alias="MAX_UPLOAD_SIZE_MB")
-    allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a", alias="ALLOWED_AUDIO_FORMATS")
+    allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a,.webm,.ogg", alias="ALLOWED_AUDIO_FORMATS")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
 
     
