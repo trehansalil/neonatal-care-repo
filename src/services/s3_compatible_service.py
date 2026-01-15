@@ -18,6 +18,8 @@ from datetime import datetime
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
+
+from ..log import get_logger
 from ..settings import get_settings
 
 settings = get_settings()
@@ -26,7 +28,7 @@ def remove_consecutive_underscores(s: str) -> str:
     """Replace multiple consecutive underscores with a single underscore."""
     return re.sub(r'_+', '_', s)
 
-
+logger = get_logger(__name__)
 class S3StorageService:
     """Service for S3/MinIO object storage operations."""
     
@@ -146,10 +148,19 @@ class S3StorageService:
     # ---------------
     def download_to_tmp(self, object_name: str, container: Optional[str] = None) -> str:
         bucket, key = self._get_bucket_and_key(container, object_name)
+        logger.info(f"Downloading {key} from bucket {bucket}")
         suffix = os.path.splitext(object_name)[1] or ""
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            self.s3_client.download_fileobj(bucket, key, tmp)
-            return tmp.name
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                self.s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=tmp)
+                logger.info(f"Downloaded to {tmp.name}")
+                return tmp.name
+        except ClientError as e:
+            logger.error(f"S3 download error for {key}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected download error for {key}: {e}")
+            raise
 
     def download_json(self, object_name: str, container: Optional[str] = None) -> Optional[Dict[str, Any]]:
         bucket, key = self._get_bucket_and_key(container, object_name)
@@ -237,12 +248,20 @@ class S3StorageService:
 # -------------------
 # Module-level helpers
 # -------------------
-_service = S3StorageService()
+_service: Optional[S3StorageService] = None
+
+
+def _get_default_service() -> S3StorageService:
+    """Get or create the default service instance."""
+    global _service
+    if _service is None:
+        _service = S3StorageService()
+    return _service
 
 
 def upload_file_to_s3(file_path: str, object_name: Optional[str] = None) -> str:
     """Path-based upload using default bucket."""
-    return _service.upload_file(file_path=file_path, object_name=object_name)
+    return _get_default_service().upload_file(file_path=file_path, object_name=object_name)
 
 
 def download_file_from_s3(object_url: str, destination_path: Optional[str] = None) -> str:
