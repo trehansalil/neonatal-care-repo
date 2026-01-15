@@ -6,6 +6,14 @@ import os
 import time
 import pytz
 import uuid
+from typing import Optional
+
+from src.log import get_logger
+from src.settings import get_settings
+from src.services.s3_compatible_service import S3StorageService
+from src.services.stt_service import STTService
+
+logger = get_logger(__name__)
 
 app = Flask(__name__, static_folder='html', static_url_path='')
 CORS(app)
@@ -49,6 +57,19 @@ except (ValueError, TypeError) as e:
           f"Falling back to default 2. Error: {e}")
     MUTATIONS_SYNC_LEVEL = 2
 
+# Settings and storage clients
+settings = get_settings()
+s3_storage = S3StorageService()
+
+# Transcription service - use native Mac server if HOST_TRANSCRIPTION_URL is set
+# Default to http://host.docker.internal:8083/transcribe for Docker
+transcription_url = os.environ.get('HOST_TRANSCRIPTION_URL', 'http://host.docker.internal:8083/transcribe')
+stt_service = STTService(
+    storage_client=s3_storage,
+    bucket_name=settings.minio_bucket_name,
+    transcription_url=transcription_url
+)
+
 def get_db_connection():
     """Create a database connection with retry logic"""
     max_retries = 10
@@ -86,6 +107,14 @@ def entry_exists(client, entry_id):
     """Check if an entry exists in the database"""
     result = client.query('SELECT 1 FROM entries WHERE id = %(id)s LIMIT 1', parameters={'id': entry_id})
     return bool(result.result_rows)
+
+
+def is_audio_extension_allowed(filename: str) -> bool:
+    if not filename:
+        return False
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in [fmt.lower() for fmt in settings.allowed_audio_formats_list]
+
 
 def backup_entry(client, entry_data, entry_id):
     """
@@ -206,6 +235,26 @@ def init_db():
             PARTITION BY toYYYYMM(timestamp)
             SETTINGS index_granularity = 8192
         ''')
+
+        # Speech entries table
+        client.command(f'''
+            CREATE TABLE IF NOT EXISTS speech_entries (
+                id UInt32,
+                object_key String,
+                audio_url Nullable(String),
+                transcription Nullable(String),
+                category Nullable(String),
+                mode Nullable(String),
+                duration_ms Nullable(UInt32),
+                notes Nullable(String),
+                timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
+                created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}')
+            ) ENGINE = MergeTree()
+            ORDER BY (timestamp, id)
+            PRIMARY KEY (timestamp, id)
+            PARTITION BY toYYYYMM(timestamp)
+            SETTINGS index_granularity = 8192
+        ''')
         
         # Create backup table for update rollback support
         client.command(f'''
@@ -251,6 +300,71 @@ def index():
 def serve_static(path):
     """Serve static files"""
     return send_from_directory('html', path)
+
+@app.route('/api/speech/upload', methods=['POST'])
+def upload_speech():
+    """Upload a speech recording blob to S3/MinIO and return the object key + presigned URL."""
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': 'Missing audio file'}), 400
+
+    filename = file.filename or 'speech.webm'
+    if not is_audio_extension_allowed(filename):
+        return jsonify({'error': f'Unsupported audio format. Allowed: {settings.allowed_audio_formats}'}), 400
+
+    data = file.read()
+    if not data:
+        return jsonify({'error': 'Empty audio payload'}), 400
+
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    if len(data) > max_bytes:
+        return jsonify({'error': f'File too large. Limit: {settings.max_upload_size_mb} MB'}), 413
+
+    ext = os.path.splitext(filename)[1] or '.webm'
+    object_key = f"speech/{datetime.utcnow().strftime('%Y%m%d')}/speech_{uuid.uuid4().hex}{ext}"
+
+    try:
+        url = s3_storage.upload_bytes(
+            data=data,
+            object_name=object_key,
+            content_type=file.mimetype or 'audio/webm',
+            container=settings.minio_bucket_name,
+            overwrite=True,
+            with_sas=True
+        )
+        duration_ms = request.form.get('duration_ms') or request.args.get('duration_ms')
+        return jsonify({
+            'object_key': object_key,
+            'url': url,
+            'content_type': file.mimetype,
+            'size_bytes': len(data),
+            'duration_ms': int(duration_ms) if duration_ms else None
+        })
+    except Exception as e:
+        print(f"Upload failed: {e}")
+        return jsonify({'error': 'Upload failed'}), 500
+
+
+@app.route('/api/speech/transcribe', methods=['POST'])
+def transcribe_speech():
+    """Download an audio object from S3/MinIO and return the transcript."""
+    payload = request.get_json(silent=True) or {}
+    object_key = payload.get('object_key') or request.form.get('object_key')
+    if not object_key:
+        return jsonify({'error': 'object_key is required'}), 400
+
+    try:
+        logger.info(f"Fetching transcription for Audio obj key: {object_key}")
+        transcript = stt_service.transcribe_object(object_key)
+        if not transcript:
+            logger.warning(f"Transcription returned empty result for {object_key}")
+            return jsonify({'error': 'Transcription failed'}), 500
+        # Return success even for placeholder transcripts
+        return jsonify({'object_key': object_key, 'transcript': transcript})
+    except Exception as e:
+        logger.error(f"Transcription error for {object_key}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
@@ -319,6 +433,195 @@ def get_entries():
     except Exception as e:
         print(f"Error fetching entries: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+
+@app.route('/api/speech_entries', methods=['GET'])
+def get_speech_entries():
+    """Get speech entries with optional date/time filters."""
+    client = None
+    try:
+        client = get_db_connection()
+
+        start_param = request.args.get('start')
+        end_param = request.args.get('end')
+
+        def parse_ts(value):
+            if not value:
+                return None
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                return dt
+            return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
+
+        start_ts = parse_ts(start_param)
+        end_ts = parse_ts(end_param)
+
+        if start_ts or end_ts:
+            query = '''
+                SELECT * FROM speech_entries
+                WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
+                  AND (%(end)s IS NULL OR timestamp <= %(end)s)
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            '''
+            result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
+        else:
+            query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
+            result = client.query(query)
+
+        entries = []
+        for row in result.result_rows:
+            entries.append({
+                'id': row[0],
+                'object_key': row[1],
+                'audio_url': row[2],
+                'transcription': row[3],
+                'category': row[4],
+                'mode': row[5],
+                'duration_ms': row[6],
+                'notes': row[7],
+                'timestamp': row[8].isoformat() if row[8] else None,
+                'created_at': row[9].isoformat() if row[9] else None,
+                'type': 'speech'
+            })
+
+        return jsonify(entries)
+    except Exception as e:
+        print(f"Error fetching speech entries: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+
+def parse_local_timestamp(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.now(LOCAL_TIMEZONE)
+    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        return LOCAL_TIMEZONE.localize(dt)
+    return dt.astimezone(LOCAL_TIMEZONE)
+
+
+@app.route('/api/speech_entries', methods=['POST'])
+def create_speech_entry():
+    client = None
+    try:
+        data = request.get_json() or {}
+        object_key = data.get('object_key')
+        if not object_key:
+            return jsonify({'error': 'object_key is required'}), 400
+
+        timestamp = parse_local_timestamp(data.get('timestamp'))
+        client = get_db_connection()
+        entry_id = get_next_id(client)
+
+        client.insert('speech_entries', [[
+            entry_id,
+            object_key,
+            data.get('audio_url'),
+            data.get('transcription'),
+            data.get('category'),
+            data.get('mode'),
+            data.get('duration_ms'),
+            data.get('notes'),
+            timestamp,
+            datetime.now(LOCAL_TIMEZONE)
+        ]], column_names=[
+            'id', 'object_key', 'audio_url', 'transcription', 'category', 'mode',
+            'duration_ms', 'notes', 'timestamp', 'created_at'
+        ])
+
+        return jsonify({
+            'id': entry_id,
+            'object_key': object_key,
+            'audio_url': data.get('audio_url'),
+            'transcription': data.get('transcription'),
+            'category': data.get('category'),
+            'mode': data.get('mode'),
+            'duration_ms': data.get('duration_ms'),
+            'notes': data.get('notes'),
+            'timestamp': timestamp.isoformat(),
+            'created_at': datetime.now(LOCAL_TIMEZONE).isoformat(),
+            'type': 'speech'
+        })
+    except Exception as e:
+        print(f"Error creating speech entry: {e}")
+        return jsonify({'error': 'Failed to create speech entry'}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+
+@app.route('/api/speech_entries/<int:entry_id>', methods=['PUT'])
+def update_speech_entry(entry_id):
+    client = None
+    try:
+        data = request.get_json() or {}
+        client = get_db_connection()
+
+        # Fetch existing entry
+        result = client.query('SELECT * FROM speech_entries WHERE id = %(id)s LIMIT 1', parameters={'id': entry_id})
+        if not result.result_rows:
+            return jsonify({'error': 'Speech entry not found'}), 404
+        existing = result.result_rows[0]
+
+        updated = {
+            'id': existing[0],
+            'object_key': data.get('object_key', existing[1]),
+            'audio_url': data.get('audio_url', existing[2]),
+            'transcription': data.get('transcription', existing[3]),
+            'category': data.get('category', existing[4]),
+            'mode': data.get('mode', existing[5]),
+            'duration_ms': data.get('duration_ms', existing[6]),
+            'notes': data.get('notes', existing[7]),
+            'timestamp': parse_local_timestamp(data.get('timestamp')) if data.get('timestamp') else existing[8],
+            'created_at': existing[9]
+        }
+
+        client.command('''
+            ALTER TABLE speech_entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=%(sync)s
+        ''', parameters={'id': entry_id, 'sync': MUTATIONS_SYNC_LEVEL})
+
+        client.insert('speech_entries', [[
+            updated['id'], updated['object_key'], updated['audio_url'], updated['transcription'],
+            updated['category'], updated['mode'], updated['duration_ms'], updated['notes'],
+            updated['timestamp'], updated['created_at']
+        ]], column_names=[
+            'id', 'object_key', 'audio_url', 'transcription', 'category', 'mode',
+            'duration_ms', 'notes', 'timestamp', 'created_at'
+        ])
+
+        return jsonify({
+            **updated,
+            'timestamp': updated['timestamp'].isoformat() if hasattr(updated['timestamp'], 'isoformat') else updated['timestamp'],
+            'created_at': updated['created_at'].isoformat() if hasattr(updated['created_at'], 'isoformat') else updated['created_at'],
+            'type': 'speech'
+        })
+    except Exception as e:
+        print(f"Error updating speech entry: {e}")
+        return jsonify({'error': 'Failed to update speech entry'}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+
+@app.route('/api/speech_entries/<int:entry_id>', methods=['DELETE'])
+def delete_speech_entry(entry_id):
+    client = None
+    try:
+        client = get_db_connection()
+        client.command(
+            'ALTER TABLE speech_entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=%(sync)s',
+            parameters={'id': entry_id, 'sync': MUTATIONS_SYNC_LEVEL}
+        )
+        return jsonify({'status': 'deleted'})
+    except Exception as e:
+        print(f"Error deleting speech entry: {e}")
+        return jsonify({'error': 'Failed to delete speech entry'}), 500
     finally:
         if client is not None:
             client.close()
