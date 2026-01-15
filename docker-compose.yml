@@ -72,6 +72,7 @@ services:
     volumes:
       - ./html:/app/html
       - ./app.py:/app/app.py
+      - ./src:/app/src
 
 volumes:
   clickhouse_data:

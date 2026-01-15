@@ -526,6 +526,12 @@ wheels = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.4.9.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/4b/979db9e44be09f71e85c9c8cfc42f258adfb7d93ce01deed2788b2948919/logging-0.4.9.6.tar.gz", hash = "sha256:26f6b50773f085042d301085bd1bf5d9f3735704db9f37c1ce6d8b85c38f2417", size = 96029, upload-time = "2013-06-04T23:43:22.086Z" }
+
+[[package]]
 name = "lz4"
 version = "4.4.5"
 source = { registry = "https://pypi.org/simple" }
@@ -749,11 +755,13 @@ dependencies = [
     { name = "clickhouse-connect" },
     { name = "flask" },
     { name = "flask-cors" },
+    { name = "logging" },
     { name = "minio" },
     { name = "mlx-whisper" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pytz" },
+    { name = "requests" },
     { name = "werkzeug" },
 ]
 
@@ -763,11 +771,13 @@ requires-dist = [
     { name = "clickhouse-connect", specifier = ">=0.7.0" },
     { name = "flask", specifier = ">=3.0.0" },
     { name = "flask-cors", specifier = ">=4.0.0" },
+    { name = "logging", specifier = ">=0.4.9.6" },
     { name = "minio", specifier = ">=7.2.0" },
     { name = "mlx-whisper", specifier = ">=0.4.3" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pytz", specifier = ">=2024.1" },
+    { name = "requests", specifier = ">=2.31.0" },
     { name = "werkzeug", specifier = ">=3.0.1" },
 ]
 
