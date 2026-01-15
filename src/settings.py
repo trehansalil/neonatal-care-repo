@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     
     # Application Settings
     max_upload_size_mb: int = Field(default=100, alias="MAX_UPLOAD_SIZE_MB")
-    allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a,.webm,.ogg", alias="ALLOWED_AUDIO_FORMATS")
+    allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a,.webm,.ogg,.mp4", alias="ALLOWED_AUDIO_FORMATS")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
 
     

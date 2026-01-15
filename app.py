@@ -962,4 +962,20 @@ def health_check():
             client.close()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    use_https = os.environ.get('ENABLE_HTTPS', 'false').lower() == 'true'
+    ssl_context = None
+
+    if use_https:
+        if os.path.exists('cert.pem') and os.path.exists('key.pem'):
+            ssl_context = ('cert.pem', 'key.pem')
+            print("\n" + "="*50)
+            print("Running with STATIC self-signed HTTPS certificates.")
+            print("="*50 + "\n")
+        else:
+            ssl_context = 'adhoc'
+            print("\n" + "="*50)
+            print("WARNING: Running with AD-HOC self-signed HTTPS certificate.")
+            print("You must accept the security warning in your browser.")
+            print("="*50 + "\n")
+    
+    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=ssl_context)
