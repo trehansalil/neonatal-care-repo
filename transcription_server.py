@@ -46,6 +46,22 @@ def transcribe_file_mlx(local_path: str) -> str:
         print(f"MLX transcription error: {e}")
         return ""
 
+def transcribe_file_mlx_asr(local_path: str) -> str:
+    try:
+        from mlx_audio.stt.utils import load_model
+        from mlx_audio.stt.generate import generate_transcription
+        model = load_model("mlx-community/whisper-large-v2-asr-fp16")
+        transcription = generate_transcription(
+            model=model,
+            audio_path=local_path,
+            output_path="path_to_output.txt",
+            format="txt",
+            verbose=True,
+        )
+        return transcription.text
+    except Exception as e:
+        print(f"MLX transcription error: {e}")
+        return ""
 
 @app.route('/health', methods=['GET'])
 def health():

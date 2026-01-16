@@ -1280,6 +1280,11 @@
                             <button type="button" onclick="hydrateSpeechTranscription()"
                                 class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg">Fill
                                 from mic</button>
+                            <button type="button" id="speech-retranscribe-modal-btn"
+                                onclick="hydrateSpeechTranscription(true)"
+                                class="text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-2 rounded-lg hidden">
+                                🔄 Retranscribe
+                            </button>
                             <button type="button" onclick="clearSpeechDraft()"
                                 class="text-sm bg-white border border-slate-200 text-slate-600 font-semibold px-3 py-2 rounded-lg">Reset
                                 text</button>
@@ -1713,13 +1718,24 @@
             if (stopBtn) stopBtn.disabled = speechStatus === 'idle';
 
             if (speechAudioEl) {
-                if (speechDraft?.audioUrl) {
-                    speechAudioEl.src = speechDraft.audioUrl;
+                const url = speechDraft?.audioUrl || speechDraft?.audio_url;
+                if (url) {
+                    speechAudioEl.src = url;
                     speechAudioEl.classList.remove('hidden');
                 } else {
                     speechAudioEl.pause();
                     speechAudioEl.removeAttribute('src');
                     speechAudioEl.classList.add('hidden');
+                }
+            }
+
+            // Show/hide retranscribe button in modal (if audio exists on server)
+            const retranscribeBtn = document.getElementById('speech-retranscribe-modal-btn');
+            if (retranscribeBtn) {
+                if (speechDraft?.object_key || (speechDraft?.audio_url && !speechDraft?.audio_url.startsWith('blob:'))) {
+                    retranscribeBtn.classList.remove('hidden');
+                } else {
+                    retranscribeBtn.classList.add('hidden');
                 }
             }
         }
@@ -1877,14 +1893,14 @@
             }
         }
 
-        async function hydrateSpeechTranscription() {
-            if (!speechDraft || !speechDraft.blob) {
+        async function hydrateSpeechTranscription(force = false) {
+            if (!speechDraft || (!speechDraft.blob && !speechDraft.object_key)) {
                 showToast('Please record something first.', 'info');
                 return;
             }
 
-            const btn = document.querySelector('button[onclick="hydrateSpeechTranscription()"]');
-            const originalText = btn ? btn.textContent : 'Fill from mic';
+            const btn = force ? document.getElementById('speech-retranscribe-modal-btn') : document.querySelector('button[onclick="hydrateSpeechTranscription()"]');
+            const originalText = btn ? btn.textContent : (force ? '🔄 Retranscribe' : 'Fill from mic');
 
             try {
                 if (btn) {
@@ -1908,6 +1924,8 @@
                 }
 
                 // 2. Transcribe
+                // Optimization: if it's already in the DB, we could use the new endpoint, 
+                // but let's stick to the generic one for simplicity in the draft stage.
                 const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1935,6 +1953,32 @@
                     btn.disabled = false;
                     btn.textContent = originalText;
                 }
+                updateSpeechUI();
+            }
+        }
+
+        async function retranscribeEntry(id) {
+            try {
+                const btn = document.querySelector(`button[onclick="retranscribeEntry(${id})"]`);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('animate-spin');
+                }
+
+                const resp = await fetch(`${SPEECH_ENTRIES_URL}/${id}/retranscribe`, { method: 'POST' });
+                if (!resp.ok) {
+                    const error = await resp.json();
+                    throw new Error(error.error || 'Failed to retranscribe');
+                }
+
+                const result = await resp.json();
+                showToast('Entry re-transcribed!', 'success');
+
+                // Refresh list
+                await loadEntries();
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, 'error');
             }
         }
 
@@ -3248,8 +3292,14 @@
                             
                             <div class="flex items-center gap-2">
                                 ${getEntryType(entry) === 'speech' && (entry.audioUrl || entry.audio_url) ? `
+                                    <button onclick="retranscribeEntry(${entry.id})" title="Re-transcribe" 
+                                            class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
                                     <div class="w-32 md:w-36">
-                                        <audio controls src="${entry.audioUrl || entry.audio_url}" class="w-full h-8"></audio>
+                                        <audio id="audio-${entry.id}" controls src="${entry.audioUrl || entry.audio_url}" class="w-full h-8"></audio>
                                     </div>
                                 ` : ''}
 
