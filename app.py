@@ -12,6 +12,8 @@ from src.log import get_logger
 from src.settings import get_settings
 from src.services.s3_compatible_service import S3StorageService
 from src.services.stt_service import STTService
+from src.services.llm_categorization_service import LLMCategorizationService
+from src.services.async_categorization_processor import AsyncCategorizationProcessor
 
 logger = get_logger(__name__)
 
@@ -69,6 +71,68 @@ stt_service = STTService(
     bucket_name=settings.minio_bucket_name,
     transcription_url=transcription_url
 )
+
+# LLM Categorization service - uses Azure OpenAI
+# Configure via environment variables:
+# AZURE_OPENAI_ENDPOINT: Azure OpenAI endpoint URL
+# AZURE_OPENAI_KEY: Azure OpenAI API key
+# AZURE_OPENAI_DEPLOYMENT: Model deployment name
+# AZURE_OPENAI_API_VERSION: API version (default: 2024-02-15-preview)
+try:
+    llm_service = LLMCategorizationService()
+    if llm_service.is_available():
+        logger.info("LLM categorization service initialized with Azure OpenAI")
+    else:
+        logger.warning("LLM categorization service initialized but Azure OpenAI not configured")
+except Exception as e:
+    logger.error(f"Failed to initialize LLM service: {e}")
+    llm_service = None
+
+# Async categorization processor
+if llm_service:
+    categorization_processor = AsyncCategorizationProcessor(
+        llm_service=llm_service,
+        max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
+    )
+    # Start the processor when app starts
+    categorization_processor.start()
+    logger.info("Async categorization processor started")
+else:
+    categorization_processor = None
+    logger.warning("Categorization processor not started (LLM service unavailable)")
+
+
+def update_speech_entry_category(result: dict):
+    """Callback to update the database with categorization results.
+    
+    Args:
+        result: Dict containing entry_id, category, and optional metadata
+    """
+    entry_id = result.get('entry_id')
+    category = result.get('category', 'unclear')
+
+    logger.info(f"Updating entry {entry_id} with category '{category}'")
+    
+    try:
+        client = get_db_connection()
+        try:
+            # Update the category in the database
+            client.command('''
+                ALTER TABLE speech_entries 
+                UPDATE category = %(category)s 
+                WHERE id = %(id)s 
+                SETTINGS mutations_sync=%(sync)s
+            ''', parameters={
+                'category': category,
+                'id': entry_id,
+                'sync': MUTATIONS_SYNC_LEVEL
+            })
+            logger.info(f"Updated entry {entry_id} with category '{category}'")
+        finally:
+            client.close()
+    except Exception as e:
+        logger.error(f"Failed to update category for entry {entry_id}: {e}", exc_info=True)
+
 
 def get_db_connection():
     """Create a database connection with retry logic"""
@@ -352,10 +416,15 @@ def upload_speech():
 
 @app.route('/api/speech/transcribe', methods=['POST'])
 def transcribe_speech():
-    """Download an audio object from S3/MinIO and return the transcript."""
+    """Download an audio object from S3/MinIO and return the transcript.
+    
+    If entry_id is provided, triggers async categorization after successful transcription.
+    """
     payload = request.get_json(silent=True) or {}
     print(f"DEBUG: Received transcription request: {payload}", flush=True)
     object_key = payload.get('object_key') or request.form.get('object_key')
+    entry_id = payload.get('entry_id')  # Optional: for triggering categorization
+    
     if not object_key:
         print("DEBUG: missing object_key", flush=True)
         return jsonify({'error': 'object_key is required'}), 400
@@ -366,6 +435,17 @@ def transcribe_speech():
         if not transcript:
             logger.warning(f"Transcription returned empty result for {object_key}")
             return jsonify({'error': 'Transcription failed'}), 500
+        
+        # Trigger async categorization if entry_id is provided and processor is available
+        if entry_id and categorization_processor:
+            categorization_processor.submit_task(
+                entry_id=entry_id,
+                object_key=object_key,
+                transcription=transcript,
+                callback=update_speech_entry_category
+            )
+            logger.info(f"Submitted categorization task for entry {entry_id}")
+        
         # Return success even for placeholder transcripts
         return jsonify({'object_key': object_key, 'transcript': transcript})
     except Exception as e:
@@ -581,12 +661,14 @@ def create_speech_entry():
         timestamp = parse_local_timestamp(data.get('timestamp'))
         client = get_db_connection()
         entry_id = get_next_id(client)
+        
+        transcription = data.get('transcription')
 
         client.insert('speech_entries', [[
             entry_id,
             object_key,
             data.get('audio_url'),
-            data.get('transcription'),
+            transcription,
             data.get('category'),
             data.get('mode'),
             data.get('duration_ms'),
@@ -597,12 +679,22 @@ def create_speech_entry():
             'id', 'object_key', 'audio_url', 'transcription', 'category', 'mode',
             'duration_ms', 'notes', 'timestamp', 'created_at'
         ])
+        
+        # Trigger async categorization if transcription is available
+        if transcription and categorization_processor:
+            categorization_processor.submit_task(
+                entry_id=entry_id,
+                object_key=object_key,
+                transcription=transcription,
+                callback=update_speech_entry_category
+            )
+            logger.info(f"Submitted categorization task for new entry {entry_id}")
 
         return jsonify({
             'id': entry_id,
             'object_key': object_key,
             'audio_url': data.get('audio_url'),
-            'transcription': data.get('transcription'),
+            'transcription': transcription,
             'category': data.get('category'),
             'mode': data.get('mode'),
             'duration_ms': data.get('duration_ms'),
@@ -656,6 +748,16 @@ def retranscribe_speech_entry(entry_id):
             'id': entry_id, 
             'sync': MUTATIONS_SYNC_LEVEL
         })
+        
+        # 3. Trigger async categorization with the new transcript
+        if categorization_processor:
+            categorization_processor.submit_task(
+                entry_id=entry_id,
+                object_key=object_key,
+                transcription=transcript,
+                callback=update_speech_entry_category
+            )
+            logger.info(f"Submitted re-categorization task for entry {entry_id}")
         
         return jsonify({
             'id': entry_id,
@@ -1076,6 +1178,20 @@ def health_check():
             client.close()
 
 if __name__ == '__main__':
+    import atexit
+    import signal
+    
+    # Register cleanup handler for graceful shutdown
+    def cleanup():
+        '''Clean up resources on shutdown.'''
+        if categorization_processor:
+            logger.info('Shutting down categorization processor...')
+            categorization_processor.stop()
+    
+    atexit.register(cleanup)
+    signal.signal(signal.SIGTERM, lambda sig, frame: cleanup())
+    signal.signal(signal.SIGINT, lambda sig, frame: cleanup())
+    
     use_https = os.environ.get('ENABLE_HTTPS', 'false').lower() == 'true'
     ssl_context = None
 
