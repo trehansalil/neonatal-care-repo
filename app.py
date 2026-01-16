@@ -619,6 +619,57 @@ def create_speech_entry():
             client.close()
 
 
+@app.route('/api/speech_entries/<int:entry_id>/retranscribe', methods=['POST'])
+def retranscribe_speech_entry(entry_id):
+    """Re-trigger transcription for an existing entry and update the database."""
+    client = None
+    try:
+        client = get_db_connection()
+        # Fetch existing entry to get object_key
+        result = client.query(
+            'SELECT object_key FROM speech_entries WHERE id = %(id)s LIMIT 1',
+            parameters={'id': entry_id}
+        )
+        if not result.result_rows:
+            return jsonify({'error': 'Speech entry not found'}), 404
+        
+        object_key = result.result_rows[0][0]
+        if not object_key:
+            return jsonify({'error': 'No audio file associated with this entry'}), 400
+            
+        logger.info(f"Re-triggering transcription for entry {entry_id} (key: {object_key})")
+        
+        # 1. Call transcription service
+        transcript = stt_service.transcribe_object(object_key)
+        if not transcript:
+            return jsonify({'error': 'Transcription failed'}), 500
+            
+        # 2. Update database
+        # We use ALTER TABLE ... UPDATE for simple field updates in ClickHouse
+        client.command('''
+            ALTER TABLE speech_entries 
+            UPDATE transcription = %(t)s 
+            WHERE id = %(id)s 
+            SETTINGS mutations_sync=%(sync)s
+        ''', parameters={
+            't': transcript, 
+            'id': entry_id, 
+            'sync': MUTATIONS_SYNC_LEVEL
+        })
+        
+        return jsonify({
+            'id': entry_id,
+            'transcription': transcript,
+            'status': 'success'
+        })
+    except Exception as e:
+        logger.error(f"Error re-transcribing entry {entry_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+
 @app.route('/api/speech_entries/<int:entry_id>', methods=['PUT'])
 def update_speech_entry(entry_id):
     client = None
