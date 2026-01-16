@@ -212,6 +212,75 @@ class S3StorageService:
 
         return f"{self.endpoint_url}/{bucket}/{object_name}"
 
+    def get_presigned_url_external(self, object_key: str, container: Optional[str] = None, expires_in: int = 86400, request_host: Optional[str] = None) -> Optional[str]:
+        """Generate a presigned URL using the external endpoint for browser access.
+        
+        This is needed when the app runs inside Docker (using internal hostname like 'minio:9000')
+        but the browser needs to access MinIO via an external hostname (like 'localhost:9000').
+        
+        Args:
+            object_key: The S3 object key
+            container: Optional bucket name (defaults to configured bucket)
+            expires_in: URL expiration time in seconds (default 24 hours)
+            request_host: Optional hostname from the incoming request (e.g., '100.x.x.x:8082').
+                         If provided, the hostname portion will be used to construct the MinIO URL,
+                         allowing the app to work across different network interfaces (localhost,
+                         Tailscale, LAN, etc.)
+            
+        Returns:
+            Presigned URL accessible from the browser, or None if generation fails
+        """
+        bucket = container or self.bucket_name
+        if not bucket:
+            return None
+        
+        # Determine the external endpoint to use
+        if request_host:
+            # Extract just the hostname (without port) from the request host
+            host_without_port = request_host.split(':')[0] if ':' in request_host else request_host
+            # Use the MinIO external port (default 9002 based on docker-compose mapping)
+            minio_port = settings.minio_external_endpoint.split(':')[-1] if ':' in settings.minio_external_endpoint else '9002'
+            external_endpoint = f"{host_without_port}:{minio_port}"
+        else:
+            # Fall back to configured external endpoint
+            external_endpoint = settings.minio_external_endpoint
+            
+        if not external_endpoint:
+            # Fall back to internal endpoint if external not configured
+            external_endpoint = self.endpoint_url
+        
+        # Ensure http/https prefix
+        if external_endpoint and not external_endpoint.startswith("http"):
+            protocol = "https" if settings.minio_secure else "http"
+            external_endpoint = f"{protocol}://{external_endpoint}"
+        
+        try:
+            # Create a temporary client with the external endpoint for URL generation
+            external_client = boto3.client(
+                "s3",
+                endpoint_url=external_endpoint,
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                config=Config(
+                    signature_version="s3v4",
+                    s3={"addressing_style": "path"},
+                ),
+                region_name="us-east-1",
+                use_ssl=settings.minio_secure,
+            )
+            
+            return external_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": object_key},
+                ExpiresIn=expires_in,
+            )
+        except ClientError as e:
+            logger.error(f"Failed to generate external presigned URL for {object_key}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error generating external presigned URL: {e}")
+            return None
+
     # -----------------------------
     # Legacy convenience wrappers
     # -----------------------------

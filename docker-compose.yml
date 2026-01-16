@@ -35,6 +35,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # Enable CORS for all origins to allow audio playback from the frontend
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
       - "9002:9000"  # API (mapped to 9002 to avoid conflict with ClickHouse)
       - "9001:9001"  # Console

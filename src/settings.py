@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     # MinIO / S3
     minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
+    # External endpoint for browser-accessible presigned URLs (defaults to localhost:9002 based on docker-compose port mapping)
+    minio_external_endpoint: str = Field(default="localhost:9002", alias="MINIO_EXTERNAL_ENDPOINT")
     minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
     minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
     minio_bucket_name: str = Field(default="neonatal-data", alias="MINIO_BUCKET_NAME")

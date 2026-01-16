@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 import clickhouse_connect
 from datetime import datetime
@@ -324,18 +324,23 @@ def upload_speech():
     object_key = f"speech/{datetime.utcnow().strftime('%Y%m%d')}/speech_{uuid.uuid4().hex}{ext}"
 
     try:
-        url = s3_storage.upload_bytes(
+        # Upload using internal endpoint (for server-side operations)
+        s3_storage.upload_bytes(
             data=data,
             object_name=object_key,
             content_type=file.mimetype or 'audio/webm',
             container=settings.minio_bucket_name,
             overwrite=True,
-            with_sas=True
+            with_sas=False  # Don't need presigned URL from internal endpoint
         )
+        # Instead of a direct MinIO URL (which might trigger mixed-content or CORS issues),
+        # return a proxy URL that serves the audio through the backend's HTTPS.
+        proxy_url = f"/api/speech/audio/{object_key}"
+        
         duration_ms = request.form.get('duration_ms') or request.args.get('duration_ms')
         return jsonify({
             'object_key': object_key,
-            'url': url,
+            'url': proxy_url,
             'content_type': file.mimetype,
             'size_bytes': len(data),
             'duration_ms': int(duration_ms) if duration_ms else None
@@ -349,8 +354,10 @@ def upload_speech():
 def transcribe_speech():
     """Download an audio object from S3/MinIO and return the transcript."""
     payload = request.get_json(silent=True) or {}
+    print(f"DEBUG: Received transcription request: {payload}", flush=True)
     object_key = payload.get('object_key') or request.form.get('object_key')
     if not object_key:
+        print("DEBUG: missing object_key", flush=True)
         return jsonify({'error': 'object_key is required'}), 400
 
     try:
@@ -364,6 +371,53 @@ def transcribe_speech():
     except Exception as e:
         logger.error(f"Transcription error for {object_key}: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/speech/audio/<path:object_key>')
+def proxy_audio(object_key):
+    """Proxy audio files from MinIO through HTTPS to avoid mixed content issues.
+    
+    When the frontend is served over HTTPS but MinIO serves over HTTP,
+    browsers block the audio as 'mixed content'. This endpoint proxies
+    the audio through the backend, serving it over HTTPS.
+    """
+    try:
+        # Download the audio file from MinIO
+        tmp_path = s3_storage.download_to_tmp(object_key, container=settings.minio_bucket_name)
+        
+        # Determine content type based on extension
+        ext = os.path.splitext(object_key)[1].lower()
+        content_types = {
+            '.webm': 'audio/webm',
+            '.mp3': 'audio/mpeg',
+            '.mp4': 'audio/mp4',
+            '.m4a': 'audio/mp4',
+            '.ogg': 'audio/ogg',
+            '.wav': 'audio/wav',
+        }
+        content_type = content_types.get(ext, 'audio/webm')
+        
+        # Read and return the file
+        with open(tmp_path, 'rb') as f:
+            audio_data = f.read()
+        
+        # Clean up temp file
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        
+        return Response(
+            audio_data,
+            mimetype=content_type,
+            headers={
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'public, max-age=86400',
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error proxying audio {object_key}: {e}")
+        return jsonify({'error': 'Audio not found'}), 404
 
 
 @app.route('/api/entries', methods=['GET'])
@@ -472,12 +526,21 @@ def get_speech_entries():
             query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
             result = client.query(query)
 
+        # Get the request host for dynamic URL generation
+        # This ensures audio URLs use the same hostname the client used to access the app
+        request_host = request.host
+        
         entries = []
         for row in result.result_rows:
+            object_key = row[1]
+            
+            # Use the proxy URL to avoid CORS and Mixed Content issues over the network
+            fresh_audio_url = f"/api/speech/audio/{object_key}" if object_key else row[2]
+            
             entries.append({
                 'id': row[0],
-                'object_key': row[1],
-                'audio_url': row[2],
+                'object_key': object_key,
+                'audio_url': fresh_audio_url,
                 'transcription': row[3],
                 'category': row[4],
                 'mode': row[5],
