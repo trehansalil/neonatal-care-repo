@@ -587,8 +587,9 @@ def proxy_audio(object_key):
         # Clean up temp file
         try:
             os.unlink(tmp_path)
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort cleanup: log and continue if temp file deletion fails
+            logger.warning(f"Failed to delete temporary file %s: %s", tmp_path, e)
         
         return Response(
             audio_data,
