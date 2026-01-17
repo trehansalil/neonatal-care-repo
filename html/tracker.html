@@ -8,6 +8,46 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+        }
+
+        /* Hero speech buttons share state with the modal controls */
+        [data-speech-stop].hidden,
+        [data-speech-record].hidden,
+        #speech-stop-btn.hidden,
+        #speech-record-btn.hidden {
+            display: none !important;
+        }
+
+        .hero-card {
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+
+        .hero-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
+        }
+
+        .hero-record {
+            box-shadow: 0 2px 12px rgba(255, 0, 80, 0.30);
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+
+        .hero-record:active {
+            transform: scale(0.98);
+        }
+
+        .hero-action {
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        }
+
+        .hero-action:active {
+            transform: scale(0.98);
+        }
+
         .entry-card {
             transition: all 0.3s ease;
         }
@@ -505,59 +545,57 @@
             <button id="tab-trends">Trends</button>
         </div>
 
-        <!-- Quick Action Cards -->
+        <!-- Speech Log Entry Section -->
         <section class="mb-8 log-section">
-            <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <span>✍️</span> New Entry
-            </h2>
+            <div class="bg-white hero-card rounded-3xl overflow-hidden relative">
+                <!-- Subtle Accent Bar -->
+                <div class="absolute top-0 left-0 w-full h-[6px] bg-[#007AFF] opacity-90"></div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                <!-- Feed Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('feed')">
-                    <div class="text-5xl mb-3">🍼</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Feed</h3>
-                    <p class="text-xs text-slate-500">Log ml or breast</p>
+                <div class="px-8 py-12 text-center flex flex-col items-center gap-10">
+                    <div class="space-y-2">
+                        <p class="text-[10px] uppercase tracking-[0.28em] text-slate-400">Voice-first</p>
+                        <h2 class="text-2xl font-semibold text-slate-900">Speech Log</h2>
+                        <p class="text-sm text-slate-600 tracking-[0.02em]">One tap to record, transcribe, and auto-map.</p>
+                    </div>
+
+                    <!-- Recording Controls -->
+                    <div class="flex flex-col items-center justify-center gap-6">
+
+                        <!-- Status & Timer -->
+                        <div class="flex flex-col items-center gap-2 min-h-[72px]">
+                            <div data-speech-status class="text-sm font-medium text-slate-500 opacity-0 transition-opacity duration-200 ease-out">Ready to record</div>
+                            <div data-speech-timer class="text-5xl font-medium text-slate-800 tracking-tight tabular-nums transition-opacity duration-200 ease-out">00:00</div>
+                        </div>
+
+                        <!-- Main Action Button -->
+                        <div class="relative">
+                            <button data-speech-record onclick="startSpeechRecording()"
+                                class="hero-record relative w-24 h-24 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-[0_8px_24px_rgba(255,0,80,0.25)] hover:scale-[1.02] active:scale-[0.98] transition duration-200 ease-out flex items-center justify-center">
+                                <div class="w-3 h-3 rounded-full bg-white ring-4 ring-white/30"></div>
+                            </button>
+
+                            <button data-speech-stop onclick="stopSpeechRecording()" disabled
+                                class="relative w-24 h-24 rounded-full bg-slate-900 text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition duration-200 ease-out flex items-center justify-center hidden">
+                                <div class="w-8 h-8 rounded-lg bg-white shadow-sm"></div>
+                            </button>
+                        </div>
+
+                        <div class="hero-action-container">
+                            <button data-speech-cta class="hero-action px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm font-semibold shadow-lg shadow-slate-900/15 hidden">
+                                Save entry
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Susu Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('susu')">
-                    <div class="text-5xl mb-3">💧</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Susu (Urine)</h3>
-                    <p class="text-xs text-slate-500">Color & Amount</p>
-                </div>
-
-                <!-- Poti Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('poti')">
-                    <div class="text-5xl mb-3">💩</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Poti (Stool)</h3>
-                    <p class="text-xs text-slate-500">Texture & Color</p>
-                </div>
-
-                <!-- Temperature Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('temp')">
-                    <div class="text-5xl mb-3">🌡️</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Temp</h3>
-                    <p class="text-xs text-slate-500">Track Fever</p>
-                </div>
-
-                <!-- Weight Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('weight')">
-                    <div class="text-5xl mb-3">⚖️</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Weight</h3>
-                    <p class="text-xs text-slate-500">Track Growth</p>
-                </div>
-
-                <!-- Speech Log Card -->
-                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
-                    onclick="openModal('speech')">
-                    <div class="text-5xl mb-3">🎙️</div>
-                    <h3 class="font-bold text-slate-800 mb-1">Speech Log</h3>
-                    <p class="text-xs text-slate-500">Record & transcribe</p>
+                <!-- Footer (subtle info icon) -->
+                <div class="absolute top-6 right-6">
+                    <div class="group relative">
+                        <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-bold">i</div>
+                        <div class="absolute right-0 mt-2 w-56 bg-white text-slate-600 text-xs p-3 rounded-xl shadow-lg border border-slate-100 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition duration-200 ease-out">
+                            Voice notes can auto-categorize feeds, diapers, and vitals.
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1517,6 +1555,11 @@
         const speechTimerEl = document.getElementById('speech-timer');
         const speechStatusEl = document.getElementById('speech-status');
         const speechBars = document.querySelectorAll('.speech-bar');
+        const speechStatusEls = document.querySelectorAll('[data-speech-status]');
+        const speechTimerEls = document.querySelectorAll('[data-speech-timer]');
+        const speechHeroRecordBtn = document.querySelector('[data-speech-record]');
+        const speechHeroStopBtn = document.querySelector('[data-speech-stop]');
+        const speechHeroCTA = document.querySelector('[data-speech-cta]');
         const speechAudioEl = document.getElementById('speech-audio');
         const speechTranscriptionEl = document.getElementById('speech-transcription');
         const speechNotesEl = document.getElementById('speech-notes');
@@ -1696,8 +1739,10 @@
 
         function updateSpeechUI() {
             const duration = speechDraft?.duration_ms || (speechStartTime ? Date.now() - speechStartTime : 0);
-            if (speechTimerEl) speechTimerEl.textContent = formatDuration(duration);
-            if (speechDurationEl) speechDurationEl.value = formatDuration(duration);
+            const durationText = formatDuration(duration);
+            if (speechTimerEl) speechTimerEl.textContent = durationText;
+            speechTimerEls.forEach(el => el.textContent = durationText);
+            if (speechDurationEl) speechDurationEl.value = durationText;
 
             const statusCopy = {
                 idle: 'Ready to record',
@@ -1705,17 +1750,46 @@
                 paused: 'Paused',
                 stopped: 'Stopped'
             };
-            if (speechStatusEl) speechStatusEl.textContent = statusCopy[speechStatus] || 'Ready to record';
+            const statusText = statusCopy[speechStatus] || 'Ready to record';
+            if (speechStatusEl) speechStatusEl.textContent = statusText;
+            speechStatusEls.forEach(el => {
+                el.textContent = statusText;
+                el.style.opacity = speechStatus === 'idle' ? 0 : 1;
+            });
 
             const recordBtn = document.getElementById('speech-record-btn');
             const pauseBtn = document.getElementById('speech-pause-btn');
             const resumeBtn = document.getElementById('speech-resume-btn');
             const stopBtn = document.getElementById('speech-stop-btn');
 
-            if (recordBtn) recordBtn.disabled = speechStatus === 'recording';
+            const showRecord = speechStatus === 'idle' || speechStatus === 'stopped';
+            const showStop = speechStatus === 'recording' || speechStatus === 'paused';
+            const showCTA = speechStatus === 'stopped';
+
+            if (recordBtn) {
+                recordBtn.disabled = speechStatus === 'recording';
+                recordBtn.classList.toggle('hidden', !showRecord);
+            }
             if (pauseBtn) pauseBtn.disabled = speechStatus !== 'recording';
             if (resumeBtn) resumeBtn.disabled = speechStatus !== 'paused';
-            if (stopBtn) stopBtn.disabled = speechStatus === 'idle';
+            if (stopBtn) {
+                stopBtn.disabled = speechStatus === 'idle';
+                stopBtn.classList.toggle('hidden', !showStop);
+            }
+
+            if (speechHeroRecordBtn) {
+                speechHeroRecordBtn.disabled = speechStatus === 'recording';
+                speechHeroRecordBtn.classList.toggle('hidden', !showRecord);
+            }
+            if (speechHeroStopBtn) {
+                speechHeroStopBtn.disabled = speechStatus === 'idle';
+                speechHeroStopBtn.classList.toggle('hidden', !showStop);
+            }
+            if (speechHeroCTA) {
+                speechHeroCTA.classList.toggle('hidden', !showCTA);
+                speechHeroCTA.textContent = 'Save entry';
+                speechHeroCTA.onclick = saveSpeechEntry;
+            }
 
             if (speechAudioEl) {
                 const url = speechDraft?.audioUrl || speechDraft?.audio_url;
@@ -1777,6 +1851,11 @@
             speechStatus = 'stopped';
             resetSpeechBars(false);
             updateSpeechUI();
+
+            // Auto-transcribe immediately after stopping
+            setTimeout(() => {
+                hydrateSpeechTranscription();
+            }, 10);
         }
 
         async function startSpeechRecording() {
