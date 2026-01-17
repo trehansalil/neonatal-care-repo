@@ -69,6 +69,7 @@
             from {
                 opacity: 0;
             }
+
             to {
                 opacity: 1;
             }
@@ -79,6 +80,7 @@
                 transform: translateY(50px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -143,7 +145,7 @@
 
         .segmented button:hover {
             color: #334155;
-            background: rgba(255,255,255,0.5);
+            background: rgba(255, 255, 255, 0.5);
         }
 
         .segmented button.active {
@@ -163,12 +165,12 @@
             white-space: nowrap;
             border: 1px solid transparent;
         }
-        
+
         .metric-tab:hover {
             background: #f8fafc;
             color: #334155;
         }
-        
+
         .metric-tab.active {
             background: #eff6ff;
             color: #0284c7;
@@ -412,7 +414,7 @@
             position: fixed;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
             border: 1px solid #e2e8f0;
             z-index: 1000;
             min-width: 180px;
@@ -456,8 +458,15 @@
         }
 
         @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         /* Desktop hover for menu button */
@@ -502,7 +511,7 @@
                 <span>✍️</span> New Entry
             </h2>
 
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <!-- Feed Card -->
                 <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
                     onclick="openModal('feed')">
@@ -542,16 +551,26 @@
                     <h3 class="font-bold text-slate-800 mb-1">Weight</h3>
                     <p class="text-xs text-slate-500">Track Growth</p>
                 </div>
+
+                <!-- Speech Log Card -->
+                <div class="action-card bg-white rounded-xl shadow-sm p-6 text-center border border-slate-200"
+                    onclick="openModal('speech')">
+                    <div class="text-5xl mb-3">🎙️</div>
+                    <h3 class="font-bold text-slate-800 mb-1">Speech Log</h3>
+                    <p class="text-xs text-slate-500">Record & transcribe</p>
+                </div>
             </div>
         </section>
 
         <!-- Total Feed Volume -->
         <section class="mb-6 log-section">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between gap-4">
+                <div
+                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between gap-4">
                     <div class="flex justify-between items-start w-full">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume
+                            </p>
                             <div class="text-3xl font-bold text-sky-700 leading-tight" id="total-feed-ml">0 ml</div>
                         </div>
                         <div class="text-right">
@@ -559,10 +578,12 @@
                             <div class="text-lg font-bold text-slate-600" id="target-feed-ml">--</div>
                         </div>
                     </div>
-                    
+
                     <div class="w-full">
                         <div class="relative w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="feed-progress-bar" class="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            <div id="feed-progress-bar"
+                                class="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all duration-500"
+                                style="width: 0%"></div>
                         </div>
                         <div class="flex justify-between items-center mt-2">
                             <p class="text-xs text-slate-500 font-medium" id="feed-progress-text">0% of daily target</p>
@@ -571,13 +592,16 @@
                     </div>
                 </div>
 
-                <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+                <div
+                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Diapers Used</p>
                         <div class="text-3xl font-bold text-indigo-700" id="total-diapers">0</div>
                         <p class="text-sm text-slate-500 mt-1">Across selected range</p>
                     </div>
-                    <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-2xl">🧷</div>
+                    <div
+                        class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-2xl">
+                        🧷</div>
                 </div>
             </div>
         </section>
@@ -621,18 +645,24 @@
             <!-- Range & Presets -->
             <div class="mb-6">
                 <!-- Range Summary Button -->
-                <button onclick="openModal('range')" class="w-full md:w-auto flex items-center justify-between md:justify-start gap-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-3 transition-all group mb-3 shadow-sm">
+                <button onclick="openModal('range')"
+                    class="w-full md:w-auto flex items-center justify-between md:justify-start gap-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-3 transition-all group mb-3 shadow-sm">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm group-hover:scale-105 transition-transform">
+                        <div
+                            class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm group-hover:scale-105 transition-transform">
                             📅
                         </div>
                         <div class="text-left">
                             <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">Range</div>
-                            <div id="range-summary-text" class="text-sm font-bold text-slate-800">Today · 00:00–23:59</div>
+                            <div id="range-summary-text" class="text-sm font-bold text-slate-800">Today · 00:00–23:59
+                            </div>
                         </div>
                     </div>
                     <div class="text-slate-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
                     </div>
                 </button>
 
@@ -654,6 +684,7 @@
                 <button class="filter-chip active" data-type="poti">💩 Poti</button>
                 <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
                 <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
+                <button class="filter-chip active" data-type="speech">🎙️ Speech</button>
             </div>
 
             <div id="entries-container" class="space-y-3">
@@ -669,44 +700,58 @@
                     <div>
                         <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                             <span>📈</span> <span id="chart-title">Trend Analysis</span>
-                            <span id="cumulative-badge" class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Cumulative</span>
+                            <span id="cumulative-badge"
+                                class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Cumulative</span>
                         </h2>
                         <p class="text-sm text-slate-500 mt-1">Visualize growth and vitals</p>
                     </div>
-                    
+
                     <!-- Time Controls -->
                     <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg self-start md:self-auto">
-                        <button class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="today" id="trend-preset-today">Today</button>
-                        <button class="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800" data-preset="7" id="trend-preset-7">7 Days</button>
-                        <button class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="30" id="trend-preset-30">30 Days</button>
+                        <button
+                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+                            data-preset="today" id="trend-preset-today">Today</button>
+                        <button class="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800"
+                            data-preset="7" id="trend-preset-7">7 Days</button>
+                        <button
+                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+                            data-preset="30" id="trend-preset-30">30 Days</button>
                         <div class="w-px h-4 bg-slate-300 mx-1"></div>
-                        <button id="toggle-custom-date" class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1">
+                        <button id="toggle-custom-date"
+                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1">
                             <span>📅</span> <span class="hidden sm:inline">Custom</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Custom Date Inputs (Hidden by default) -->
-                <div id="custom-date-panel" class="hidden mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
+                <div id="custom-date-panel"
+                    class="hidden mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
                     <div class="flex flex-wrap items-end gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">From</label>
-                            <input type="date" id="trend-start-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="trend-start-date"
+                                class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">To</label>
-                            <input type="date" id="trend-end-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="trend-end-date"
+                                class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
-                        <button id="trend-apply-range" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">Apply Range</button>
+                        <button id="trend-apply-range"
+                            class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">Apply
+                            Range</button>
                         <div class="ml-auto text-xs text-slate-400 self-center" id="range-label"></div>
                     </div>
                 </div>
 
                 <!-- Toolbar: Metrics & Settings -->
-                <div class="flex flex-col lg:flex-row gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-6">
-                    
+                <div
+                    class="flex flex-col lg:flex-row gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-6">
+
                     <!-- Primary Metric (Scrollable on mobile) -->
-                    <div class="flex items-center gap-5 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1" id="metric-segment">
+                    <div class="flex items-center gap-5 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1"
+                        id="metric-segment">
                         <!-- <button data-metric="weight-avg" data-label="Weight" data-icon="⚖️" class="metric-tab active">Weight</button>
                         <button data-metric="temp-avg" data-label="Temp" data-icon="🌡️" class="metric-tab">Temp</button>
                         <button data-metric="feed-total" data-label="Feeds" data-icon="🍼" class="metric-tab">Feeds</button>
@@ -722,10 +767,12 @@
                     </div>
 
                     <!-- Secondary Controls -->
-                    <div class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3 flex-wrap">
+                    <div
+                        class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3 flex-wrap">
                         <!-- Compare Dropdown -->
                         <div class="relative min-w-[140px]">
-                            <select id="compare-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                            <select id="compare-select"
+                                class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
                                 <option value="none">Compare: None</option>
                                 <option value="weight-avg">vs Weight</option>
                                 <option value="temp-avg">vs Temp</option>
@@ -734,64 +781,73 @@
                                 <option value="poti-count">vs Poti</option>
                                 <option value="diaper-count">vs Diapers</option>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
                             </div>
                         </div>
 
                         <!-- Aggregation Dropdown -->
                         <div class="relative min-w-[120px]">
-                            <select id="aggregation-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                            <select id="aggregation-select"
+                                class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
                                 <option value="hour">By Hour</option>
                                 <option value="day" selected>By Day</option>
                                 <option value="week">By Week</option>
                                 <option value="month">By Month</option>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
                             </div>
                         </div>
                     </div>
                 </div>
 
-            <div class="stats-bar mb-4" id="trend-stats">
-                <div class="stats-card">
-                    <div class="icon bg-purple-100 text-purple-600">⏮</div>
-                    <div>
-                        <div class="label">Starting</div>
-                        <div class="value" id="start-value">--</div>
-                        <div class="helper" id="start-helper">Range baseline</div>
+                <div class="stats-bar mb-4" id="trend-stats">
+                    <div class="stats-card">
+                        <div class="icon bg-purple-100 text-purple-600">⏮</div>
+                        <div>
+                            <div class="label">Starting</div>
+                            <div class="value" id="start-value">--</div>
+                            <div class="helper" id="start-helper">Range baseline</div>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="icon bg-purple-100 text-purple-600">⏺</div>
+                        <div>
+                            <div class="label">Current</div>
+                            <div class="value" id="latest-value">--</div>
+                            <div class="helper" id="latest-helper">Latest point</div>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="icon bg-purple-100 text-purple-600">Δ</div>
+                        <div>
+                            <div class="label">Total Change</div>
+                            <div class="value" id="value-change">--</div>
+                            <div class="helper" id="change-helper">–</div>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="icon bg-purple-100 text-purple-600">↗</div>
+                        <div>
+                            <div class="label">Avg Change</div>
+                            <div class="value" id="avg-change">--</div>
+                            <div class="helper" id="avg-helper">–</div>
+                        </div>
                     </div>
                 </div>
-                <div class="stats-card">
-                    <div class="icon bg-purple-100 text-purple-600">⏺</div>
-                    <div>
-                        <div class="label">Current</div>
-                        <div class="value" id="latest-value">--</div>
-                        <div class="helper" id="latest-helper">Latest point</div>
-                    </div>
-                </div>
-                <div class="stats-card">
-                    <div class="icon bg-purple-100 text-purple-600">Δ</div>
-                    <div>
-                        <div class="label">Total Change</div>
-                        <div class="value" id="value-change">--</div>
-                        <div class="helper" id="change-helper">–</div>
-                    </div>
-                </div>
-                <div class="stats-card">
-                    <div class="icon bg-purple-100 text-purple-600">↗</div>
-                    <div>
-                        <div class="label">Avg Change</div>
-                        <div class="value" id="avg-change">--</div>
-                        <div class="helper" id="avg-helper">–</div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="relative bg-slate-50 rounded-xl p-4 border border-slate-200" style="height: 320px;">
-                <canvas id="trendChart"></canvas>
-            </div>
+                <div class="relative bg-slate-50 rounded-xl p-4 border border-slate-200" style="height: 320px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
         </section>
 
     </main>
@@ -815,7 +871,8 @@
                         <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <span>📅</span> Date & Time
                         </label>
-                        <button type="button" onclick="setCurrentDateTime('feed')" class="text-xs text-sky-600 hover:text-sky-700 font-semibold">
+                        <button type="button" onclick="setCurrentDateTime('feed')"
+                            class="text-xs text-sky-600 hover:text-sky-700 font-semibold">
                             Set to Now
                         </button>
                     </div>
@@ -877,7 +934,8 @@
                         <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <span>📅</span> Date & Time
                         </label>
-                        <button type="button" onclick="setCurrentDateTime('susu')" class="text-xs text-indigo-600 hover:text-indigo-700 font-semibold">
+                        <button type="button" onclick="setCurrentDateTime('susu')"
+                            class="text-xs text-indigo-600 hover:text-indigo-700 font-semibold">
                             Set to Now
                         </button>
                     </div>
@@ -946,7 +1004,8 @@
                         <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <span>📅</span> Date & Time
                         </label>
-                        <button type="button" onclick="setCurrentDateTime('poti')" class="text-xs text-amber-600 hover:text-amber-700 font-semibold">
+                        <button type="button" onclick="setCurrentDateTime('poti')"
+                            class="text-xs text-amber-600 hover:text-amber-700 font-semibold">
                             Set to Now
                         </button>
                     </div>
@@ -1027,7 +1086,8 @@
                         <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <span>📅</span> Date & Time
                         </label>
-                        <button type="button" onclick="setCurrentDateTime('temp')" class="text-xs text-red-600 hover:text-red-700 font-semibold">
+                        <button type="button" onclick="setCurrentDateTime('temp')"
+                            class="text-xs text-red-600 hover:text-red-700 font-semibold">
                             Set to Now
                         </button>
                     </div>
@@ -1083,7 +1143,8 @@
                         <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <span>📅</span> Date & Time
                         </label>
-                        <button type="button" onclick="setCurrentDateTime('weight')" class="text-xs text-purple-600 hover:text-purple-700 font-semibold">
+                        <button type="button" onclick="setCurrentDateTime('weight')"
+                            class="text-xs text-purple-600 hover:text-purple-700 font-semibold">
                             Set to Now
                         </button>
                     </div>
@@ -1104,7 +1165,8 @@
                 </div>
                 <div id="weight-info" class="p-4 bg-purple-100 border border-purple-300 rounded-lg">
                     <p class="text-sm text-purple-800 font-semibold">💡 Weight Tracking Tips</p>
-                    <p class="text-xs text-purple-700 mt-1">Weigh baby at the same time each day for consistency. Weight can fluctuate 50-100g daily.</p>
+                    <p class="text-xs text-purple-700 mt-1">Weigh baby at the same time each day for consistency. Weight
+                        can fluctuate 50-100g daily.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
@@ -1120,22 +1182,197 @@
         </div>
     </div>
 
+    <!-- Speech Log Modal -->
+    <div id="speech-modal" class="modal">
+        <div class="modal-content h-full md:h-auto md:max-h-[90vh] flex flex-col w-full md:w-[640px]">
+            <div class="bg-rose-50 p-5 border-b border-rose-100 flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-500">Voice Notes</p>
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">🎙️ Speech Log</h2>
+                    <p class="text-sm text-slate-600">Record, transcribe, and file a quick voice note.</p>
+                </div>
+                <button onclick="closeModal('speech')"
+                    class="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+            </div>
+
+            <form id="speech-form" class="p-5 md:p-6 space-y-4 flex-1 flex flex-col overflow-y-auto">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>📅</span> Date & Time
+                        </label>
+                        <button type="button" onclick="setCurrentDateTime('speech')"
+                            class="text-xs text-rose-600 hover:text-rose-700 font-semibold">
+                            Set to Now
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="speech-date" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                        <input type="time" id="speech-time" required
+                            class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Status</p>
+                            <p id="speech-status" class="text-sm font-bold text-slate-800">Ready to record</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase font-semibold">Duration</p>
+                            <p id="speech-timer" class="text-2xl font-mono font-bold text-slate-900">00:00</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg bg-white border border-slate-200 p-3">
+                        <div class="flex items-end gap-1 h-20 md:h-16" id="speech-waveform">
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                            <div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>
+                        </div>
+                        <audio id="speech-audio" controls class="w-full mt-3 hidden"></audio>
+                    </div>
+
+                    <div class="speech-controls grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                        <button type="button" onclick="startSpeechRecording()" id="speech-record-btn"
+                            class="control-btn bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-3 rounded-xl shadow-sm flex-1">
+                            ⏺️ Record
+                        </button>
+                        <button type="button" onclick="pauseSpeechRecording()" id="speech-pause-btn"
+                            class="control-btn bg-amber-100 text-amber-800 font-semibold px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex-1">
+                            ⏸️ Pause
+                        </button>
+                        <button type="button" onclick="resumeSpeechRecording()" id="speech-resume-btn"
+                            class="control-btn bg-indigo-100 text-indigo-800 font-semibold px-4 py-3 rounded-xl border border-indigo-200 shadow-sm flex-1">
+                            ▶️ Resume
+                        </button>
+                        <button type="button" onclick="stopSpeechRecording()" id="speech-stop-btn"
+                            class="control-btn bg-slate-800 text-white font-bold px-4 py-3 rounded-xl shadow-sm col-span-2 sm:flex-1">
+                            ◼️ Stop
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500">Tip: On desktop use R to start and Space to pause/resume while
+                        focused on this modal.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <label class="block text-sm font-semibold text-slate-700">Transcription</label>
+                        <textarea id="speech-transcription" rows="5"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                            placeholder="Auto or manual notes..."></textarea>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="hydrateSpeechTranscription()"
+                                class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg">Fill
+                                from mic</button>
+                            <button type="button" id="speech-retranscribe-modal-btn"
+                                onclick="hydrateSpeechTranscription(true)"
+                                class="text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-2 rounded-lg hidden">
+                                🔄 Retranscribe
+                            </button>
+                            <button type="button" onclick="clearSpeechDraft()"
+                                class="text-sm bg-white border border-slate-200 text-slate-600 font-semibold px-3 py-2 rounded-lg">Reset
+                                text</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
+                            <select id="speech-category"
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                                <option value="general">General Notes</option>
+                                <option value="feeding">Feeding</option>
+                                <option value="sleep">Sleep</option>
+                                <option value="health">Health</option>
+                                <option value="milestone">Milestone</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Recording Type</label>
+                            <select id="speech-mode"
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                                <option value="auto">Auto</option>
+                                <option value="manual">Manual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Notes (optional)</label>
+                            <input id="speech-notes" type="text"
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm"
+                                placeholder="Context or reminder" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Clip Length</label>
+                            <input id="speech-duration" type="text" readonly
+                                class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm"
+                                value="00:00" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <span>🕑</span> Recent clips
+                        </p>
+                        <button type="button" onclick="renderSpeechRecent()"
+                            class="text-xs text-slate-500 hover:text-slate-700 font-semibold">Refresh</button>
+                    </div>
+                    <div id="speech-recent" class="space-y-2 text-sm text-slate-600">
+                        <p class="text-slate-500 text-sm">No speech clips yet.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="button" onclick="discardSpeech()"
+                        class="w-full sm:w-40 px-4 py-3 border border-slate-200 rounded-xl text-slate-700 font-semibold hover:bg-slate-50">Discard</button>
+                    <button type="button" onclick="saveSpeechEntry()"
+                        class="w-full sm:flex-1 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm">Save
+                        to log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Range Picker Modal -->
     <div id="range-modal" class="modal">
         <div class="modal-content h-full md:h-auto md:max-h-[80vh] flex flex-col w-full md:w-[500px]">
             <!-- Header -->
             <div class="bg-white p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
                 <h3 class="text-lg font-bold text-slate-800">Select Range</h3>
-                <button onclick="closeModal('range')" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                <button onclick="closeModal('range')"
+                    class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
 
             <!-- Tabs -->
             <div class="p-4 border-b border-slate-100 shrink-0">
                 <div class="flex bg-slate-100 p-1 rounded-xl">
-                    <button id="range-tab-presets" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all bg-white shadow-sm text-sky-600" onclick="switchRangeTab('presets')">Presets</button>
-                    <button id="range-tab-custom" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all" onclick="switchRangeTab('custom')">Custom</button>
+                    <button id="range-tab-presets"
+                        class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all bg-white shadow-sm text-sky-600"
+                        onclick="switchRangeTab('presets')">Presets</button>
+                    <button id="range-tab-custom"
+                        class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all"
+                        onclick="switchRangeTab('custom')">Custom</button>
                 </div>
             </div>
 
@@ -1143,27 +1380,33 @@
             <div class="flex-1 overflow-y-auto p-4">
                 <!-- Presets View -->
                 <div id="range-view-presets" class="space-y-2">
-                    <button onclick="selectPresetAndClose('6h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('6h')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">Last 6 hours</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
-                    <button onclick="selectPresetAndClose('12h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('12h')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">Last 12 hours</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
-                    <button onclick="selectPresetAndClose('today')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('today')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">Today</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
-                    <button onclick="selectPresetAndClose('yesterday')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('yesterday')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">Yesterday</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
-                    <button onclick="selectPresetAndClose('24h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('24h')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">Last 24 hours</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
-                    <button onclick="selectPresetAndClose('week')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
+                    <button onclick="selectPresetAndClose('week')"
+                        class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all">
                         <span class="font-semibold text-slate-700">This Week</span>
                         <span class="text-slate-400 group-hover:text-sky-500">→</span>
                     </button>
@@ -1173,16 +1416,19 @@
                 <div id="range-view-custom" class="hidden space-y-6">
                     <!-- Date Selection -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date Range</label>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date
+                            Range</label>
                         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="text-xs text-slate-500 mb-1 block font-semibold">From</label>
-                                    <input type="date" id="custom-start-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                    <input type="date" id="custom-start-date"
+                                        class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
                                 </div>
                                 <div>
                                     <label class="text-xs text-slate-500 mb-1 block font-semibold">To</label>
-                                    <input type="date" id="custom-end-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                    <input type="date" id="custom-end-date"
+                                        class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
                                 </div>
                             </div>
                         </div>
@@ -1191,23 +1437,28 @@
                     <!-- Time Selection -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Time Range</label>
-                            <button onclick="setCustomEndTimeNow()" class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1 rounded-md hover:bg-sky-100 transition-colors">Set End to Now</button>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Time
+                                Range</label>
+                            <button onclick="setCustomEndTimeNow()"
+                                class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-1 rounded-md hover:bg-sky-100 transition-colors">Set
+                                End to Now</button>
                         </div>
                         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="text-xs text-slate-500 mb-1 block font-semibold">Start Time</label>
-                                    <input type="time" id="custom-start-time" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                    <input type="time" id="custom-start-time"
+                                        class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
                                 </div>
                                 <div>
                                     <label class="text-xs text-slate-500 mb-1 block font-semibold">End Time</label>
-                                    <input type="time" id="custom-end-time" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
+                                    <input type="time" id="custom-end-time"
+                                        class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="text-xs text-slate-400 text-center italic">
                         Tip: End time will auto-adjust if earlier than start time.
                     </div>
@@ -1216,8 +1467,11 @@
 
             <!-- Footer (Sticky) -->
             <div class="p-4 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-                <button onclick="closeModal('range')" class="flex-1 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onclick="applyCustomRange()" class="flex-1 py-3 rounded-xl font-bold text-white bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-200 transition-all">Apply Range</button>
+                <button onclick="closeModal('range')"
+                    class="flex-1 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onclick="applyCustomRange()"
+                    class="flex-1 py-3 rounded-xl font-bold text-white bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-200 transition-all">Apply
+                    Range</button>
             </div>
         </div>
     </div>
@@ -1225,16 +1479,20 @@
     <script>
         // API Configuration
         const API_BASE_URL = '/api';
+        const SPEECH_UPLOAD_URL = `${API_BASE_URL}/speech/upload`;
+        const SPEECH_TRANSCRIBE_URL = `${API_BASE_URL}/speech/transcribe`;
+        const SPEECH_ENTRIES_URL = `${API_BASE_URL}/speech_entries`;
 
         // State
         let entries = [];
+        let speechEntries = [];
         let trendChart = null;
         let currentEditingEntry = null;
         let currentMetric = 'weight-avg';
         let currentTimeRange = 'week';
         let compareMetric = null;
         let isCumulative = false;
-        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
+        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight', 'speech']);
         let historyRange = { start: null, end: null };
         let trendRange = { start: null, end: null };
         const STORAGE_KEYS = {
@@ -1244,8 +1502,30 @@
             cumulative: 'tracker.cumulative'
         };
 
+        // Speech recording state
+        let speechRecorder = null;
+        let speechStream = null;
+        let speechChunks = [];
+        let speechTimerInterval = null;
+        let speechStartTime = null;
+        let speechDraft = null;
+        let speechStatus = 'idle';
+        let selectedMimeType = 'audio/webm';
+
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
+        const speechTimerEl = document.getElementById('speech-timer');
+        const speechStatusEl = document.getElementById('speech-status');
+        const speechBars = document.querySelectorAll('.speech-bar');
+        const speechAudioEl = document.getElementById('speech-audio');
+        const speechTranscriptionEl = document.getElementById('speech-transcription');
+        const speechNotesEl = document.getElementById('speech-notes');
+        const speechCategoryEl = document.getElementById('speech-category');
+        const speechModeEl = document.getElementById('speech-mode');
+        const speechDurationEl = document.getElementById('speech-duration');
+        const speechDateEl = document.getElementById('speech-date');
+        const speechTimeEl = document.getElementById('speech-time');
+        const speechRecentEl = document.getElementById('speech-recent');
 
         // Stats Elements
         const todayFeedsEl = document.getElementById('today-feeds');
@@ -1264,7 +1544,7 @@
             const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            
+
             return {
                 date: `${year}-${month}-${day}`,
                 time: `${hours}:${minutes}`
@@ -1376,8 +1656,17 @@
             return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`;
         }
 
+        // Format milliseconds into mm:ss
+        function formatDuration(ms = 0) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
         // Determine entry type for filtering and UI labeling
         function getEntryType(entry) {
+            if (entry.type === 'speech' || entry.audioUrl || entry.mode === 'speech') return 'speech';
             if (entry.feed_amount || entry.feed_type) return 'feed';
             if (entry.susu_count > 0) return 'susu';
             if (entry.poti_count > 0) return 'poti';
@@ -1396,20 +1685,463 @@
             return null;
         }
 
+        // --- Speech Recording Helpers ---
+        function resetSpeechBars(active = false) {
+            speechBars.forEach(bar => {
+                const height = active ? 30 + Math.random() * 50 : 8;
+                bar.style.height = `${Math.round(height)}%`;
+                bar.style.backgroundColor = active ? '#fb7185' : '#e2e8f0';
+            });
+        }
+
+        function updateSpeechUI() {
+            const duration = speechDraft?.duration_ms || (speechStartTime ? Date.now() - speechStartTime : 0);
+            if (speechTimerEl) speechTimerEl.textContent = formatDuration(duration);
+            if (speechDurationEl) speechDurationEl.value = formatDuration(duration);
+
+            const statusCopy = {
+                idle: 'Ready to record',
+                recording: 'Recording...',
+                paused: 'Paused',
+                stopped: 'Stopped'
+            };
+            if (speechStatusEl) speechStatusEl.textContent = statusCopy[speechStatus] || 'Ready to record';
+
+            const recordBtn = document.getElementById('speech-record-btn');
+            const pauseBtn = document.getElementById('speech-pause-btn');
+            const resumeBtn = document.getElementById('speech-resume-btn');
+            const stopBtn = document.getElementById('speech-stop-btn');
+
+            if (recordBtn) recordBtn.disabled = speechStatus === 'recording';
+            if (pauseBtn) pauseBtn.disabled = speechStatus !== 'recording';
+            if (resumeBtn) resumeBtn.disabled = speechStatus !== 'paused';
+            if (stopBtn) stopBtn.disabled = speechStatus === 'idle';
+
+            if (speechAudioEl) {
+                const url = speechDraft?.audioUrl || speechDraft?.audio_url;
+                if (url) {
+                    speechAudioEl.src = url;
+                    speechAudioEl.classList.remove('hidden');
+                } else {
+                    speechAudioEl.pause();
+                    speechAudioEl.removeAttribute('src');
+                    speechAudioEl.classList.add('hidden');
+                }
+            }
+
+            // Show/hide retranscribe button in modal (if audio exists on server)
+            const retranscribeBtn = document.getElementById('speech-retranscribe-modal-btn');
+            if (retranscribeBtn) {
+                if (speechDraft?.object_key || (speechDraft?.audio_url && !speechDraft?.audio_url.startsWith('blob:'))) {
+                    retranscribeBtn.classList.remove('hidden');
+                } else {
+                    retranscribeBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        function stopSpeechTimer() {
+            if (speechTimerInterval) {
+                clearInterval(speechTimerInterval);
+                speechTimerInterval = null;
+            }
+        }
+
+        function handleSpeechStop() {
+            stopSpeechTimer();
+            const duration = speechStartTime ? Date.now() - speechStartTime : 0;
+            const blob = speechChunks.length ? new Blob(speechChunks, { type: selectedMimeType }) : null;
+            const audioUrl = blob ? URL.createObjectURL(blob) : null;
+
+            // Determine extension based on MIME type
+            let ext = 'webm';
+            if (selectedMimeType.includes('mp4') || selectedMimeType.includes('aac')) {
+                ext = 'mp4';
+            } else if (selectedMimeType.includes('ogg')) {
+                ext = 'ogg';
+            } else if (selectedMimeType.includes('wav')) {
+                ext = 'wav';
+            }
+
+            const filename = `speech_${Date.now()}.${ext}`;
+
+            speechDraft = {
+                ...(speechDraft || {}),
+                id: speechDraft?.id || `speech-${Date.now()}`,
+                type: 'speech',
+                duration_ms: duration,
+                audioUrl,
+                blob,
+                filename
+            };
+            speechStatus = 'stopped';
+            resetSpeechBars(false);
+            updateSpeechUI();
+        }
+
+        async function startSpeechRecording() {
+            try {
+                // Check for Secure Context first
+                if (window.isSecureContext === false) {
+                    const msg = "Microphone requires HTTPS or localhost. If testing on mobile via IP, this will fail.";
+                    console.error(msg);
+                    alert(msg);
+                    return;
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showToast('Microphone API not supported in this browser.', 'error');
+                    return;
+                }
+
+                speechStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Detect supported MIME type
+                const mimeTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/mp4',
+                    'audio/aac',
+                    'audio/ogg;codecs=opus',
+                    'audio/wav'
+                ];
+
+                selectedMimeType = 'audio/webm'; // fallback
+                let options = {};
+
+                for (const type of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(type)) {
+                        selectedMimeType = type;
+                        options = { mimeType: type };
+                        break;
+                    }
+                }
+
+                console.log('Using MIME type:', selectedMimeType);
+
+                try {
+                    speechRecorder = new MediaRecorder(speechStream, options);
+                } catch (e) {
+                    // Fallback to default if options fail
+                    console.warn('MediaRecorder failed with options, trying default', e);
+                    speechRecorder = new MediaRecorder(speechStream);
+                    selectedMimeType = speechRecorder.mimeType || 'audio/webm';
+                }
+
+                speechChunks = [];
+
+                speechRecorder.ondataavailable = (e) => {
+                    if (e.data?.size > 0) speechChunks.push(e.data);
+                };
+                speechRecorder.onstop = handleSpeechStop;
+
+                speechRecorder.onerror = (e) => {
+                    console.error('Recorder error:', e);
+                    showToast('Recording error: ' + (e.error?.message || 'Unknown'), 'error');
+                };
+
+                speechRecorder.start();
+                speechStartTime = Date.now();
+                speechStatus = 'recording';
+                resetSpeechBars(true);
+                speechTimerInterval = setInterval(() => {
+                    resetSpeechBars(true);
+                    updateSpeechUI();
+                }, 300);
+                updateSpeechUI();
+            } catch (err) {
+                console.error('Mic error', err);
+                const msg = err.name + ': ' + err.message;
+                showToast('Mic Error: ' + msg, 'error');
+
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    alert('Microphone permission was denied. Please check your browser settings.');
+                } else if (err.name === 'NotFoundError') {
+                    alert('No microphone found on this device.');
+                }
+            }
+        }
+
+        function pauseSpeechRecording() {
+            if (speechRecorder && speechRecorder.state === 'recording') {
+                speechRecorder.pause();
+                speechStatus = 'paused';
+                resetSpeechBars(false);
+                updateSpeechUI();
+            }
+        }
+
+        function resumeSpeechRecording() {
+            if (speechRecorder && speechRecorder.state === 'paused') {
+                speechRecorder.resume();
+                speechStatus = 'recording';
+                resetSpeechBars(true);
+                updateSpeechUI();
+            }
+        }
+
+        function stopSpeechRecording() {
+            if (speechRecorder && speechRecorder.state !== 'inactive') {
+                speechRecorder.stop();
+            } else {
+                speechStatus = 'idle';
+                updateSpeechUI();
+            }
+            if (speechStream) {
+                speechStream.getTracks().forEach(track => track.stop());
+                speechStream = null;
+            }
+        }
+
+        async function hydrateSpeechTranscription(force = false) {
+            if (!speechDraft || (!speechDraft.blob && !speechDraft.object_key)) {
+                showToast('Please record something first.', 'info');
+                return;
+            }
+
+            const btn = force ? document.getElementById('speech-retranscribe-modal-btn') : document.querySelector('button[onclick="hydrateSpeechTranscription()"]');
+            const originalText = btn ? btn.textContent : (force ? '🔄 Retranscribe' : 'Fill from mic');
+
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Transcribing...';
+                }
+
+                // 1. Upload if not yet uploaded
+                if (!speechDraft.object_key) {
+                    const formData = new FormData();
+                    formData.append('file', speechDraft.blob, speechDraft.filename || 'speech.webm');
+                    formData.append('duration_ms', speechDraft.duration_ms || 0);
+
+                    const uploadResp = await fetch(SPEECH_UPLOAD_URL, { method: 'POST', body: formData });
+                    if (!uploadResp.ok) throw new Error('Upload failed');
+                    const uploadResult = await uploadResp.json();
+
+                    speechDraft.object_key = uploadResult.object_key;
+                    speechDraft.audioUrl = uploadResult.url;
+                    speechDraft.audio_url = uploadResult.url;
+                }
+
+                // 2. Transcribe
+                // Optimization: if it's already in the DB, we could use the new endpoint, 
+                // but let's stick to the generic one for simplicity in the draft stage.
+                const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ object_key: speechDraft.object_key })
+                });
+
+                if (!tResp.ok) throw new Error('Transcription failed');
+                const tJson = await tResp.json();
+
+                if (tJson.transcript) {
+                    speechDraft.transcription = tJson.transcript;
+                    if (speechTranscriptionEl) {
+                        speechTranscriptionEl.value = tJson.transcript;
+                    }
+                    showToast('Transcription complete', 'success');
+                } else {
+                    showToast('Transcription returned empty text', 'warning');
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+                updateSpeechUI();
+            }
+        }
+
+        async function retranscribeEntry(id) {
+            try {
+                const btn = document.querySelector(`button[onclick="retranscribeEntry(${id})"]`);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('animate-spin');
+                }
+
+                const resp = await fetch(`${SPEECH_ENTRIES_URL}/${id}/retranscribe`, { method: 'POST' });
+                if (!resp.ok) {
+                    const error = await resp.json();
+                    throw new Error(error.error || 'Failed to retranscribe');
+                }
+
+                const result = await resp.json();
+                showToast('Entry re-transcribed!', 'success');
+
+                // Refresh list
+                await loadEntries();
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, 'error');
+            }
+        }
+
+        function clearSpeechDraft() {
+            if (speechTranscriptionEl) speechTranscriptionEl.value = '';
+            if (speechNotesEl) speechNotesEl.value = '';
+        }
+
+        function resetSpeechState() {
+            stopSpeechTimer();
+            if (speechRecorder && speechRecorder.state !== 'inactive') {
+                try { speechRecorder.stop(); } catch (err) { console.warn(err); }
+            }
+            if (speechStream) {
+                speechStream.getTracks().forEach(track => track.stop());
+                speechStream = null;
+            }
+            speechRecorder = null;
+            speechChunks = [];
+            speechStartTime = null;
+            speechDraft = null;
+            speechStatus = 'idle';
+            resetSpeechBars(false);
+            updateSpeechUI();
+        }
+
+        function discardSpeech() {
+            resetSpeechState();
+            closeModal('speech');
+        }
+
+        async function saveSpeechEntry() {
+            if (!speechDraft) {
+                showToast('Record a clip before saving.', 'error');
+                return;
+            }
+
+            const ts = parseDateTime(speechDateEl?.value, speechTimeEl?.value) || new Date();
+            let uploadResult = null;
+            let objectKey = speechDraft.object_key;
+            let audioUrl = speechDraft.audioUrl || speechDraft.audio_url;
+
+            if (speechDraft.blob && !speechDraft.object_key) {
+                const formData = new FormData();
+                formData.append('file', speechDraft.blob, speechDraft.filename || 'speech.webm');
+                formData.append('duration_ms', speechDraft.duration_ms || 0);
+                formData.append('timestamp', ts.toISOString());
+                formData.append('category', speechCategoryEl?.value || 'general');
+                formData.append('mode', speechModeEl?.value || 'auto');
+                formData.append('notes', speechNotesEl?.value?.trim() || '');
+
+                try {
+                    const uploadResp = await fetch(SPEECH_UPLOAD_URL, { method: 'POST', body: formData });
+                    if (!uploadResp.ok) {
+                        const errorPayload = await uploadResp.json().catch(() => ({}));
+                        throw new Error(errorPayload.error || 'Upload failed');
+                    }
+                    uploadResult = await uploadResp.json();
+                    objectKey = uploadResult.object_key;
+                    audioUrl = uploadResult.url;
+                } catch (err) {
+                    console.error('Speech upload error', err);
+                    showToast('Upload failed. Please try again.', 'error');
+                    return;
+                }
+            }
+
+            if (!objectKey) {
+                showToast('Missing audio object. Please record again.', 'error');
+                return;
+            }
+
+            let transcription = speechTranscriptionEl?.value?.trim() || speechDraft.transcription || '';
+            if (!transcription && objectKey) {
+                try {
+                    const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ object_key: objectKey })
+                    });
+                    if (tResp.ok) {
+                        const tJson = await tResp.json();
+                        transcription = tJson.transcript || transcription;
+                    }
+                } catch (err) {
+                    console.warn('Transcription failed', err);
+                    showToast(`Transcription request failed: ${err.message}`, 'error');
+                }
+            }
+
+            const payload = {
+                object_key: objectKey,
+                audio_url: audioUrl,
+                transcription,
+                category: speechCategoryEl?.value || 'general',
+                mode: speechModeEl?.value || 'auto',
+                duration_ms: speechDraft.duration_ms || 0,
+                notes: speechNotesEl?.value?.trim() || '',
+                timestamp: ts.toISOString()
+            };
+
+            try {
+                const isEdit = Boolean(currentEditingEntry && currentEditingEntry.id);
+                const resp = await fetch(isEdit ? `${SPEECH_ENTRIES_URL}/${currentEditingEntry.id}` : SPEECH_ENTRIES_URL, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error('save failed');
+                const saved = await resp.json();
+                speechEntries = [saved, ...speechEntries.filter(e => e.id !== saved.id)];
+                renderSpeechRecent();
+                renderEntries();
+                showToast('Speech saved.', 'success');
+                resetSpeechState();
+                closeModal('speech');
+            } catch (err) {
+                console.error(err);
+                showToast('Could not save speech entry', 'error');
+            }
+        }
+
+        function renderSpeechRecent() {
+            if (!speechRecentEl) return;
+            if (!speechEntries.length) {
+                speechRecentEl.innerHTML = '<p class="text-slate-500 text-sm">No speech clips yet.</p>';
+                return;
+            }
+
+            const rows = speechEntries.slice(0, 3).map(entry => {
+                const ts = new Date(entry.timestamp);
+                return `
+                    <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 truncate">${entry.transcription || 'Voice note'}</p>
+                            <p class="text-xs text-slate-500">${formatDuration(entry.duration_ms)} · ${ts.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        ${(entry.audioUrl || entry.audio_url) ? `<audio controls src="${entry.audioUrl || entry.audio_url}" class="ml-3 w-28"></audio>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            speechRecentEl.innerHTML = rows;
+        }
+
         // Modal Functions
         function openModal(type, entry = null) {
             currentEditingEntry = entry;
             const modal = document.getElementById(`${type}-modal`);
+            if (type === 'speech') {
+                resetSpeechState();
+                renderSpeechRecent();
+            }
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
-            
+
             // Update modal title
             const modalTitle = modal.querySelector('h2');
             if (modalTitle) {
                 const originalTitle = modalTitle.textContent.replace('Edit ', '');
                 modalTitle.textContent = entry ? `Edit ${originalTitle}` : originalTitle;
             }
-            
+
             if (entry) {
                 // Pre-fill form with entry data
                 const entryDate = new Date(entry.timestamp);
@@ -1419,10 +2151,10 @@
                 const day = String(entryDate.getDate()).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
                 const timeStr = entryDate.toTimeString().slice(0, 5);
-                
+
                 document.getElementById(`${type}-date`).value = dateStr;
                 document.getElementById(`${type}-time`).value = timeStr;
-                
+
                 // Fill type-specific fields
                 if (type === 'feed') {
                     if (entry.feed_type) document.getElementById('feed-type').value = entry.feed_type;
@@ -1457,6 +2189,18 @@
                 } else if (type === 'weight') {
                     if (entry.weight) document.getElementById('weight-value').value = entry.weight;
                     if (entry.notes) document.getElementById('weight-notes').value = entry.notes;
+                } else if (type === 'speech') {
+                    if (entry.transcription && speechTranscriptionEl) speechTranscriptionEl.value = entry.transcription;
+                    if (entry.notes && speechNotesEl) speechNotesEl.value = entry.notes;
+                    if (speechCategoryEl && entry.category) speechCategoryEl.value = entry.category;
+                    if (speechModeEl && entry.mode) speechModeEl.value = entry.mode;
+                    speechDraft = { ...entry };
+                    speechStatus = 'stopped';
+                    if (entry.audioUrl && speechAudioEl) {
+                        speechAudioEl.src = entry.audioUrl;
+                        speechAudioEl.classList.remove('hidden');
+                    }
+                    updateSpeechUI();
                 }
             } else {
                 // Set current date/time when creating new entry
@@ -1468,25 +2212,31 @@
             const modal = document.getElementById(`${type}-modal`);
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
-            document.getElementById(`${type}-form`).reset();
+            const form = document.getElementById(`${type}-form`);
+            if (form) form.reset();
             currentEditingEntry = null;
-            
+
             // Reset modal title
             const modalTitle = modal.querySelector('h2');
             if (modalTitle) {
                 modalTitle.textContent = modalTitle.textContent.replace('Edit ', '');
             }
-            
+
             // Hide temp warning if visible
             if (type === 'temp') {
                 document.getElementById('temp-warning').classList.add('hidden');
+            }
+
+            if (type === 'speech') {
+                resetSpeechState();
+                renderSpeechRecent();
             }
         }
 
         // Close modal on background click
         window.onclick = function (event) {
             if (event.target.classList.contains('modal')) {
-                const modals = ['feed', 'susu', 'poti', 'temp', 'weight'];
+                const modals = ['feed', 'susu', 'poti', 'temp', 'weight', 'speech'];
                 modals.forEach(type => {
                     if (event.target.id === `${type}-modal`) {
                         closeModal(type);
@@ -1517,12 +2267,14 @@
             // Now load entries with both history and trend ranges established
             loadEntries();
             setupMobileTabs();
+            resetSpeechBars(false);
+            renderSpeechRecent();
         });
 
         // Feed Form Submit
         document.getElementById('feed-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const data = {
                 feed_type: document.getElementById('feed-type').value,
                 feed_amount: parseInt(document.getElementById('feed-amount').value) || null,
@@ -1536,7 +2288,7 @@
         // Susu Form Submit
         document.getElementById('susu-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const data = {
                 susu_count: parseInt(document.getElementById('susu-count').value),
                 notes: buildNotes([
@@ -1552,7 +2304,7 @@
         // Poti Form Submit
         document.getElementById('poti-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const data = {
                 poti_count: parseInt(document.getElementById('poti-count').value),
                 poti_color: document.getElementById('poti-color').value,
@@ -1569,7 +2321,7 @@
         // Temperature Form Submit
         document.getElementById('temp-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const data = {
                 temperature: parseFloat(document.getElementById('temp-value').value),
                 notes: document.getElementById('temp-notes').value || null,
@@ -1582,7 +2334,7 @@
         // Weight Form Submit
         document.getElementById('weight-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const data = {
                 weight: parseInt(document.getElementById('weight-value').value),
                 notes: document.getElementById('weight-notes').value || null,
@@ -1596,7 +2348,7 @@
         async function saveEntry(data, type) {
             try {
                 let response;
-                
+
                 if (currentEditingEntry) {
                     // Update existing entry
                     response = await fetch(`${API_BASE_URL}/entries/${currentEditingEntry.id}`, {
@@ -1636,36 +2388,30 @@
         async function loadEntries() {
             try {
                 const params = new URLSearchParams();
-                // Fetch enough data for both the history list and the trend chart by using the earliest start
-                // and latest end across the two ranges. Send datetime in local format (no timezone) so the
-                // backend interprets it as local time.
                 const rangeStarts = [historyRange?.start, trendRange?.start].filter(Boolean);
                 const rangeEnds = [historyRange?.end, trendRange?.end].filter(Boolean);
-                const fetchStart = rangeStarts.length
-                    ? rangeStarts.reduce((earliest, current) => current < earliest ? current : earliest)
-                    : null;
-                const fetchEnd = rangeEnds.length
-                    ? rangeEnds.reduce((latest, current) => current > latest ? current : latest)
-                    : null;
+                const fetchStart = rangeStarts.length ? rangeStarts.reduce((earliest, current) => current < earliest ? current : earliest) : null;
+                const fetchEnd = rangeEnds.length ? rangeEnds.reduce((latest, current) => current > latest ? current : latest) : null;
 
-                if (fetchStart) {
-                    const startStr = formatDateTimeForBackend(fetchStart);
-                    params.set('start', startStr);
+                if (fetchStart) params.set('start', formatDateTimeForBackend(fetchStart));
+                if (fetchEnd) params.set('end', formatDateTimeForBackend(fetchEnd));
+
+                const query = params.toString() ? `?${params.toString()}` : '';
+                const [entriesResp, speechResp] = await Promise.all([
+                    fetch(`${API_BASE_URL}/entries${query}`),
+                    fetch(`${API_BASE_URL}/speech_entries${query}`)
+                ]);
+
+                if (!entriesResp.ok || !speechResp.ok) {
+                    throw new Error('Failed to load entries');
                 }
-                if (fetchEnd) {
-                    const endStr = formatDateTimeForBackend(fetchEnd);
-                    params.set('end', endStr);
-                }
-                const response = await fetch(`${API_BASE_URL}/entries${params.toString() ? `?${params.toString()}` : ''}`);
-                if (response.ok) {
-                    entries = await response.json();
-                    renderEntries();
-                    updateStats();
-                    updateTrendChart();
-                } else {
-                    console.error('Failed to load entries');
-                    entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
-                }
+
+                entries = await entriesResp.json();
+                speechEntries = await speechResp.json();
+
+                renderEntries();
+                updateStats();
+                updateTrendChart();
             } catch (error) {
                 console.error('Error loading entries:', error);
                 entriesContainer.innerHTML = '<p class="text-center text-red-500 py-8">Error loading entries. Make sure the backend server is running.</p>';
@@ -1856,9 +2602,9 @@
             const clearPresetStates = () => {
                 const activeClasses = ['bg-white', 'shadow-sm', 'text-slate-800'];
                 const inactiveClasses = ['text-slate-600', 'hover:bg-white', 'hover:shadow-sm'];
-                
+
                 [presetTodayBtn, preset7Btn, preset30Btn].forEach(btn => {
-                    if(!btn) return;
+                    if (!btn) return;
                     btn.classList.remove(...activeClasses);
                     btn.classList.add(...inactiveClasses);
                 });
@@ -1872,12 +2618,12 @@
                     btn.classList.remove(...inactiveClasses);
                     btn.classList.add(...activeClasses);
                 }
-                
+
                 const end = new Date();
                 end.setHours(23, 59, 59, 999);
                 const start = new Date(end.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
                 start.setHours(0, 0, 0, 0);
-                
+
                 trendRange = { start, end };
                 setTrendRangeInputs(trendStartInput, trendEndInput, start, end);
                 updateRangeLabel(rangeLabel, formatRangeLabel(start, end));
@@ -1892,12 +2638,12 @@
             const storedMetric = localStorage.getItem(STORAGE_KEYS.metric);
             const storedRange = localStorage.getItem(STORAGE_KEYS.range);
             const storedCumulative = localStorage.getItem(STORAGE_KEYS.cumulative);
-            
+
             if (storedMetric) {
                 currentMetric = storedMetric;
                 metricButtons.forEach(b => b.classList.toggle('active', b.dataset.metric === currentMetric));
             }
-            
+
             if (storedRange && aggregationSelect) {
                 currentTimeRange = storedRange;
                 aggregationSelect.value = currentTimeRange;
@@ -1960,16 +2706,16 @@
                 presetsBtn.classList.remove('bg-white', 'shadow-sm', 'text-sky-600');
                 customView.classList.remove('hidden');
                 presetsView.classList.add('hidden');
-                
+
                 // Initialize custom inputs with current range if not set
                 if (!document.getElementById('custom-start-date').value && historyRange.start) {
                     const start = historyRange.start;
                     const end = historyRange.end || new Date();
-                    
+
                     const pad = n => String(n).padStart(2, '0');
-                    document.getElementById('custom-start-date').value = `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
+                    document.getElementById('custom-start-date').value = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
                     document.getElementById('custom-start-time').value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
-                    document.getElementById('custom-end-date').value = `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`;
+                    document.getElementById('custom-end-date').value = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
                     document.getElementById('custom-end-time').value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
                 }
             }
@@ -1983,7 +2729,7 @@
         function setCustomEndTimeNow() {
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
-            document.getElementById('custom-end-date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            document.getElementById('custom-end-date').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
             document.getElementById('custom-end-time').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
         }
 
@@ -2044,7 +2790,7 @@
                     break;
                 case 'week':
                     const day = start.getDay();
-                    const diff = start.getDate() - day + (day == 0 ? -6 : 1); 
+                    const diff = start.getDate() - day + (day == 0 ? -6 : 1);
                     start.setDate(diff);
                     start.setHours(0, 0, 0, 0);
                     end.setHours(23, 59, 59, 999);
@@ -2059,10 +2805,10 @@
 
         function updateRangeSummary(label, activePreset = null) {
             const summaryEl = document.getElementById('range-summary-text');
-            
+
             const formatTime = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
             const formatDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-            
+
             if (historyRange.start.toDateString() === historyRange.end.toDateString()) {
                 summaryEl.innerHTML = `${label} · <span class="font-normal text-slate-500">${formatTime(historyRange.start)}–${formatTime(historyRange.end)}</span>`;
             } else {
@@ -2173,7 +2919,7 @@
         function handleEntryClick(e, id) {
             // If we were swiping, don't trigger click
             if (isSwiping) return;
-            
+
             // If clicking on menu button, don't trigger edit
             if (e.target.closest('.desktop-menu-btn')) return;
 
@@ -2192,7 +2938,7 @@
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             isSwiping = false;
-            
+
             // Close other open swipes
             document.querySelectorAll('.swipe-content').forEach(el => {
                 if (el !== content) resetSwipe(el);
@@ -2238,7 +2984,7 @@
             } else {
                 resetSwipe(content);
             }
-            
+
             // Reset flag after a short delay to prevent click trigger
             setTimeout(() => { isSwiping = false; }, 100);
         }
@@ -2262,7 +3008,7 @@
 
         function showContextMenu(e, id) {
             e.stopPropagation();
-            
+
             // Remove existing menus
             closeContextMenu();
 
@@ -2294,7 +3040,7 @@
             // Use clientX/Y from event, handle both mouse and touch
             let clientX = e.clientX;
             let clientY = e.clientY;
-            
+
             if (!clientX && e.touches && e.touches.length > 0) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
@@ -2324,14 +3070,14 @@
         }
 
         async function duplicateEntry(id) {
-            const entry = entries.find(e => e.id === id);
+            const entry = [...entries, ...speechEntries].find(e => e.id === id);
             if (!entry) return;
 
             // Create a copy without ID and with current time
             const newEntry = { ...entry };
             delete newEntry.id;
             newEntry.timestamp = new Date().toISOString();
-            
+
             // Determine type based on fields present
             let type = 'feed';
             if (newEntry.susu_count !== undefined) type = 'susu';
@@ -2339,14 +3085,43 @@
             else if (newEntry.temperature !== undefined) type = 'temp';
             else if (newEntry.weight !== undefined) type = 'weight';
 
-            await saveEntry(newEntry, type);
-            showToast('Entry duplicated', 'success');
+            if (type === 'speech') {
+                try {
+                    const payload = {
+                        object_key: newEntry.object_key,
+                        audio_url: newEntry.audioUrl || newEntry.audio_url,
+                        transcription: newEntry.transcription,
+                        category: newEntry.category,
+                        mode: newEntry.mode,
+                        duration_ms: newEntry.duration_ms,
+                        notes: newEntry.notes,
+                        timestamp: new Date().toISOString()
+                    };
+                    const resp = await fetch(SPEECH_ENTRIES_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!resp.ok) throw new Error('dup failed');
+                    const saved = await resp.json();
+                    speechEntries = [saved, ...speechEntries];
+                    renderEntries();
+                    renderSpeechRecent();
+                    showToast('Speech entry duplicated', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Could not duplicate speech entry', 'error');
+                }
+            } else {
+                await saveEntry(newEntry, type);
+                showToast('Entry duplicated', 'success');
+            }
         }
 
         function toggleSection(id) {
             const section = document.getElementById(id);
             const icon = document.getElementById('icon-' + id);
-            
+
             if (section.classList.contains('hidden')) {
                 section.classList.remove('hidden');
                 if (icon) icon.style.transform = 'rotate(0deg)';
@@ -2358,7 +3133,9 @@
 
         // Render Entries
         function renderEntries() {
-            const filteredEntries = entries
+            const allEntries = [...entries, ...speechEntries];
+
+            const filteredEntries = allEntries
                 .filter(entry => {
                     const ts = new Date(entry.timestamp);
                     if (historyRange.start && ts < historyRange.start) return false;
@@ -2380,12 +3157,12 @@
             filteredEntries.forEach(entry => {
                 const date = new Date(entry.timestamp);
                 const dateStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                
+
                 if (dateStr !== lastDate) {
                     if (lastDate !== '') {
                         html += '</div>'; // Close previous group
                     }
-                    
+
                     const groupId = `group-${groupCount++}`;
                     html += `
                         <div onclick="toggleSection('${groupId}')" class="sticky top-0 z-20 bg-slate-50/95 backdrop-blur py-2 px-1 mb-2 border-b border-slate-200 font-bold text-slate-500 text-sm uppercase tracking-wider flex justify-between items-center cursor-pointer select-none hover:bg-slate-100 transition-colors rounded-md">
@@ -2418,18 +3195,18 @@
             // const timeStr = (spansMultipleDays || !isToday) ? `${dateLabel} | ${timeLabel}` : timeLabel;
 
             const dateTimeLabel = date.toLocaleString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
+                day: '2-digit',
+                month: 'short',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
             });
 
             const timeStr = (spansMultipleDays || !isToday) ? dateTimeLabel : date.toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
             });
 
             let icon = '';
@@ -2464,6 +3241,11 @@
                 title = 'Weight';
                 subtitle = `${entry.weight}g`;
                 bgColor = 'bg-purple-50';
+            } else if (getEntryType(entry) === 'speech') {
+                icon = '🎙️';
+                title = 'Speech';
+                subtitle = `${formatDuration(entry.duration_ms)} · ${entry.category ? entry.category : 'Voice note'}`;
+                bgColor = 'bg-rose-50';
             }
 
             return `
@@ -2491,25 +3273,45 @@
                         <div class="text-3xl w-10 text-center flex-shrink-0">${icon}</div>
                         
                         <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-baseline mb-1">
-                                <div class="font-bold text-slate-800 text-lg truncate pr-2">${title}</div>
-                                <div class="text-sm font-semibold text-slate-500 whitespace-nowrap">${timeStr}</div>
-                            </div>
+                            <div class="font-bold text-slate-800 text-lg truncate pr-2">${title}</div>
                             <div class="text-slate-600 text-sm truncate">${subtitle}</div>
                             ${entry.notes ? `
                                 <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1 truncate">
                                     <span class="opacity-70">📝</span> <span class="italic">${entry.notes}</span>
                                 </div>
                             ` : ''}
+                            ${(getEntryType(entry) === 'speech' && entry.transcription) ? `
+                                <div class="text-xs text-slate-600 mt-1.5 overflow-hidden text-ellipsis line-clamp-2">
+                                    "${entry.transcription}"
+                                </div>
+                            ` : ''}
                         </div>
 
-                        <!-- Desktop Menu Trigger -->
-                        <button class="desktop-menu-btn hidden md:block opacity-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-opacity rounded-full hover:bg-black/5" 
-                                onclick="showContextMenu(event, ${entry.id})">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                            </svg>
-                        </button>
+                        <div class="flex flex-col items-end justify-between self-stretch flex-shrink-0 gap-2">
+                            <div class="text-sm font-semibold text-slate-500 whitespace-nowrap">${timeStr}</div>
+                            
+                            <div class="flex items-center gap-2">
+                                ${getEntryType(entry) === 'speech' && (entry.audioUrl || entry.audio_url) ? `
+                                    <button onclick="retranscribeEntry(${entry.id})" title="Re-transcribe" 
+                                            class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                    <div class="w-32 md:w-36">
+                                        <audio id="audio-${entry.id}" controls src="${entry.audioUrl || entry.audio_url}" class="w-full h-8"></audio>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Desktop Menu Trigger -->
+                                <button class="desktop-menu-btn hidden md:block opacity-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-opacity rounded-full hover:bg-black/5" 
+                                        onclick="showContextMenu(event, ${entry.id})">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -2517,9 +3319,9 @@
 
         // Edit Entry
         function editEntry(id) {
-            const entry = entries.find(e => e.id === id);
+            const entry = [...entries, ...speechEntries].find(e => e.id === id);
             if (!entry) return;
-            
+
             // Determine which modal to open based on entry type
             if (entry.feed_amount || entry.feed_type) {
                 openModal('feed', entry);
@@ -2531,12 +3333,31 @@
                 openModal('temp', entry);
             } else if (entry.weight) {
                 openModal('weight', entry);
+            } else if (getEntryType(entry) === 'speech') {
+                openModal('speech', entry);
             }
         }
 
         // Delete Entry
         async function deleteEntry(id) {
             if (!confirm('Delete this entry?')) return;
+
+            // Handle local speech entries separately
+            const speechMatch = speechEntries.find(e => e.id === id);
+            if (speechMatch) {
+                try {
+                    const resp = await fetch(`${SPEECH_ENTRIES_URL}/${id}`, { method: 'DELETE' });
+                    if (!resp.ok) throw new Error('Failed');
+                    speechEntries = speechEntries.filter(e => e.id !== id);
+                    renderEntries();
+                    renderSpeechRecent();
+                    showToast('Speech entry removed', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error deleting speech entry', 'error');
+                }
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE_URL}/entries/${id}`, {
@@ -2569,7 +3390,7 @@
             const feedsCount = feedEntries.length;
             const feedAmounts = feedEntries.filter(e => e.feed_amount > 0).map(e => e.feed_amount);
             const totalFeedMl = feedAmounts.reduce((sum, amt) => sum + amt, 0);
-            const avgFeed = feedAmounts.length > 0 
+            const avgFeed = feedAmounts.length > 0
                 ? Math.round(feedAmounts.reduce((sum, amt) => sum + amt, 0) / feedAmounts.length)
                 : 0;
             todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
@@ -2583,21 +3404,21 @@
                     if (historyRange.end) return new Date(e.timestamp) <= historyRange.end;
                     return true;
                 })
-                .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
             const latestWeight = applicableWeights.length > 0 ? applicableWeights[0].weight : 0;
-            
+
             const targetEl = document.getElementById('target-feed-ml');
             const progressBar = document.getElementById('feed-progress-bar');
             const progressText = document.getElementById('feed-progress-text');
             const basisText = document.getElementById('target-basis-text');
-            
+
             if (latestWeight > 0) {
                 const weightKg = (latestWeight / 1000).toFixed(2);
                 const dailyTarget = Math.round((latestWeight / 1000) * 150);
-                
+
                 if (targetEl) targetEl.textContent = `Goal: ${dailyTarget}`;
-                
+
                 let days = 1;
                 if (historyRange.start && historyRange.end) {
                     const diffTime = Math.abs(historyRange.end - historyRange.start);
@@ -2606,19 +3427,19 @@
 
                 const dailyAvg = totalFeedMl / days;
                 const percent = Math.min(100, Math.round((dailyAvg / dailyTarget) * 100));
-                
+
                 if (progressBar) {
                     progressBar.style.width = `${percent}%`;
                     if (percent < 50) progressBar.className = 'absolute top-0 left-0 h-full bg-rose-500 rounded-full transition-all duration-500';
                     else if (percent < 85) progressBar.className = 'absolute top-0 left-0 h-full bg-amber-400 rounded-full transition-all duration-500';
                     else progressBar.className = 'absolute top-0 left-0 h-full bg-emerald-500 rounded-full transition-all duration-500';
                 }
-                
+
                 if (progressText) progressText.textContent = days > 1 ? `${percent}% of daily avg` : `${percent}% of daily goal`;
                 if (basisText) basisText.textContent = `Based on last: ${weightKg}kg`;
             } else {
-                 if (targetEl) targetEl.textContent = '--';
-                 if (progressBar) progressBar.style.width = '0%';
+                if (targetEl) targetEl.textContent = '--';
+                if (progressBar) progressBar.style.width = '0%';
             }
 
             // Susu total
@@ -2699,10 +3520,10 @@
                             bodyFont: { size: 12 },
                             displayColors: false,
                             callbacks: {
-                                title: function(context) {
+                                title: function (context) {
                                     return context[0].label;
                                 },
-                                label: function(context) {
+                                label: function (context) {
                                     const value = context.parsed.y;
                                     const metric = context.datasetIndex === 0 ? currentMetric : compareMetric;
                                     const unit = getMetricUnit(metric);
@@ -2799,7 +3620,7 @@
                 : getMetricTitle(metric);
 
             trendChart.options.scales.y.ticks = {
-                callback: function(value) {
+                callback: function (value) {
                     return `${value}${unit}`;
                 },
                 maxTicksLimit: 5
@@ -2810,7 +3631,7 @@
                     beginAtZero: false,
                     grid: { display: false },
                     ticks: {
-                        callback: function(value) {
+                        callback: function (value) {
                             return `${value}${compareUnit}`;
                         },
                         maxTicksLimit: 5
@@ -2833,10 +3654,10 @@
             };
 
             trendChart.options.plugins.tooltip.callbacks = {
-                title: function(context) {
+                title: function (context) {
                     return context[0].label;
                 },
-                label: function(context) {
+                label: function (context) {
                     const value = context.parsed.y;
                     const datasetLabel = context.dataset?.label ? `${context.dataset.label}: ` : '';
                     const currentUnit = context.datasetIndex === 1 ? compareUnit : unit;
@@ -2904,8 +3725,8 @@
             if (!el) return;
             const label = aggregation === 'hour' ? 'Grouped by Hour'
                 : aggregation === 'day' ? 'Grouped by Day'
-                : aggregation === 'month' ? 'Grouped by Month'
-                : 'Grouped by Week';
+                    : aggregation === 'month' ? 'Grouped by Month'
+                        : 'Grouped by Week';
             el.textContent = label;
         }
 
@@ -2982,34 +3803,34 @@
 
         // Calculate metric value for a group of entries
         function calculateMetricValue(entries, metric) {
-            switch(metric) {
+            switch (metric) {
                 case 'weight-avg':
                     const weights = entries.filter(e => e.weight > 0).map(e => e.weight);
                     return weights.length > 0 ? Math.round(weights.reduce((a, b) => a + b, 0) / weights.length) : 0;
-                    
+
                 case 'temp-avg':
                     const temps = entries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
                     return temps.length > 0 ? parseFloat((temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)) : 0;
-                    
+
                 case 'feed-total':
                     return entries.reduce((sum, e) => sum + (e.feed_amount || 0), 0);
-                    
+
                 case 'feed-avg':
                     const feedAmounts = entries.filter(e => e.feed_amount > 0).map(e => e.feed_amount);
                     return feedAmounts.length > 0 ? Math.round(feedAmounts.reduce((a, b) => a + b, 0) / feedAmounts.length) : 0;
-                    
+
                 case 'feed-count':
                     return entries.filter(e => e.feed_amount > 0 || e.feed_type).length;
-                    
+
                 case 'poti-count':
                     return entries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
-                    
+
                 case 'susu-count':
                     return entries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
 
                 case 'diaper-count':
                     return computeDiaperCount(entries);
-                    
+
                 default:
                     return 0;
             }
