@@ -22,7 +22,7 @@ SAMPLE_TRANSCRIPTIONS = [
     "Baby was crying a lot and seemed uncomfortable, gave tummy time",
     "Fed baby 80ml at 2pm, then changed a wet diaper and she had yellow poop",
     "The weather is nice today",
-    "baby feed taken at 1230 of 40 ml"
+    "Baby feed taken at 12.30 pm of 40 ml."
 ]
 from src.settings import Settings
 setting = Settings()

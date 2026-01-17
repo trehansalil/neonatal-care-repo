@@ -18,7 +18,7 @@ def get_azure_openai_client(mode: instructor.Mode = instructor.Mode.TOOLS) -> In
         )
     elif mode == instructor.Mode.JSON:
         client = instructor.from_openai(
-            AsyncAzureOpenAI(
+            AzureOpenAI(
                 azure_endpoint=settings.azure_openai_endpoint, 
                 api_key=settings.azure_openai_key,
                 api_version=settings.azure_openai_api_version,
@@ -27,7 +27,7 @@ def get_azure_openai_client(mode: instructor.Mode = instructor.Mode.TOOLS) -> In
         )
     elif mode == instructor.Mode.MD_JSON:
         client = instructor.from_openai(
-            AsyncAzureOpenAI(
+            AzureOpenAI(
                 azure_endpoint=settings.azure_openai_endpoint, 
                 api_key=settings.azure_openai_key,
                 api_version=settings.azure_openai_api_version,
@@ -36,7 +36,7 @@ def get_azure_openai_client(mode: instructor.Mode = instructor.Mode.TOOLS) -> In
         )     
     elif mode == instructor.Mode.PARALLEL_TOOLS:
         client = instructor.from_openai(
-            AsyncAzureOpenAI(
+            AzureOpenAI(
                 azure_endpoint=settings.azure_openai_endpoint, 
                 api_key=settings.azure_openai_key,
                 api_version=settings.azure_openai_api_version,

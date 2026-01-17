@@ -10,16 +10,18 @@ logger = get_logger(__name__)
 
 
 class AsyncCategorizationProcessor:
-    """Background processor that handles LLM categorization tasks asynchronously."""
+    """Background processor that handles LLM categorization and mapping tasks asynchronously."""
     
-    def __init__(self, llm_service, max_workers: int = 2):
+    def __init__(self, llm_service, mapping_service=None, max_workers: int = 2):
         """Initialize the async processor.
         
         Args:
             llm_service: Instance of LLMCategorizationService
+            mapping_service: Instance of EntryMappingService (optional)
             max_workers: Number of worker threads to process tasks
         """
         self.llm_service = llm_service
+        self.mapping_service = mapping_service
         self.max_workers = max_workers
         self.task_queue = queue.Queue()
         self.workers = []
@@ -92,18 +94,22 @@ class AsyncCategorizationProcessor:
         logger.info(f"{worker_name} stopped")
     
     def _process_task(self, task: dict):
-        """Process a single categorization task.
+        """Process a single categorization and mapping task.
         
         Args:
             task: Dictionary containing:
                 - entry_id: The speech entry ID
                 - object_key: Audio object key
                 - transcription: The transcription text
-                - callback: Function to call with results
+                - callback: Function to call with categorization results
+                - mapping_callback: Function to call with mapping results (optional)
+                - enable_mapping: Whether to perform entry mapping (default: True)
         """
         entry_id = task.get('entry_id')
         transcription = task.get('transcription')
         callback = task.get('callback')
+        mapping_callback = task.get('mapping_callback')
+        enable_mapping = task.get('enable_mapping', True)
         
         logger.info(f"Processing categorization for entry {entry_id}")
         
@@ -127,9 +133,44 @@ class AsyncCategorizationProcessor:
                 
             logger.info(f"Entry {entry_id} categorized as: {result['category']}")
             
-            # Call the callback with results
+            # Call the callback with categorization results
             if callback:
                 callback(result)
+            
+            # Perform entry mapping if enabled and mapping service is available
+            if enable_mapping and self.mapping_service and self.mapping_service.is_available():
+                category = result.get('category', 'unclear')
+                
+                # Only map if category is clear and mappable
+                if category not in ['unclear']:
+                    logger.info(f"Processing entry mapping for entry {entry_id} (category: {category})")
+                    try:
+                        mapping_result = self.mapping_service.map_to_entry(transcription, category)
+                        mapping_data = {
+                            'entry_id': entry_id,
+                            'category': category,
+                            'mapped_fields': mapping_result,
+                            'transcription': transcription
+                        }
+                        
+                        logger.info(f"Entry {entry_id} mapped: {mapping_result}")
+                        
+                        # Call the mapping callback with results
+                        if mapping_callback:
+                            mapping_callback(mapping_data)
+                    except Exception as map_err:
+                        logger.error(f"Error mapping entry {entry_id}: {map_err}", exc_info=True)
+                        if mapping_callback:
+                            mapping_callback({
+                                'entry_id': entry_id,
+                                'category': category,
+                                'error': str(map_err),
+                                'transcription': transcription
+                            })
+                else:
+                    logger.info(f"Skipping mapping for entry {entry_id} - category '{category}' not mappable")
+            elif enable_mapping:
+                logger.debug(f"Entry mapping not available or not configured for entry {entry_id}")
                 
         except Exception as e:
             logger.error(f"Error categorizing entry {entry_id}: {e}", exc_info=True)
@@ -141,14 +182,18 @@ class AsyncCategorizationProcessor:
                 })
     
     def submit_task(self, entry_id: int, object_key: str, transcription: str, 
-                   callback: Optional[Callable] = None):
-        """Submit a categorization task to the queue.
+                   callback: Optional[Callable] = None, 
+                   mapping_callback: Optional[Callable] = None,
+                   enable_mapping: bool = True):
+        """Submit a categorization and mapping task to the queue.
         
         Args:
             entry_id: The speech entry ID to categorize
             object_key: The audio object key
             transcription: The transcription text to categorize
-            callback: Optional callback function(result: dict) to call when done
+            callback: Optional callback function(result: dict) to call with categorization results
+            mapping_callback: Optional callback function(result: dict) to call with mapping results
+            enable_mapping: Whether to perform entry mapping (default: True)
         """
         if not self.running:
             logger.warning("Cannot submit task, processor not running")
@@ -158,11 +203,13 @@ class AsyncCategorizationProcessor:
             'entry_id': entry_id,
             'object_key': object_key,
             'transcription': transcription,
-            'callback': callback
+            'callback': callback,
+            'mapping_callback': mapping_callback,
+            'enable_mapping': enable_mapping
         }
         
         self.task_queue.put(task)
-        logger.info(f"Submitted categorization task for entry {entry_id}")
+        logger.info(f"Submitted categorization task for entry {entry_id} (mapping: {enable_mapping})")
         return True
     
     def get_queue_size(self) -> int:

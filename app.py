@@ -13,6 +13,7 @@ from src.settings import get_settings
 from src.services.s3_compatible_service import S3StorageService
 from src.services.stt_service import STTService
 from src.services.llm_categorization_service import LLMCategorizationService
+from src.services.entry_mapping_service import EntryMappingService
 from src.services.async_categorization_processor import AsyncCategorizationProcessor
 
 logger = get_logger(__name__)
@@ -88,10 +89,22 @@ except Exception as e:
     logger.error(f"Failed to initialize LLM service: {e}")
     llm_service = None
 
-# Async categorization processor
+# Entry Mapping service - uses Azure OpenAI to map transcriptions to structured entries
+try:
+    mapping_service = EntryMappingService()
+    if mapping_service.is_available():
+        logger.info("Entry mapping service initialized with Azure OpenAI")
+    else:
+        logger.warning("Entry mapping service initialized but Azure OpenAI not configured")
+except Exception as e:
+    logger.error(f"Failed to initialize entry mapping service: {e}")
+    mapping_service = None
+
+# Async categorization processor (now includes mapping)
 if llm_service:
     categorization_processor = AsyncCategorizationProcessor(
         llm_service=llm_service,
+        mapping_service=mapping_service,
         max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
     )
     # Start the processor when app starts
@@ -132,6 +145,96 @@ def update_speech_entry_category(result: dict):
             client.close()
     except Exception as e:
         logger.error(f"Failed to update category for entry {entry_id}: {e}", exc_info=True)
+
+
+def create_entry_from_mapping(mapping_data: dict):
+    """Callback to create a structured entry from mapped speech data.
+    
+    Args:
+        mapping_data: Dict containing:
+            - entry_id: Speech entry ID
+            - category: Entry category
+            - mapped_fields: Extracted structured fields
+            - transcription: Original transcription
+    """
+    speech_entry_id = mapping_data.get('entry_id')
+    category = mapping_data.get('category')
+    mapped_fields = mapping_data.get('mapped_fields', {})
+    transcription = mapping_data.get('transcription', '')
+    
+    logger.info(f"Creating entry from speech entry {speech_entry_id} (category: {category})")
+    
+    # Skip if there was an error in mapping
+    if 'error' in mapped_fields:
+        logger.warning(f"Skipping entry creation for speech entry {speech_entry_id}: {mapped_fields.get('error')}")
+        return
+    
+    try:
+        client = get_db_connection()
+        try:
+            # Generate a new ID for the entry
+            entry_id = get_next_id(client)
+            
+            # Get speech entry to use its timestamp
+            speech_result = client.query(
+                'SELECT timestamp FROM speech_entries WHERE id = %(id)s',
+                parameters={'id': speech_entry_id}
+            )
+            
+            if not speech_result.result_rows:
+                logger.warning(f"Speech entry {speech_entry_id} not found, cannot create mapped entry")
+                return
+            
+            speech_timestamp = speech_result.result_rows[0][0]
+            
+            # Build the entry data based on category
+            entry_data = {
+                'id': entry_id,
+                'temperature': mapped_fields.get('temperature'),
+                'feed_amount': mapped_fields.get('feed_amount'),
+                'feed_type': mapped_fields.get('feed_type'),
+                'susu_count': mapped_fields.get('susu_count', 0),
+                'poti_count': mapped_fields.get('poti_count', 0),
+                'poti_color': mapped_fields.get('poti_color'),
+                'weight': mapped_fields.get('weight'),
+                'notes': mapped_fields.get('notes', transcription),
+                'timestamp': speech_timestamp,
+                'created_at': datetime.now(LOCAL_TIMEZONE)
+            }
+            
+            # Insert the entry
+            client.insert('entries', [[
+                entry_data['id'],
+                entry_data['temperature'],
+                entry_data['feed_amount'],
+                entry_data['feed_type'],
+                entry_data['susu_count'],
+                entry_data['poti_count'],
+                entry_data['poti_color'],
+                entry_data['weight'],
+                entry_data['notes'],
+                entry_data['timestamp'],
+                entry_data['created_at']
+            ]], column_names=ENTRY_COLUMNS)
+            
+            logger.info(f"Created entry {entry_id} from speech entry {speech_entry_id}")
+            
+            # Update speech entry to add a note about the created entry
+            client.command('''
+                ALTER TABLE speech_entries 
+                UPDATE notes = concat(ifNull(notes, ''), %(note)s)
+                WHERE id = %(id)s 
+                SETTINGS mutations_sync=%(sync)s
+            ''', parameters={
+                'note': f' [Auto-mapped to entry #{entry_id}]',
+                'id': speech_entry_id,
+                'sync': MUTATIONS_SYNC_LEVEL
+            })
+            
+        finally:
+            client.close()
+    except Exception as e:
+        logger.error(f"Failed to create entry from speech entry {speech_entry_id}: {e}", exc_info=True)
 
 
 def get_db_connection():
@@ -686,9 +789,11 @@ def create_speech_entry():
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcription,
-                callback=update_speech_entry_category
+                callback=update_speech_entry_category,
+                mapping_callback=create_entry_from_mapping,
+                enable_mapping=True
             )
-            logger.info(f"Submitted categorization task for new entry {entry_id}")
+            logger.info(f"Submitted categorization and mapping task for new entry {entry_id}")
 
         return jsonify({
             'id': entry_id,
@@ -755,9 +860,11 @@ def retranscribe_speech_entry(entry_id):
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcript,
-                callback=update_speech_entry_category
+                callback=update_speech_entry_category,
+                mapping_callback=create_entry_from_mapping,
+                enable_mapping=True
             )
-            logger.info(f"Submitted re-categorization task for entry {entry_id}")
+            logger.info(f"Submitted re-categorization and mapping task for entry {entry_id}")
         
         return jsonify({
             'id': entry_id,
