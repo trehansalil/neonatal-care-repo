@@ -7,7 +7,6 @@ The Dockerized backend calls this service via host.docker.internal.
 """
 
 import os
-import tempfile
 
 # Set MinIO endpoint for host BEFORE importing services
 os.environ.setdefault('MINIO_ENDPOINT', os.environ.get('HOST_MINIO_ENDPOINT', 'localhost:9002'))
