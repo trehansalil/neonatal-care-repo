@@ -54,7 +54,6 @@ Valid categories:
 - temperature: Temperature measurements or fever related
 - weight: Weight measurements
 - general: General observations, behavior, sleep, crying, etc.
-- multiple: Entry contains information about multiple categories
 - unclear: Cannot determine the category from the transcription
 
 Transcription: "{transcription}"
