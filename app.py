@@ -710,10 +710,6 @@ def get_speech_entries():
             query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
             result = client.query(query)
 
-        # Get the request host for dynamic URL generation
-        # This ensures audio URLs use the same hostname the client used to access the app
-        request_host = request.host
-        
         entries = []
         for row in result.result_rows:
             object_key = row[1]
