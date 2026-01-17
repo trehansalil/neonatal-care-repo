@@ -85,7 +85,7 @@ docker-compose down -v
 - `GET /api/entries?date=YYYY-MM-DD` - Get entries for specific date
 - `POST /api/entries` - Create new entry
 - `DELETE /api/entries/:id` - Delete specific entry
-- `DELETE /api/entries` - Delete all entries
+- `DELETE /api/entries` - Delete all entries (requires header: `X-Confirm-Delete-All: I-understand-this-is-permanent`)
 
 ### Statistics
 - `GET /api/stats` - Get daily statistics

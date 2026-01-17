@@ -21,6 +21,7 @@ __pycache__/
 *.so
 .Python
 venv/
+.venv/
 env/
 ENV/
 
@@ -29,3 +30,8 @@ ENV/
 
 # Node modules (if any)
 node_modules/
+backups/
+folder/
+
+.env
+*.pem

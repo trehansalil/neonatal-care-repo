@@ -1,54 +1,14 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    container_name: baby-tracker-db
-    environment:
-      POSTGRES_DB: baby_tracker
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Flask Backend API
-  backend:
-    build: .
-    container_name: baby-tracker-backend
-    environment:
-      DB_HOST: db
-      DB_NAME: baby_tracker
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_PORT: 5432
-    ports:
-      - "8082:5000"
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - ./html:/app/html
-      - ./app.py:/app/app.py
-
   # ClickHouse Analytics Database
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: baby-tracker-clickhouse
     environment:
-      CLICKHOUSE_DB: baby_analytics
-      CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-baby_tracker}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
       - "8123:8123"  # HTTP interface
@@ -67,7 +27,77 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO S3 Compatible Storage
+  minio:
+    image: minio/minio:latest
+    container_name: baby-tracker-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # Enable CORS for all origins to allow audio playback from the frontend
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
+    ports:
+      - "9002:9000"  # API (mapped to 9002 to avoid conflict with ClickHouse)
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Flask Backend API
+  backend:
+    build: .
+    container_name: baby-tracker-backend
+    command: >
+      uv run gunicorn 
+      --workers 4 
+      --bind 0.0.0.0:5000 
+      --certfile=cert.pem 
+      --keyfile=key.pem 
+      --timeout 120 
+      app:app
+    environment:
+      DB_HOST: ${DB_HOST:-clickhouse}
+      DB_NAME: ${DB_NAME:-baby_tracker}
+      DB_USER: ${DB_USER:-clickhouse}
+      DB_PASSWORD: ${DB_PASSWORD:-clickhouse}
+      DB_PORT: ${DB_PORT:-8123}
+      TZ: ${TZ:-Asia/Kolkata}  # Set your timezone here
+      ENABLE_HTTPS: "true"
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      AZURE_OPENAI_KEY: ${AZURE_OPENAI_KEY}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+    ports:
+      - "8082:5000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./html:/app/html
+      - ./app.py:/app/app.py
+      - ./src:/app/src
+      - ./cert.pem:/app/cert.pem
+      - ./key.pem:/app/key.pem
+
 volumes:
-  postgres_data:
   clickhouse_data:
   clickhouse_logs:
+  minio_data:
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1000

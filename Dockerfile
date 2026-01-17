@@ -4,10 +4,13 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
+# Ensure the local project (including src/) is on the Python path
+ENV PYTHONPATH="/app:/app/src"
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    postgresql-client \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -16,6 +19,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Copy project files
 COPY pyproject.toml .
 COPY app.py .
+COPY src ./src
 COPY html ./html
 
 # Install Python dependencies using uv
