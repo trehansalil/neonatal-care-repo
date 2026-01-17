@@ -107,5 +107,5 @@ class STTService:
         if path and os.path.exists(path):
             try:
                 os.remove(path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(f"Failed to remove temporary file {path}: {exc}", exc_info=True)
