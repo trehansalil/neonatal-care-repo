@@ -12,9 +12,9 @@ from src.log import get_logger
 from src.settings import get_settings
 from src.services.s3_compatible_service import S3StorageService
 from src.services.stt_service import STTService
-from src.services.llm_categorization_service import LLMCategorizationService
-from src.services.entry_mapping_service import EntryMappingService
-from src.services.async_categorization_processor import AsyncCategorizationProcessor
+from src.services.speech.llm.categorization_service import CategorizationService
+from src.services.speech.llm.entry_mapping_service import EntryMappingService
+from src.services.speech.async_processor import AsyncSpeechProcessor
 
 logger = get_logger(__name__)
 
@@ -80,14 +80,14 @@ stt_service = STTService(
 # AZURE_OPENAI_DEPLOYMENT: Model deployment name
 # AZURE_OPENAI_API_VERSION: API version (default: 2024-02-15-preview)
 try:
-    llm_service = LLMCategorizationService()
-    if llm_service.is_available():
+    categorization_service = CategorizationService()
+    if categorization_service.is_available():
         logger.info("LLM categorization service initialized with Azure OpenAI")
     else:
         logger.warning("LLM categorization service initialized but Azure OpenAI not configured")
 except Exception as e:
     logger.error(f"Failed to initialize LLM service: {e}")
-    llm_service = None
+    categorization_service = None
 
 # Entry Mapping service - uses Azure OpenAI to map transcriptions to structured entries
 try:
@@ -101,9 +101,9 @@ except Exception as e:
     mapping_service = None
 
 # Async categorization processor (now includes mapping)
-if llm_service:
-    categorization_processor = AsyncCategorizationProcessor(
-        llm_service=llm_service,
+if categorization_service:
+    categorization_processor = AsyncSpeechProcessor(
+        categorization_service=categorization_service,
         mapping_service=mapping_service,
         max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
     )

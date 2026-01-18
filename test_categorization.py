@@ -10,7 +10,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.services.llm_categorization_service import LLMCategorizationService
+from src.services.speech.llm.categorization_service import CategorizationService
 
 # Example transcriptions to test
 SAMPLE_TRANSCRIPTIONS = [
@@ -49,7 +49,7 @@ def main():
     print(f"{'='*70}\n")
     
     try:
-        llm_service = LLMCategorizationService()
+        llm_service = CategorizationService()
         
         if not llm_service.is_available():
             print("ERROR: LLM service is not available")

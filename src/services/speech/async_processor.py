@@ -3,23 +3,23 @@
 import threading
 import queue
 from typing import Optional, Callable
-from ..log import get_logger
+from src.log import get_logger
 
 logger = get_logger(__name__)
 
 
-class AsyncCategorizationProcessor:
+class AsyncSpeechProcessor:
     """Background processor that handles LLM categorization and mapping tasks asynchronously."""
     
-    def __init__(self, llm_service, mapping_service=None, max_workers: int = 2):
+    def __init__(self, categorization_service, mapping_service=None, max_workers: int = 2):
         """Initialize the async processor.
         
         Args:
-            llm_service: Instance of LLMCategorizationService
+            categorization_service: Instance of CategorizationService
             mapping_service: Instance of EntryMappingService (optional)
             max_workers: Number of worker threads to process tasks
         """
-        self.llm_service = llm_service
+        self.categorization_service = categorization_service
         self.mapping_service = mapping_service
         self.max_workers = max_workers
         self.task_queue = queue.Queue()
@@ -114,7 +114,7 @@ class AsyncCategorizationProcessor:
         
         try:
             # Check if LLM service is available
-            if not self.llm_service.is_available():
+            if not self.categorization_service.is_available():
                 logger.warning(f"LLM service not available for entry {entry_id}")
                 result = {
                     'entry_id': entry_id,
@@ -123,7 +123,7 @@ class AsyncCategorizationProcessor:
                 }
             else:
                 # Perform categorization
-                categorization_result = self.llm_service.categorize(transcription)
+                categorization_result = self.categorization_service.categorize(transcription)
                 result = {
                     'entry_id': entry_id,
                     'category': categorization_result.get('category', 'unclear'),

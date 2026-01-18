@@ -1,15 +1,14 @@
 """LLM-based categorization service for speech entries."""
 
-import os
-from typing import Optional, Dict, Any
-from ..log import get_logger
-from ..helpers import get_azure_openai_client
-from ..settings import get_settings
+from typing import Dict, Any
+from src.log import get_logger
+from src.helpers import get_azure_openai_client
+from src.settings import get_settings
 
 logger = get_logger(__name__)
 
 
-class LLMCategorizationService:
+class CategorizationService:
     """Service to categorize baby care transcriptions using Azure OpenAI."""
     
     # Valid categories based on the baby tracker
