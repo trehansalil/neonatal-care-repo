@@ -1756,7 +1756,11 @@
             if (speechStatusEl) speechStatusEl.textContent = statusText;
             speechStatusEls.forEach(el => {
                 el.textContent = statusText;
-                el.style.opacity = speechStatus === 'idle' ? 0 : 1;
+                if (speechStatus === 'idle') {
+                    el.style.opacity = 0;
+                } else {
+                    el.style.opacity = 1;
+                }
             });
 
             const recordBtn = document.getElementById('speech-record-btn');
