@@ -73,6 +73,7 @@ def main():
                 requires_review = result.get('requires_manual_review', False)
                 review_flag = " ⚠️  (needs review)" if requires_review else ""
                 print(f"   ✓ Category: {category.upper()}{review_flag}\n")
+                print(f"   ✓ Datetime: {result.get('log_date')}, {result.get('log_time')}\n")
         
         print(f"{'='*70}")
         print("Testing complete!")

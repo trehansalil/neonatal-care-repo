@@ -1,11 +1,54 @@
 """LLM-based categorization service for speech entries."""
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Literal
+
+import instructor
+from pydantic import BaseModel, Field
+
 from src.log import get_logger
 from src.helpers import get_azure_openai_client
 from src.settings import configured_settings
 
 logger = get_logger(__name__)
+
+
+class CategorizationExtraction(BaseModel):
+    """Structured categorization result extracted by the LLM.
+    
+    Example:
+        - Feed of 60ml express milk in last 1 hour. Current Datetime: 2024-08-15 14:30
+            Category: "feed"
+            log_date: "2024-08-15"
+            log_time: "13:30"
+        - Changed diaper, baby peed twice in the last hour. Current Datetime: 2024-08-15 17:30
+            Category: "susu"
+            log_date: "2024-08-15"
+            log_time: "16:30"
+    """
+
+    category: Literal[
+        "feed",
+        "susu",
+        "poti",
+        "temperature",
+        "weight",
+        "general",
+        "unclear",
+    ] = Field(
+        ..., description="Category inferred from the transcription."
+    )
+    log_date: str = Field(
+        ...,
+        description=(
+            "Date of the log entry in YYYY-MM-DD format if explicitly mentioned; leave current date when no calendar date is stated."
+        ),
+    )
+    log_time: str = Field(
+        ...,
+        description=(
+            "Time of the log entry in 24-hour HH:MM format if explicitly mentioned; leave current time when no time is stated."
+        ),
+    )
 
 
 class CategorizationService:
@@ -26,9 +69,10 @@ class CategorizationService:
         """Initialize the LLM categorization service with Azure OpenAI client."""
         
         
-        # Get plain Azure OpenAI client (without instructor wrapping for simple chat completions)
+        # Get Azure OpenAI client in instructor JSON mode for structured responses
         try:
-            self.client = get_azure_openai_client(mode=None)  # Plain AzureOpenAI client
+            # Use instructor in JSON mode for structured extraction with Pydantic
+            self.client = get_azure_openai_client(mode=instructor.Mode.JSON)
             self.model = configured_settings.azure_openai_deployment
             
             if not configured_settings.azure_openai_endpoint or not configured_settings.azure_openai_key:
@@ -41,13 +85,15 @@ class CategorizationService:
             self.client = None
     
     def _build_categorization_prompt(self, transcription: str) -> str:
-        """Build the prompt for categorization."""
-        return f"""You are analyzing speech-to-text transcriptions from a neonatal care tracking application. 
+        """Build the prompt for categorization and temporal extraction."""
+        from datetime import datetime
+        current_dt = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return f"""You are analyzing speech-to-text transcriptions from a neonatal care tracking application.
 
-The parent/caregiver has recorded audio notes about their baby's care activities. Based on the transcription, identify which category this entry belongs to.
+The parent/caregiver has recorded audio notes about their baby's care activities. Based on the transcription, determine the most appropriate category for the entry and extract the explicit date and time of the log if they are mentioned.
 
 Valid categories:
-- feed: Feeding related (breast milk, formula, bottle, amount, duration, etc.)
+- feed: Feeding related (breast milk, formula, bottle, amount, etc.)
 - susu: Urine/pee related (diaper changes, frequency, etc.)
 - poti: Stool/poop related (diaper changes, color, consistency, etc.)
 - temperature: Temperature measurements or fever related
@@ -55,11 +101,24 @@ Valid categories:
 - general: General observations, behavior, sleep, crying, etc.
 - unclear: Cannot determine the category from the transcription
 
+Temporal extraction rules:
+- Only extract a log_date if an explicit calendar date is provided; format it as YYYY-MM-DD.
+- Only extract a log_time if a time is provided; format it in 24-hour HH:MM.
+- If no detail on date or time is mentioned, assume it as the current date and time.
+- if relative times are mentioned (e.g., "an hour ago"), convert them in reference to current date and time.
+
 Transcription: "{transcription}"
+Current date and time: "{current_dt}"
 
-Respond with ONLY the category name (one word, lowercase). If it's clearly about multiple distinct categories, use "multiple". If the transcription is too vague or unclear, use "unclear"."""
+If the transcription is too vague or unclear, use "unclear"."""
 
-    def _extract_metadata(self, transcription: str, category: str) -> Dict[str, Any]:
+    def _extract_metadata(
+        self,
+        transcription: str,
+        category: str,
+        log_date: Optional[str] = None,
+        log_time: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Extract structured metadata from the transcription based on category.
         
         This method can be extended to extract specific values like feed amounts,
@@ -69,6 +128,12 @@ Respond with ONLY the category name (one word, lowercase). If it's clearly about
             'category': category,
             'requires_manual_review': category in ['multiple', 'unclear']
         }
+
+        if log_date:
+            metadata['log_date'] = log_date
+
+        if log_time:
+            metadata['log_time'] = log_time
         
         # Future enhancement: Extract specific values based on category
         # For example, if category is "temperature", try to extract the temperature value
@@ -96,25 +161,38 @@ Respond with ONLY the category name (one word, lowercase). If it's clearly about
             prompt = self._build_categorization_prompt(transcription)
             category = 'unclear'  # Default value
             
-            # Use Azure OpenAI client
+            # Use Azure OpenAI client with Pydantic validation
             response = self.client.chat.completions.create(
                 model=self.model,
+                response_model=CategorizationExtraction,
                 messages=[
-                    {"role": "system", "content": "You are a precise categorization assistant. Respond with only the category name."},
+                    {"role": "system", "content": "You are a precise categorization assistant. Return only structured data."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,  # Low temperature for consistent categorization
-                max_tokens=10
+                max_tokens=150
             )
-            category = response.choices[0].message.content.strip().lower()
+
+            extraction = response.model_dump(exclude_none=True)
+            category = extraction.get('category', 'unclear')
             
             # Validate category
             if category not in self.CATEGORIES:
                 logger.warning(f"LLM returned invalid category '{category}', defaulting to 'unclear'")
                 category = 'unclear'
             
-            logger.info(f"Categorized transcription as '{category}'")
-            metadata = self._extract_metadata(transcription, category)
+            logger.info(
+                "Categorized transcription as '%s' (date: %s, time: %s)",
+                category,
+                extraction.get('log_date'),
+                extraction.get('log_time'),
+            )
+            metadata = self._extract_metadata(
+                transcription,
+                category,
+                extraction.get('log_date'),
+                extraction.get('log_time'),
+            )
             return metadata
             
         except Exception as e:
