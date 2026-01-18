@@ -3427,8 +3427,6 @@
 
         // Delete Entry
         async function deleteEntry(id) {
-            if (!confirm('Delete this entry?')) return;
-
             // Handle local speech entries separately
             const speechMatch = speechEntries.find(e => e.id === id);
             if (speechMatch) {
