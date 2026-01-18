@@ -3,7 +3,7 @@
 from typing import Dict, Any
 from src.log import get_logger
 from src.helpers import get_azure_openai_client
-from src.settings import get_settings
+from src.settings import configured_settings
 
 logger = get_logger(__name__)
 
@@ -24,14 +24,14 @@ class CategorizationService:
     
     def __init__(self):
         """Initialize the LLM categorization service with Azure OpenAI client."""
-        settings = get_settings()
+        
         
         # Get plain Azure OpenAI client (without instructor wrapping for simple chat completions)
         try:
             self.client = get_azure_openai_client(mode=None)  # Plain AzureOpenAI client
-            self.model = settings.azure_openai_deployment
+            self.model = configured_settings.azure_openai_deployment
             
-            if not settings.azure_openai_endpoint or not settings.azure_openai_key:
+            if not configured_settings.azure_openai_endpoint or not configured_settings.azure_openai_key:
                 logger.warning("Azure OpenAI endpoint or key not configured")
                 self.client = None
             else:

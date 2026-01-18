@@ -9,7 +9,7 @@ import uuid
 from typing import Optional
 
 from src.log import get_logger
-from src.settings import get_settings
+from src.settings import configured_settings
 from src.services.s3_compatible_service import S3StorageService
 from src.services.stt_service import STTService
 from src.services.speech.llm.categorization_service import CategorizationService
@@ -61,7 +61,7 @@ except (ValueError, TypeError) as e:
     MUTATIONS_SYNC_LEVEL = 2
 
 # Settings and storage clients
-settings = get_settings()
+
 s3_storage = S3StorageService()
 
 # Transcription service - use native Mac server if HOST_TRANSCRIPTION_URL is set
@@ -69,7 +69,7 @@ s3_storage = S3StorageService()
 transcription_url = os.environ.get('HOST_TRANSCRIPTION_URL', 'http://host.docker.internal:8083/transcribe')
 stt_service = STTService(
     storage_client=s3_storage,
-    bucket_name=settings.minio_bucket_name,
+    bucket_name=configured_settings.minio_bucket_name,
     transcription_url=transcription_url
 )
 
@@ -280,7 +280,7 @@ def is_audio_extension_allowed(filename: str) -> bool:
     if not filename:
         return False
     ext = os.path.splitext(filename)[1].lower()
-    return ext in [fmt.lower() for fmt in settings.allowed_audio_formats_list]
+    return ext in [fmt.lower() for fmt in configured_settings.allowed_audio_formats_list]
 
 
 def backup_entry(client, entry_data, entry_id):
@@ -477,15 +477,15 @@ def upload_speech():
 
     filename = file.filename or 'speech.webm'
     if not is_audio_extension_allowed(filename):
-        return jsonify({'error': f'Unsupported audio format. Allowed: {settings.allowed_audio_formats}'}), 400
+        return jsonify({'error': f'Unsupported audio format. Allowed: {configured_settings.allowed_audio_formats}'}), 400
 
     data = file.read()
     if not data:
         return jsonify({'error': 'Empty audio payload'}), 400
 
-    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    max_bytes = configured_settings.max_upload_size_mb * 1024 * 1024
     if len(data) > max_bytes:
-        return jsonify({'error': f'File too large. Limit: {settings.max_upload_size_mb} MB'}), 413
+        return jsonify({'error': f'File too large. Limit: {configured_settings.max_upload_size_mb} MB'}), 413
 
     ext = os.path.splitext(filename)[1] or '.webm'
     object_key = f"speech/{datetime.utcnow().strftime('%Y%m%d')}/speech_{uuid.uuid4().hex}{ext}"
@@ -496,7 +496,7 @@ def upload_speech():
             data=data,
             object_name=object_key,
             content_type=file.mimetype or 'audio/webm',
-            container=settings.minio_bucket_name,
+            container=configured_settings.minio_bucket_name,
             overwrite=True,
             with_sas=False  # Don't need presigned URL from internal endpoint
         )
@@ -566,7 +566,7 @@ def proxy_audio(object_key):
     """
     try:
         # Download the audio file from MinIO
-        tmp_path = s3_storage.download_to_tmp(object_key, container=settings.minio_bucket_name)
+        tmp_path = s3_storage.download_to_tmp(object_key, container=configured_settings.minio_bucket_name)
         
         # Determine content type based on extension
         ext = os.path.splitext(object_key)[1].lower()

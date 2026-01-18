@@ -68,3 +68,5 @@ def get_settings() -> Settings:
     """Get cached settings instance."""
     settings = Settings()
     return settings
+
+configured_settings = get_settings()

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.log import get_logger
 from src.helpers import get_azure_openai_client
-from src.settings import get_settings
+from src.settings import configured_settings
 
 from .validators import FeedEntry, SusuEntry, PotiEntry, TemperatureEntry, WeightEntry, GeneralEntry, UnclearEntry
 
@@ -18,15 +18,14 @@ class EntryMappingService:
     
     def __init__(self):
         """Initialize the entry mapping service with Azure OpenAI client and instructor."""
-        settings = get_settings()
         
         try:
             import instructor
             # Use instructor mode for structured outputs with Pydantic
             self.client: instructor.Instructor = get_azure_openai_client(mode=instructor.Mode.JSON)
-            self.model = settings.azure_openai_deployment
+            self.model = configured_settings.azure_openai_deployment
             
-            if not settings.azure_openai_endpoint or not settings.azure_openai_key:
+            if not configured_settings.azure_openai_endpoint or not configured_settings.azure_openai_key:
                 logger.warning("Azure OpenAI endpoint or key not configured")
                 self.client = None
             else:

@@ -12,19 +12,18 @@ import os
 os.environ.setdefault('MINIO_ENDPOINT', os.environ.get('HOST_MINIO_ENDPOINT', 'localhost:9002'))
 
 from flask import Flask, request, jsonify
-from src.settings import get_settings
+from src.settings import configured_settings
 from src.services.s3_compatible_service import S3StorageService
 
 app = Flask(__name__)
-settings = get_settings()
 
 # Create S3 client with host-accessible endpoint
 s3_storage = S3StorageService(
-    endpoint_url=settings.minio_endpoint,
-    access_key=settings.minio_access_key,
-    secret_key=settings.minio_secret_key,
-    bucket_name=settings.minio_bucket_name,
-    secure=settings.minio_secure
+    endpoint_url=configured_settings.minio_endpoint,
+    access_key=configured_settings.minio_access_key,
+    secret_key=configured_settings.minio_secret_key,
+    bucket_name=configured_settings.minio_bucket_name,
+    secure=configured_settings.minio_secure
 )
 
 
@@ -90,7 +89,7 @@ def transcribe():
         return jsonify({'error': 'object_key is required'}), 400
     
     object_key = data['object_key']
-    bucket = data.get('bucket', settings.minio_bucket_name)
+    bucket = data.get('bucket', configured_settings.minio_bucket_name)
     
     tmp_path = None
     try:
@@ -123,8 +122,8 @@ if __name__ == '__main__':
     print("="*60)
     print("Native Mac Transcription Server")
     print("="*60)
-    print(f"MinIO Endpoint: {settings.minio_endpoint}")
-    print(f"Bucket: {settings.minio_bucket_name}")
+    print(f"MinIO Endpoint: {configured_settings.minio_endpoint}")
+    print(f"Bucket: {configured_settings.minio_bucket_name}")
     print("Starting server on http://0.0.0.0:8083")
     print("Backend can reach this via http://host.docker.internal:8083")
     print("="*60)
