@@ -1852,9 +1852,6 @@
                 duration_ms: duration,
                 audioUrl,
                 blob,
-            // Auto-transcribe immediately after stopping. Use a tiny timeout to ensure
-            // the recorder fully stops and resources (blob, audioUrl, UI state) are
-            // settled before starting transcription.
                 filename
             };
             speechStatus = 'stopped';
