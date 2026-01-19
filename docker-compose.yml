@@ -4,6 +4,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: baby-tracker-clickhouse
+    user: root
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-baby_tracker}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
