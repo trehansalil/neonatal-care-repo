@@ -30,8 +30,7 @@ DB_CONFIG = {
     'database': os.environ.get('DB_NAME', 'baby_tracker'),
     'username': os.environ.get('DB_USER', 'clickhouse'),
     'password': os.environ.get('DB_PASSWORD', 'clickhouse'),
-    # Improve resilience against transient HTTP disconnects
-    'http_retries': int(os.environ.get('DB_HTTP_RETRIES', '3')),
+    # Improve resilience against transient HTTP disconnects (http_retries not supported in this client version)
     'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '5')),
     'send_receive_timeout': int(os.environ.get('DB_SEND_RECV_TIMEOUT', '30')),
 }
@@ -612,151 +611,138 @@ def proxy_audio(object_key):
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
     """Get all entries"""
-    # Simple reconnect-and-retry to tolerate transient HTTP disconnects
-    for attempt in range(2):
-        client = None
-        try:
-            client = get_db_connection()
+    client = None
+    try:
+        client = get_db_connection()
+        
+        # Optional date/time range filters
+        start_param = request.args.get('start')
+        end_param = request.args.get('end')
 
-            # Optional date/time range filters
-            start_param = request.args.get('start')
-            end_param = request.args.get('end')
+        def parse_ts(value):
+            """Parse a timestamp string and return a naive datetime in local time.
 
-            def parse_ts(value):
-                """Parse a timestamp string and return a naive datetime in local time.
+            ClickHouse stores the `timestamp` column with a timezone, and the Python
+            client will convert timezone-aware datetimes to UTC before sending. If we
+            pass tz-aware values here, the comparison window shifts by the timezone
+            offset (e.g., IST +05:30), which was causing end-of-day filters to miss
+            late-evening records. By returning a naive datetime already in local
+            wall time, we align with the column's timezone and avoid double shifts.
+            """
+            if not value:
+                return None
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                return dt  # already local wall time
+            # Convert to local timezone, then drop tzinfo so comparisons stay in local wall time
+            return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
 
-                ClickHouse stores the `timestamp` column with a timezone, and the Python
-                client will convert timezone-aware datetimes to UTC before sending. If we
-                pass tz-aware values here, the comparison window shifts by the timezone
-                offset (e.g., IST +05:30), which was causing end-of-day filters to miss
-                late-evening records. By returning a naive datetime already in local
-                wall time, we align with the column's timezone and avoid double shifts.
-                """
-                if not value:
-                    return None
-                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                if dt.tzinfo is None:
-                    return dt  # already local wall time
-                # Convert to local timezone, then drop tzinfo so comparisons stay in local wall time
-                return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
+        start_ts = parse_ts(start_param)
+        end_ts = parse_ts(end_param)
 
-            start_ts = parse_ts(start_param)
-            end_ts = parse_ts(end_param)
-
-            if start_ts or end_ts:
-                query = '''
-                    SELECT * FROM entries 
-                    WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
-                      AND (%(end)s IS NULL OR timestamp <= %(end)s)
-                    ORDER BY timestamp DESC
-                    LIMIT 1000
-                '''
-                result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
-            else:
-                # Get last 500 entries by default
-                query = 'SELECT * FROM entries ORDER BY timestamp DESC LIMIT 500'
-                result = client.query(query)
-            
-            # Convert result to list of dictionaries
-            entries = []
-            for row in result.result_rows:
-                entries.append({
-                    'id': row[0],
-                    'temperature': float(row[1]) if row[1] is not None else None,
-                    'feed_amount': row[2],
-                    'feed_type': row[3],
-                    'susu_count': row[4],
-                    'poti_count': row[5],
-                    'poti_color': row[6],
-                    'weight': row[7],
-                    'notes': row[8],
-                    'timestamp': row[9].isoformat() if row[9] else None,
-                    'created_at': row[10].isoformat() if row[10] else None
-                })
-            
-            return jsonify(entries)
-        except OperationalError as e:
-            logger.warning("Retrying entries fetch after OperationalError (attempt %d): %s", attempt + 1, e)
-            time.sleep(0.5)
-        except Exception as e:
-            print(f"Error fetching entries: {e}")
-            return jsonify({'error': str(e)}), 500
-        finally:
-            if client is not None:
-                client.close()
-
-    # If we exhausted retries, surface a 500
-    return jsonify({'error': 'Failed to fetch entries after retry'}), 500
-
+        if start_ts or end_ts:
+            query = '''
+                SELECT * FROM entries 
+                WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
+                  AND (%(end)s IS NULL OR timestamp <= %(end)s)
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            '''
+            result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
+        else:
+            # Get last 500 entries by default
+            query = 'SELECT * FROM entries ORDER BY timestamp DESC LIMIT 500'
+            result = client.query(query)
+        
+        # Convert result to list of dictionaries
+        entries = []
+        for row in result.result_rows:
+            entries.append({
+                'id': row[0],
+                'temperature': float(row[1]) if row[1] is not None else None,
+                'feed_amount': row[2],
+                'feed_type': row[3],
+                'susu_count': row[4],
+                'poti_count': row[5],
+                'poti_color': row[6],
+                'weight': row[7],
+                'notes': row[8],
+                'timestamp': row[9].isoformat() if row[9] else None,
+                'created_at': row[10].isoformat() if row[10] else None
+            })
+        
+        return jsonify(entries)
+    except Exception as e:
+        print(f"Error fetching entries: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 @app.route('/api/speech_entries', methods=['GET'])
 def get_speech_entries():
     """Get speech entries with optional date/time filters."""
-    for attempt in range(2):
-        client = None
-        try:
-            client = get_db_connection()
 
-            start_param = request.args.get('start')
-            end_param = request.args.get('end')
+    client = None
+    try:
+        client = get_db_connection()
 
-            def parse_ts(value):
-                if not value:
-                    return None
-                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                if dt.tzinfo is None:
-                    return dt
-                return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
+        start_param = request.args.get('start')
+        end_param = request.args.get('end')
 
-            start_ts = parse_ts(start_param)
-            end_ts = parse_ts(end_param)
+        def parse_ts(value):
+            if not value:
+                return None
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                return dt
+            return dt.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
 
-            if start_ts or end_ts:
-                query = '''
-                    SELECT * FROM speech_entries
-                    WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
-                      AND (%(end)s IS NULL OR timestamp <= %(end)s)
-                    ORDER BY timestamp DESC
-                    LIMIT 1000
-                '''
-                result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
-            else:
-                query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
-                result = client.query(query)
+        start_ts = parse_ts(start_param)
+        end_ts = parse_ts(end_param)
 
-            entries = []
-            for row in result.result_rows:
-                object_key = row[1]
-                
-                # Use the proxy URL to avoid CORS and Mixed Content issues over the network
-                fresh_audio_url = f"/api/speech/audio/{object_key}" if object_key else row[2]
-                
-                entries.append({
-                    'id': row[0],
-                    'object_key': object_key,
-                    'audio_url': fresh_audio_url,
-                    'transcription': row[3],
-                    'category': row[4],
-                    'mode': row[5],
-                    'duration_ms': row[6],
-                    'notes': row[7],
-                    'timestamp': row[8].isoformat() if row[8] else None,
-                    'created_at': row[9].isoformat() if row[9] else None,
-                    'type': 'speech'
-                })
+        if start_ts or end_ts:
+            query = '''
+                SELECT * FROM speech_entries
+                WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
+                    AND (%(end)s IS NULL OR timestamp <= %(end)s)
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            '''
+            result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
+        else:
+            query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
+            result = client.query(query)
 
-            return jsonify(entries)
-        except OperationalError as e:
-            logger.warning("Retrying speech entries fetch after OperationalError (attempt %d): %s", attempt + 1, e)
-            time.sleep(0.6)
-        except Exception as e:
-            print(f"Error fetching speech entries: {e}")
-            return jsonify({'error': str(e)}), 500
-        finally:
-            if client is not None:
-                client.close()
+        entries = []
+        for row in result.result_rows:
+            object_key = row[1]
+            
+            # Use the proxy URL to avoid CORS and Mixed Content issues over the network
+            fresh_audio_url = f"/api/speech/audio/{object_key}" if object_key else row[2]
+            
+            entries.append({
+                'id': row[0],
+                'object_key': object_key,
+                'audio_url': fresh_audio_url,
+                'transcription': row[3],
+                'category': row[4],
+                'mode': row[5],
+                'duration_ms': row[6],
+                'notes': row[7],
+                'timestamp': row[8].isoformat() if row[8] else None,
+                'created_at': row[9].isoformat() if row[9] else None,
+                'type': 'speech'
+            })
 
-    return jsonify({'error': 'Failed to fetch speech entries after retry'}), 500
+        return jsonify(entries)
+
+    except Exception as e:
+        print(f"Error fetching speech entries: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
 
 
 def parse_local_timestamp(value: Optional[str]) -> datetime:
