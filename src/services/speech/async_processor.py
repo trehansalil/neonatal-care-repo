@@ -5,13 +5,14 @@ import queue
 from typing import Optional, Callable
 from src.log import get_logger
 
+
 logger = get_logger(__name__)
 
 
 class AsyncSpeechProcessor:
     """Background processor that handles LLM categorization and mapping tasks asynchronously."""
     
-    def __init__(self, categorization_service, mapping_service=None, max_workers: int = 2):
+    def __init__(self, categorization_service, mapping_service, max_workers: int = 2):
         """Initialize the async processor.
         
         Args:
@@ -19,8 +20,10 @@ class AsyncSpeechProcessor:
             mapping_service: Instance of EntryMappingService (optional)
             max_workers: Number of worker threads to process tasks
         """
-        self.categorization_service = categorization_service
-        self.mapping_service = mapping_service
+        from .llm.categorization_service import CategorizationService
+        from .llm.entry_mapping_service import EntryMappingService
+        self.categorization_service: CategorizationService = categorization_service
+        self.mapping_service: EntryMappingService = mapping_service
         self.max_workers = max_workers
         self.task_queue = queue.Queue()
         self.workers = []
@@ -105,7 +108,7 @@ class AsyncSpeechProcessor:
                 - enable_mapping: Whether to perform entry mapping (default: True)
         """
         entry_id = task.get('entry_id')
-        transcription = task.get('transcription')
+        transcription: str = task.get('transcription', "")
         callback = task.get('callback')
         mapping_callback = task.get('mapping_callback')
         enable_mapping = task.get('enable_mapping', True)
@@ -127,6 +130,8 @@ class AsyncSpeechProcessor:
                 result = {
                     'entry_id': entry_id,
                     'category': categorization_result.get('category', 'unclear'),
+                    "log_date": categorization_result.get('log_date'),
+                    "log_time": categorization_result.get('log_time'),
                     'metadata': categorization_result
                 }
                 

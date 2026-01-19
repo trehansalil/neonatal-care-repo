@@ -103,6 +103,7 @@ Valid categories:
 
 Temporal extraction rules:
 - Only extract a log_date if an explicit calendar date is provided; format it as YYYY-MM-DD.
+- If AM/PM is missing (e.g., "at 5:00"), infer it based on the logical context of the sentence relative to the Current System Timestamp or standard human behavior (e.g., "breakfast" implies AM, "dinner" implies PM).
 - Only extract a log_time if a time is provided; format it in 24-hour HH:MM.
 - If no detail on date or time is mentioned, assume it as the current date and time.
 - if relative times are mentioned (e.g., "an hour ago"), convert them in reference to current date and time.

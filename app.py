@@ -102,16 +102,16 @@ except Exception as e:
 
 # Async categorization processor (now includes mapping)
 if categorization_service:
-    categorization_processor = AsyncSpeechProcessor(
+    speech_processor = AsyncSpeechProcessor(
         categorization_service=categorization_service,
         mapping_service=mapping_service,
         max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
     )
     # Start the processor when app starts
-    categorization_processor.start()
+    speech_processor.start()
     logger.info("Async categorization processor started")
 else:
-    categorization_processor = None
+    speech_processor = None
     logger.warning("Categorization processor not started (LLM service unavailable)")
 
 
@@ -540,8 +540,8 @@ def transcribe_speech():
             return jsonify({'error': 'Transcription failed'}), 500
         
         # Trigger async categorization if entry_id is provided and processor is available
-        if entry_id and categorization_processor:
-            categorization_processor.submit_task(
+        if entry_id and speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcript,
@@ -781,8 +781,8 @@ def create_speech_entry():
         ])
         
         # Trigger async categorization if transcription is available
-        if transcription and categorization_processor:
-            categorization_processor.submit_task(
+        if transcription and speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcription,
@@ -852,8 +852,8 @@ def retranscribe_speech_entry(entry_id):
         })
         
         # 3. Trigger async categorization with the new transcript
-        if categorization_processor:
-            categorization_processor.submit_task(
+        if speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcript,
@@ -1288,9 +1288,9 @@ if __name__ == '__main__':
     # Register cleanup handler for graceful shutdown
     def cleanup():
         '''Clean up resources on shutdown.'''
-        if categorization_processor:
+        if speech_processor:
             logger.info('Shutting down categorization processor...')
-            categorization_processor.stop()
+            speech_processor.stop()
     
     atexit.register(cleanup)
     signal.signal(signal.SIGTERM, lambda sig, frame: cleanup())
