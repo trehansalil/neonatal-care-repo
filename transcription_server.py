@@ -27,22 +27,67 @@ s3_storage = S3StorageService(
 )
 
 
-def transcribe_file_mlx(local_path: str) -> str:
-    """Run MLX Whisper transcription on the host Mac."""
-    try:
-        import mlx_whisper
+# def transcribe_file_mlx(local_path: str) -> str:
+#     """Run MLX Whisper transcription on the host Mac."""
+#     try:
+#         import mlx_whisper
 
-        print(f"Transcribing {local_path} with MLX Whisper...")
-        result = mlx_whisper.transcribe(
-            local_path,
-            path_or_hf_repo="mlx-community/whisper-large-v3-mlx"
-        )
-        transcript = result.get("text", "") if isinstance(result, dict) else ""
-        print(f"Transcription complete: {len(transcript)} chars")
-        return transcript
+#         print(f"Transcribing {local_path} with MLX Whisper...")
+#         result = mlx_whisper.transcribe(
+#             local_path,
+#             path_or_hf_repo="mlx-community/whisper-large-v3-mlx"
+#         )
+#         transcript = result.get("text", "") if isinstance(result, dict) else ""
+#         print(f"Transcription complete: {len(transcript)} chars")
+#         return transcript
+#     except Exception as e:
+#         print(f"MLX transcription error: {e}")
+#         return ""
+
+# def transcribe_file_mlx(local_path: str) -> str:
+#     """Run faster-whisper transcription."""
+
+#     from src.log import get_logger
+#     logger = get_logger(__name__)
+
+#     try:
+#         from faster_whisper import WhisperModel
+        
+#         print(f"Transcribing {local_path} with faster-whisper...")
+#         # Use GPU if available, otherwise CPU with INT8
+#         model = WhisperModel("large-v3", device="cpu", compute_type="int8")
+#         # For Apple Silicon, you can also try: device="auto"
+        
+#         segments, info = model.transcribe(local_path, beam_size=5)
+        
+#         print(f"Detected language: {info.language} (probability: {info.language_probability})")
+        
+#         # Combine all segments into full transcript
+#         transcript = " ".join([segment.text for segment in segments])
+        
+#         logger.info(f"Transcription complete: {len(transcript)} chars")
+#         return transcript
+#     except Exception as e:
+#         logger.info(f"faster-whisper error: {e}")
+#         return ""
+
+def transcribe_file_mlx(local_path: str) -> str:
+    """Use AssemblyAI for transcription."""
+    try:
+        import assemblyai as aai
+        
+        aai.settings.api_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+        transcriber = aai.Transcriber()
+        
+        print(f"Transcribing {local_path} with AssemblyAI...")
+        transcript = transcriber.transcribe(local_path)
+        
+        print(f"Transcription complete: {len(transcript.text)} chars")
+        return transcript.text
     except Exception as e:
-        print(f"MLX transcription error: {e}")
+        print(f"AssemblyAI error: {e}")
         return ""
+
 
 def transcribe_file_mlx_asr(local_path: str) -> str:
     try:
