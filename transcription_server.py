@@ -14,7 +14,9 @@ os.environ.setdefault('MINIO_ENDPOINT', os.environ.get('HOST_MINIO_ENDPOINT', 'l
 from flask import Flask, request, jsonify
 from src.settings import configured_settings
 from src.services.s3_compatible_service import S3StorageService
+from src.log import get_logger
 
+logger = get_logger(__name__)
 app = Flask(__name__)
 
 # Create S3 client with host-accessible endpoint
@@ -76,16 +78,32 @@ def transcribe_file_mlx(local_path: str) -> str:
     try:
         import assemblyai as aai
         
-        aai.settings.api_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+        api_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+        if not api_key:
+            print("ERROR: ASSEMBLYAI_API_KEY not set")
+            return ""
+            
+        aai.settings.api_key = api_key
         transcriber = aai.Transcriber()
         
-        print(f"Transcribing {local_path} with AssemblyAI...")
-        transcript = transcriber.transcribe(local_path)
+        logger.info(f"Transcribing {local_path} with AssemblyAI...")
+        logger.info(f"File exists: {os.path.exists(local_path)}, size: {os.path.getsize(local_path) if os.path.exists(local_path) else 0} bytes")
         
-        print(f"Transcription complete: {len(transcript.text)} chars")
-        return transcript.text
+        # AssemblyAI can accept local file paths directly
+        transcript_obj = transcriber.transcribe(local_path)
+        
+        # Wait for transcription to complete
+        if transcript_obj.status == aai.TranscriptStatus.error:
+            logger.info(f"AssemblyAI transcription failed: {transcript_obj.error}")
+            return ""
+        
+        transcript_text = transcript_obj.text or ""
+        logger.info(f"Transcription complete: {len(transcript_text)} chars")
+        return transcript_text
     except Exception as e:
-        print(f"AssemblyAI error: {e}")
+        logger.info(f"AssemblyAI error: {e}")
+        import traceback
+        traceback.print_exc()
         return ""
 
 
