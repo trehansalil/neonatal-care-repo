@@ -7,6 +7,7 @@ import os
 import time
 import pytz
 import uuid
+import threading
 from typing import Optional
 
 from src.log import get_logger
@@ -16,6 +17,7 @@ from src.services.stt_service import STTService
 from src.services.speech.llm.categorization_service import CategorizationService
 from src.services.speech.llm.entry_mapping_service import EntryMappingService
 from src.services.speech.async_processor import AsyncSpeechProcessor
+from src.services.notification_service import NotificationService
 
 logger = get_logger(__name__)
 
@@ -117,6 +119,111 @@ if categorization_service:
 else:
     speech_processor = None
     logger.warning("Categorization processor not started (LLM service unavailable)")
+
+# Notification service for care alerts
+notification_service = NotificationService()
+if notification_service.is_configured():
+    logger.info(f"Notification service initialized with webhook URL: {notification_service.webhook_url}")
+else:
+    logger.warning("Notification service not configured - set N8N_WEBHOOK_ID to enable")
+
+# Background notification checker
+notification_checker_running = False
+notification_thread = None
+
+def run_notification_checker():
+    """Background thread that periodically checks for overdue diaper changes."""
+    global notification_checker_running
+    
+    check_interval = configured_settings.notification_check_interval_minutes * 60  # Convert to seconds
+    
+    logger.info(f"Notification checker started - checking every {configured_settings.notification_check_interval_minutes} minutes")
+    
+    while notification_checker_running:
+        try:
+            client = get_db_connection()
+            try:
+                notification_service.check_overdue_diaper_change(client, LOCAL_TIMEZONE)
+            finally:
+                client.close()
+        except Exception as e:
+            logger.error(f"Error in notification checker: {e}")
+        
+        # Sleep in small intervals to allow clean shutdown
+        for _ in range(int(check_interval)):
+            if not notification_checker_running:
+                break
+            time.sleep(1)
+    
+    logger.info("Notification checker stopped")
+
+def start_notification_checker():
+    """Start the background notification checker thread.
+    
+    Only starts if ENABLE_BACKGROUND_NOTIFICATIONS is True and in one worker 
+    to avoid duplicate notifications. Uses an environment variable to track 
+    if checker is already running.
+    
+    Note: With frontend timer implementation, background checker can be disabled
+    to reduce database load. The frontend timer will handle visual alerts.
+    """
+    global notification_checker_running, notification_thread
+    
+    # Check if background notifications are enabled
+    if not configured_settings.enable_background_notifications:
+        logger.info("Notification checker not started (ENABLE_BACKGROUND_NOTIFICATIONS=False)")
+        return
+    
+    if not notification_service.is_configured():
+        logger.info("Notification checker not started (webhook not configured)")
+        return
+    
+    if notification_thread and notification_thread.is_alive():
+        logger.warning("Notification checker already running")
+        return
+    
+    # Only start checker in one worker to avoid duplicates
+    # Check if this is the first worker by trying to acquire a marker
+    try:
+        # Use worker ID to only start in first worker
+        # Gunicorn doesn't set a standard env var, so we use a simple file lock approach
+        import fcntl
+        lock_file_path = '/tmp/baby_tracker_notification_lock'
+        
+        # Try to create and lock the file
+        try:
+            lock_file = open(lock_file_path, 'w')
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            
+            # Successfully acquired lock - this worker will run the checker
+            notification_checker_running = True
+            notification_thread = threading.Thread(target=run_notification_checker, daemon=True)
+            notification_thread.start()
+            logger.info("Notification checker thread started (acquired lock)")
+            
+            # Store lock file globally to keep it open
+            import builtins
+            builtins._notification_lock_file = lock_file
+            
+        except IOError:
+            # Another worker already has the lock
+            logger.info("Notification checker not started (another worker is running it)")
+            return
+            
+    except Exception as e:
+        logger.error(f"Error starting notification checker: {e}")
+        return
+
+def stop_notification_checker():
+    """Stop the background notification checker thread."""
+    global notification_checker_running
+    
+    if notification_checker_running:
+        logger.info("Stopping notification checker...")
+        notification_checker_running = False
+        if notification_thread:
+            notification_thread.join(timeout=5)
+        logger.info("Notification checker stopped")
 
 
 def update_speech_entry_category(result: dict):
@@ -1286,8 +1393,142 @@ def health_check():
         if client is not None:
             client.close()
 
+@app.route('/api/notifications/diaper-status', methods=['GET'])
+def get_diaper_status():
+    """Get the current diaper change status and time since last change"""
+    client = None
+    try:
+        client = get_db_connection()
+        
+        # Get the most recent entry with ANY diaper change (susu_count OR poti_count > 0)
+        query = """
+            SELECT 
+                id,
+                susu_count,
+                poti_count,
+                timestamp,
+                notes
+            FROM entries
+            WHERE susu_count > 0 OR poti_count > 0
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """
+        
+        result = client.query(query)
+        
+        if not result.result_rows:
+            return jsonify({
+                'status': 'no_data',
+                'message': 'No diaper changes found in database'
+            }), 200
+        
+        last_entry = result.result_rows[0]
+        entry_id = last_entry[0]
+        susu_count = last_entry[1]
+        poti_count = last_entry[2]
+        last_timestamp = last_entry[3]
+        
+        # Ensure timestamp is timezone-aware
+        if last_timestamp.tzinfo is None:
+            last_timestamp = LOCAL_TIMEZONE.localize(last_timestamp)
+        
+        # Calculate time since last diaper change
+        now = datetime.now(LOCAL_TIMEZONE)
+        hours_since = (now - last_timestamp).total_seconds() / 3600
+        
+        is_overdue = hours_since >= configured_settings.diaper_alert_hours
+        
+        # Build description of last change
+        change_type = []
+        if susu_count > 0:
+            change_type.append(f"{susu_count} wet")
+        if poti_count > 0:
+            change_type.append(f"{poti_count} soiled")
+        change_description = " + ".join(change_type) + " diaper(s)"
+        
+        return jsonify({
+            'status': 'overdue' if is_overdue else 'ok',
+            'hours_since_last_change': round(hours_since, 2),
+            'last_change_timestamp': last_timestamp.isoformat(),
+            'last_change_formatted': last_timestamp.strftime('%I:%M %p on %B %d, %Y'),
+            'last_change_description': change_description,
+            'entry_id': entry_id,
+            'susu_count': susu_count,
+            'poti_count': poti_count,
+            'threshold_hours': configured_settings.diaper_alert_hours,
+            'webhook_configured': notification_service.is_configured()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting diaper status: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+@app.route('/api/notifications/webhook-config', methods=['GET'])
+def get_webhook_config():
+    """Get webhook configuration for frontend notifications"""
+    return jsonify({
+        'configured': notification_service.is_configured(),
+        'webhook_url': notification_service.webhook_url if notification_service.is_configured() else None,
+        'diaper_alert_hours': configured_settings.diaper_alert_hours
+    }), 200
+
+@app.route('/api/notifications/send', methods=['POST'])
+def send_notification():
+    """Send a notification from the frontend"""
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        metadata = data.get('metadata', {})
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        success = notification_service.send_notification(message, metadata)
+        
+        return jsonify({
+            'success': success,
+            'message': 'Notification sent' if success else 'Failed to send notification or webhook not configured'
+        }), 200 if success else 500
+        
+    except Exception as e:
+        logger.error(f"Error sending notification: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/check-diaper', methods=['POST'])
+def trigger_diaper_check():
+    """Manually trigger a diaper change check and notification (deprecated - use frontend timer)"""
+    client = None
+    try:
+        client = get_db_connection()
+        notification_sent = notification_service.check_overdue_diaper_change(client, LOCAL_TIMEZONE)
+        
+        return jsonify({
+            'success': True,
+            'notification_sent': notification_sent,
+            'message': 'Notification sent' if notification_sent else 'No notification needed or webhook not configured'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error triggering diaper check: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+# Start notification checker when module loads (works with both gunicorn and direct run)
+# Import atexit for cleanup registration
+import atexit
+
+# Start the notification checker after all functions are defined
+start_notification_checker()
+
+# Register cleanup
+atexit.register(stop_notification_checker)
+
 if __name__ == '__main__':
-    import atexit
     import signal
     
     # Register cleanup handler for graceful shutdown
@@ -1296,10 +1537,13 @@ if __name__ == '__main__':
         if speech_processor:
             logger.info('Shutting down categorization processor...')
             speech_processor.stop()
+        stop_notification_checker()
     
-    atexit.register(cleanup)
+    # atexit already registered at module level
     signal.signal(signal.SIGTERM, lambda sig, frame: cleanup())
     signal.signal(signal.SIGINT, lambda sig, frame: cleanup())
+    
+    # Notification checker already started at module level
     
     use_https = os.environ.get('ENABLE_HTTPS', 'false').lower() == 'true'
     ssl_context = None

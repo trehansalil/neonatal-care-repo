@@ -76,6 +76,11 @@ services:
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
       AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
       AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      # Notification settings
+      N8N_WEBHOOK_ID: ${N8N_WEBHOOK_ID}
+      N8N_HOST: ${N8N_HOST:-n8n:5678}
+      DIAPER_ALERT_HOURS: ${DIAPER_ALERT_HOURS:-4}
+      NOTIFICATION_CHECK_INTERVAL_MINUTES: ${NOTIFICATION_CHECK_INTERVAL_MINUTES:-60}
     ports:
       - "8082:5000"
     depends_on:
@@ -83,6 +88,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      n8n:
+        condition: service_started
     restart: unless-stopped
     volumes:
       - ./html:/app/html
@@ -91,10 +98,30 @@ services:
       - ./cert.pem:/app/cert.pem
       - ./key.pem:/app/key.pem
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Base URL n8n should think it's running on (important for webhooks)
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      # Optional: secure cookie off if you're just testing locally
+      N8N_SECURE_COOKIE: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Optional shared files directory
+      - ./local-files:/files
+
 volumes:
   clickhouse_data:
   clickhouse_logs:
   minio_data:
+  n8n_data:
 
 networks:
   default:

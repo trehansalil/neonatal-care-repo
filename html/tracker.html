@@ -645,6 +645,19 @@
                         class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-2xl">
                         🧷</div>
                 </div>
+
+                <!-- Diaper Timer Widget -->
+                <div id="diaper-timer-card"
+                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300">
+                    <div class="flex-1">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Time Since Last Diaper/Nappy</p>
+                        <div class="text-3xl font-bold text-slate-700" id="diaper-timer-display">--:--</div>
+                        <p class="text-sm text-slate-500 mt-1" id="diaper-timer-subtitle">Loading...</p>
+                    </div>
+                    <div id="diaper-timer-icon"
+                        class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 text-2xl transition-all duration-300">
+                        ⏱️</div>
+                </div>
             </div>
         </section>
 
@@ -1554,6 +1567,13 @@
         let speechStatus = 'idle';
         let selectedMimeType = 'audio/webm';
 
+        // Diaper timer state
+        let diaperTimerInterval = null;
+        let lastDiaperChangeTime = null;
+        const DIAPER_ALERT_HOURS = 3; // Alert threshold in hours
+        let webhookConfig = { configured: false, webhook_url: null, diaper_alert_hours: 3 };
+        // Note: n8n handles recurring reminders every 15 minutes via backend polling
+
         // DOM Elements
         const entriesContainer = document.getElementById('entries-container');
         const speechTimerEl = document.getElementById('speech-timer');
@@ -1578,6 +1598,10 @@
         const todayFeedsEl = document.getElementById('today-feeds');
         const totalFeedMlEl = document.getElementById('total-feed-ml');
         const totalDiapersEl = document.getElementById('total-diapers');
+        const diaperTimerCard = document.getElementById('diaper-timer-card');
+        const diaperTimerDisplay = document.getElementById('diaper-timer-display');
+        const diaperTimerSubtitle = document.getElementById('diaper-timer-subtitle');
+        const diaperTimerIcon = document.getElementById('diaper-timer-icon');
         const todaySusuEl = document.getElementById('today-susu');
         const todayPotiEl = document.getElementById('today-poti');
         const avgTempEl = document.getElementById('avg-temp');
@@ -1603,6 +1627,234 @@
             const { date, time } = getCurrentDateTime();
             document.getElementById(`${type}-date`).value = date;
             document.getElementById(`${type}-time`).value = time;
+        }
+
+        // Diaper Timer Functions
+        async function fetchWebhookConfig() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/notifications/webhook-config`);
+                if (response.ok) {
+                    webhookConfig = await response.json();
+                    console.log('Webhook config loaded:', webhookConfig);
+                }
+            } catch (error) {
+                console.error('Error fetching webhook config:', error);
+            }
+        }
+
+        function getNotificationState() {
+            try {
+                const state = localStorage.getItem('diaperNotificationState');
+                return state ? JSON.parse(state) : {};
+            } catch {
+                return {};
+            }
+        }
+
+        function saveNotificationState(state) {
+            try {
+                localStorage.setItem('diaperNotificationState', JSON.stringify(state));
+            } catch (error) {
+                console.error('Error saving notification state:', error);
+            }
+        }
+
+        async function sendDiaperNappyNotification(hours, lastChangeTime, isNewEntry = false) {
+            if (!webhookConfig.configured) {
+                console.log('Webhook not configured, skipping notification');
+                return false;
+            }
+
+            const lastChangeDate = new Date(lastChangeTime);
+            const timeStr = lastChangeDate.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            const dateStr = lastChangeDate.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const thresholdHours = webhookConfig.diaper_alert_hours || DIAPER_ALERT_HOURS;
+            const thresholdSeconds = thresholdHours * 3600;
+            
+            // Calculate time since the entry's timestamp (whether backdated or current)
+            let timeSinceSeconds;
+            let actualHours;
+            
+            if (isNewEntry) {
+                // For a new entry, calculate time from the entry's timestamp to NOW
+                // This respects backdating - if entry is backdated to 7 PM and it's now 9 PM, 
+                // then 2 hours have already passed
+                const now = new Date();
+                const then = new Date(lastChangeTime);
+                const diffMs = now - then;
+                timeSinceSeconds = Math.floor(diffMs / 1000); // Convert ms directly to seconds
+                actualHours = timeSinceSeconds / 3600; // Convert to hours for display
+                
+                message = `⚠️ Diaper Alert: It's been 4 hours since the last diaper change. Last change was at ${timeStr} on ${dateStr}.`;
+            } else {
+                // For status updates, use provided hours parameter
+                actualHours = hours;
+                timeSinceSeconds = Math.floor(hours * 3600);
+                
+                const isOverdue = hours >= thresholdHours;
+                if (isOverdue) {
+                    message = `⚠️ Diaper Alert: It's been ${hours.toFixed(1)} hours since the last diaper change. Last change was at ${timeStr} on ${dateStr}.`;
+                } else {
+                    message = `🔔 Diaper status update: Last change was ${hours.toFixed(1)} hours ago at ${timeStr} on ${dateStr}.`;
+                }
+            }
+
+            // Calculate time left until threshold (based on entry's timestamp)
+            const timeLeftSeconds = Math.max(0, thresholdSeconds - timeSinceSeconds);
+
+            const metadata = {
+                alert_type: isNewEntry ? 'diaper_entry_created' : (actualHours >= thresholdHours ? 'diaper_overdue' : 'diaper_status'),
+                is_new_entry: isNewEntry,
+                is_overdue: actualHours >= thresholdHours,
+                hours_since_last_change: Math.round(actualHours * 100) / 100,
+                last_change_timestamp: lastChangeTime,
+                threshold_hours: thresholdHours,
+                time_left: timeLeftSeconds,  // For n8n scheduling
+                source: 'frontend'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/notifications/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, metadata })
+                });
+
+                if (response.ok) {
+                    console.log('Notification sent successfully:', message);
+                    return true;
+                } else {
+                    console.error('Failed to send notification:', await response.text());
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error sending notification:', error);
+                return false;
+            }
+        }
+
+        function formatTimeSince(timestamp) {
+            if (!timestamp) return { hours: 0, minutes: 0, display: '--:--' };
+            const now = new Date();
+            const then = new Date(timestamp);
+            const diffMs = now - then;
+            const diffMins = Math.floor(diffMs / 60000);
+            const hours = Math.floor(diffMins / 60);
+            const minutes = diffMins % 60;
+            const display = `${hours}h ${String(minutes).padStart(2, '0')}m`;
+            return { hours, minutes, display };
+        }
+
+        function updateDiaperNappyTimerDisplay() {
+            if (!lastDiaperChangeTime) {
+                diaperTimerDisplay.textContent = '--:--';
+                diaperTimerSubtitle.textContent = 'No diaper/nappy changes yet';
+                diaperTimerCard.className = 'bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300';
+                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 text-2xl transition-all duration-300';
+                
+                // Clear notification state if no diaper changes
+                const state = getNotificationState();
+                if (state.lastNotifiedTimestamp) {
+                    saveNotificationState({});
+                }
+                return;
+            }
+
+            const { hours, minutes, display } = formatTimeSince(lastDiaperChangeTime);
+            diaperTimerDisplay.textContent = display;
+
+            const lastChangeDate = new Date(lastDiaperChangeTime);
+            const timeStr = lastChangeDate.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            
+            // Send notification only once when overdue is first detected
+            // n8n will handle recurring reminders every 15 minutes
+            const alertThreshold = webhookConfig.diaper_alert_hours || DIAPER_ALERT_HOURS;
+            if (hours >= alertThreshold) {
+                const state = getNotificationState();
+                
+                // Only send if this is a different diaper change entry than last notified
+                if (state.lastNotifiedTimestamp !== lastDiaperChangeTime) {
+                    console.log('Diaper/Nappy overdue detected - sending notification (n8n will handle reminders)');
+                    sendDiaperNappyNotification(hours, lastDiaperChangeTime).then(success => {
+                        if (success) {
+                            saveNotificationState({
+                                lastNotifiedTimestamp: lastDiaperChangeTime
+                            });
+                        }
+                    });
+                }
+            } else {
+                // Not overdue - clear notification state
+                const state = getNotificationState();
+                if (state.lastNotifiedTimestamp) {
+                    console.log('Diaper/Nappy change no longer overdue - resetting notification tracking');
+                    saveNotificationState({});
+                }
+            }
+            
+            // Update styles based on elapsed time
+            if (hours >= alertThreshold) {
+                // Overdue - red alert
+                diaperTimerCard.className = 'bg-red-50 p-5 md:p-6 rounded-xl shadow-lg border-2 border-red-300 flex items-center justify-between gap-4 transition-all duration-300 animate-pulse';
+                diaperTimerDisplay.className = 'text-3xl font-bold text-red-700';
+                diaperTimerSubtitle.textContent = `⚠️ Overdue! Last change at ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-sm text-red-600 mt-1 font-semibold';
+                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-red-200 text-2xl transition-all duration-300';
+            } else if (hours >= alertThreshold - 0.5) {
+                // Warning - approaching threshold (within 30 mins)
+                diaperTimerCard.className = 'bg-amber-50 p-5 md:p-6 rounded-xl shadow-md border-2 border-amber-300 flex items-center justify-between gap-4 transition-all duration-300';
+                diaperTimerDisplay.className = 'text-3xl font-bold text-amber-700';
+                diaperTimerSubtitle.textContent = `⏰ Soon! Last change at ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-sm text-amber-600 mt-1 font-medium';
+                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-amber-200 text-2xl transition-all duration-300';
+            } else {
+                // Normal - green/neutral
+                diaperTimerCard.className = 'bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300';
+                diaperTimerDisplay.className = 'text-3xl font-bold text-emerald-600';
+                diaperTimerSubtitle.textContent = `✓ Last change at ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-sm text-slate-500 mt-1';
+                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-2xl transition-all duration-300';
+            }
+        }
+
+        function startDiaperTimer() {
+            // Clear existing timer if any
+            if (diaperTimerInterval) {
+                clearInterval(diaperTimerInterval);
+            }
+
+            // Update immediately
+            updateDiaperNappyTimerDisplay();
+
+            // Update every 30 seconds
+            diaperTimerInterval = setInterval(updateDiaperNappyTimerDisplay, 30000);
+        }
+
+        function findLastDiaperChange() {
+            // Find most recent entry with susu_count OR poti_count > 0
+            const diaperEntries = entries
+                .filter(e => (e.susu_count && e.susu_count > 0) || (e.poti_count && e.poti_count > 0))
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if (diaperEntries.length > 0) {
+                lastDiaperChangeTime = diaperEntries[0].timestamp;
+            } else {
+                lastDiaperChangeTime = null;
+            }
+
+            startDiaperTimer();
         }
 
         // Generic note metadata parser for "Label: value" prefixes
@@ -2343,8 +2595,16 @@
             }
         });
 
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (diaperTimerInterval) {
+                clearInterval(diaperTimerInterval);
+            }
+        });
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
+            fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();
             // Setup ranges and controls before the first fetch so both history and trend pull the right window
             setupHistoryRange();
@@ -2457,10 +2717,39 @@
                 }
 
                 if (response.ok) {
+                    const responseData = await response.json();
                     closeModal(type);
                     await loadEntries();
                     // Always update trend chart after any entry change
                     updateTrendChart();
+                    
+                    // Trigger notification for new diaper/nappy entries (not for edits)
+                    console.log('saveEntry completed:', {
+                        type,
+                        currentEditingEntry,
+                        data,
+                        isSusuWithCount: type === 'susu' && data.susu_count > 0,
+                        isPotiWithCount: type === 'poti' && data.poti_count > 0
+                    });
+                    
+                    if (!currentEditingEntry && ((type === 'susu' && data.susu_count > 0) || (type === 'poti' && data.poti_count > 0))) {
+                        console.log('New diaper/nappy entry created - sending notification to n8n');
+                        // Use the timestamp from the entry that was just created
+                        const entryTimestamp = data.timestamp;
+                        
+                        // Send notification immediately with the new entry's timestamp
+                        setTimeout(() => {
+                            console.log('Sending notification with entry timestamp:', entryTimestamp);
+                            // Calculate time since the entry was created (should be near 0)
+                            const now = new Date();
+                            const then = new Date(entryTimestamp);
+                            const diffMs = now - then;
+                            const hours = diffMs / 3600000;
+                            
+                            sendDiaperNappyNotification(hours, entryTimestamp, true);
+                        }, 500); // Small delay to ensure findLastDiaperChange has run
+                    }
+                    
                     showToast(currentEditingEntry ? 'Entry updated successfully!' : 'Entry saved successfully!', 'success');
                 } else {
                     throw new Error('Failed to save entry');
@@ -2498,6 +2787,7 @@
 
                 renderEntries();
                 updateStats();
+                findLastDiaperChange(); // Initialize/update diaper timer
                 updateTrendChart();
             } catch (error) {
                 console.error('Error loading entries:', error);
