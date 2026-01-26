@@ -1046,13 +1046,35 @@ def delete_speech_entry(entry_id):
     client = None
     try:
         client = get_db_connection()
+
+        # Fetch object key to delete audio from storage
+        result = client.query(
+            'SELECT object_key FROM speech_entries WHERE id = %(id)s LIMIT 1',
+            parameters={'id': entry_id}
+        )
+
+        if not result.result_rows:
+            return jsonify({'error': 'Speech entry not found'}), 404
+
+        object_key = result.result_rows[0][0]
+
+        if object_key:
+            try:
+                s3_storage.delete_object(object_key)
+            except Exception as storage_error:
+                logger.error(
+                    f"Failed to delete storage object for speech entry {entry_id} (key: {object_key}): {storage_error}",
+                    exc_info=True
+                )
+                return jsonify({'error': 'Failed to delete speech audio from storage'}), 500
+
         client.command(
             'ALTER TABLE speech_entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=%(sync)s',
             parameters={'id': entry_id, 'sync': MUTATIONS_SYNC_LEVEL}
         )
         return jsonify({'status': 'deleted'})
     except Exception as e:
-        print(f"Error deleting speech entry: {e}")
+        logger.error(f"Error deleting speech entry {entry_id}: {e}", exc_info=True)
         return jsonify({'error': 'Failed to delete speech entry'}), 500
     finally:
         if client is not None:

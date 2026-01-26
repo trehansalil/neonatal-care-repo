@@ -169,6 +169,32 @@ class S3StorageService:
         except Exception:
             return None
 
+    def delete_object(self, object_name: str, container: Optional[str] = None, missing_ok: bool = True) -> bool:
+        """Delete an object from storage.
+
+        Args:
+            object_name: Key of the object to delete.
+            container: Optional bucket/container override.
+            missing_ok: If True, treat missing objects as a no-op.
+
+        Returns:
+            bool: True if deleted, False if object was missing and missing_ok is True.
+        """
+        bucket, key = self._get_bucket_and_key(container, object_name)
+        try:
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if missing_ok and error_code in {"NoSuchKey", "404", "NotFound"}:
+                logger.info(f"Storage object already missing: bucket={bucket}, key={key}")
+                return False
+            logger.error(f"S3 delete error for {key} in {bucket}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected delete error for {key} in {bucket}: {e}")
+            raise
+
     # --------
     # Listing
     # --------
