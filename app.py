@@ -1058,20 +1058,25 @@ def delete_speech_entry(entry_id):
 
         object_key = result.result_rows[0][0]
 
-        if object_key:
-            try:
-                s3_storage.delete_object(object_key)
-            except Exception as storage_error:
-                logger.error(
-                    f"Failed to delete storage object for speech entry {entry_id} (key: {object_key}): {storage_error}",
-                    exc_info=True
-                )
-                return jsonify({'error': 'Failed to delete speech audio from storage'}), 500
-
+        # Delete database record first (authoritative source of truth)
+        # This ensures data consistency: if DB deletion fails, S3 file remains intact
         client.command(
             'ALTER TABLE speech_entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=%(sync)s',
             parameters={'id': entry_id, 'sync': MUTATIONS_SYNC_LEVEL}
         )
+
+        # Clean up S3 storage as best-effort operation
+        # If this fails, we log but don't fail the request since DB record is already deleted
+        if object_key:
+            try:
+                s3_storage.delete_object(object_key)
+            except Exception as storage_error:
+                logger.warning(
+                    f"Failed to delete storage object for speech entry {entry_id} (key: {object_key}): {storage_error}. "
+                    "Orphaned storage object may need manual cleanup.",
+                    exc_info=True
+                )
+
         return jsonify({'status': 'deleted'})
     except Exception as e:
         logger.error(f"Error deleting speech entry {entry_id}: {e}", exc_info=True)
