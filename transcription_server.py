@@ -94,14 +94,14 @@ def transcribe_file_mlx(local_path: str) -> str:
         
         # Wait for transcription to complete
         if transcript_obj.status == aai.TranscriptStatus.error:
-            logger.info(f"AssemblyAI transcription failed: {transcript_obj.error}")
+            logger.error(f"AssemblyAI transcription failed: {transcript_obj.error}")
             return ""
         
         transcript_text = transcript_obj.text or ""
         logger.info(f"Transcription complete: {len(transcript_text)} chars")
         return transcript_text
     except Exception as e:
-        logger.info(f"AssemblyAI error: {e}")
+        logger.error(f"AssemblyAI error: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         return ""
