@@ -153,11 +153,11 @@
         .filter-chip {
             border: 1px solid #cbd5e1;
             border-radius: 9999px;
-            padding: 0.35rem 0.9rem;
-            font-size: 0.875rem;
+            padding: 0.45rem 1.05rem;
+            font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
+            gap: 0.5rem;
             color: #475569;
             background: #f8fafc;
             transition: all 0.2s ease;
@@ -621,7 +621,7 @@
         </div>
 
         <!-- Speech Log Entry Section -->
-        <section class="mb-6 log-section">
+        <section class="mb-4 log-section">
             <div class="bg-white hero-card rounded-2xl overflow-hidden">
                 <div class="p-4">
                     <!-- Compact Chat-like Interface -->
@@ -689,89 +689,119 @@
             </div>
         </section>
 
-        <!-- Total Feed Volume -->
-        <section class="mb-6 log-section">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between gap-4">
-                    <div class="flex justify-between items-start w-full">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Feed Volume
-                            </p>
-                            <div class="text-3xl font-bold text-sky-700 leading-tight" id="total-feed-ml">0 ml</div>
+        <!-- Dashboard Metrics - Bento Box Grid -->
+        <section class="mb-4 log-section">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <!-- Feed Volume Card -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-sm">
+                            🍼
                         </div>
-                        <div class="text-right">
-                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Daily Goal</p>
-                            <div class="text-lg font-bold text-slate-600" id="target-feed-ml">--</div>
-                        </div>
-                    </div>
-
-                    <div class="w-full">
-                        <div class="relative w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="feed-progress-bar"
-                                class="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all duration-500"
-                                style="width: 0%"></div>
-                        </div>
-                        <div class="flex justify-between items-center mt-2">
-                            <p class="text-xs text-slate-500 font-medium" id="feed-progress-text">0% of daily target</p>
-                            <p class="text-[10px] text-slate-400" id="target-basis-text">Add weight for goal</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Feed Volume</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-semibold text-slate-900" id="total-feed-ml">0 ml</span>
+                                <span class="text-xs text-slate-400" id="feed-progress-text-compact">0%</span>
+                            </div>
+                            <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="feed-progress-bar"
+                                    class="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                    style="width: 0%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1" id="target-basis-text">Goal: --</p>
                         </div>
                     </div>
                 </div>
 
-                <div
-                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Diapers Used</p>
-                        <div class="text-3xl font-bold text-indigo-700" id="total-diapers">0</div>
-                        <p class="text-sm text-slate-500 mt-1">Across selected range</p>
-                    </div>
-                    <div
-                        class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-2xl">
-                        🧷</div>
-                </div>
-
-                <!-- Diaper Timer Widget -->
+                <!-- Diaper Timer Card -->
                 <div id="diaper-timer-card"
-                    class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300">
-                    <div class="flex-1">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Time Since Last Diaper/Nappy</p>
-                        <div class="text-3xl font-bold text-slate-700" id="diaper-timer-display">--:--</div>
-                        <p class="text-sm text-slate-500 mt-1" id="diaper-timer-subtitle">Loading...</p>
+                    class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <div id="diaper-timer-icon"
+                            class="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center transition-colors duration-300 text-slate-600 text-sm">
+                            ⏱️
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Last Diaper</p>
+                            <div class="text-2xl font-semibold text-slate-900" id="diaper-timer-display">--:--</div>
+                            <p class="text-[10px] text-slate-400 mt-0.5" id="diaper-timer-subtitle">Loading...</p>
+                        </div>
                     </div>
-                    <div id="diaper-timer-icon"
-                        class="hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 text-2xl transition-all duration-300">
-                        ⏱️</div>
+                </div>
+
+                <!-- Diapers Used Card -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 text-sm">
+                            🧷
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Diapers</p>
+                            <div class="text-2xl font-semibold text-slate-900" id="total-diapers">0</div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Selected range</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Summary Stats -->
-        <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 log-section">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-sky-600" id="today-feeds">0 | 0</div>
-                <div class="text-sm text-slate-600 mt-1">Total | Avg Feeds</div>
+        <!-- Summary Stats - Compact Grid -->
+        <section class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 log-section">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 text-[11px]">
+                        🍼
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Feeds</span>
+                </div>
+                <div class="text-xl font-semibold text-slate-900" id="today-feeds">0 | 0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Total | Avg</div>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-indigo-600" id="today-susu">0</div>
-                <div class="text-sm text-slate-600 mt-1">Wet Items</div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-600 text-[11px]">
+                        💧
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Wet</span>
+                </div>
+                <div class="text-xl font-semibold text-slate-900" id="today-susu">0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Items</div>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-amber-600" id="today-poti">0</div>
-                <div class="text-sm text-slate-600 mt-1">Soiled Items</div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600 text-[11px]">
+                        💩
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Soiled</span>
+                </div>
+                <div class="text-xl font-semibold text-slate-900" id="today-poti">0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Items</div>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-emerald-600" id="avg-temp">--</div>
-                <div class="text-sm text-slate-600 mt-1">Avg Temp (°C)</div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded bg-red-50 flex items-center justify-center flex-shrink-0 text-red-600 text-[11px]">
+                        🌡️
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Temp</span>
+                </div>
+                <div class="text-xl font-semibold text-slate-900" id="avg-temp">--</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Avg (°C)</div>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center">
-                <div class="text-3xl font-bold text-purple-600" id="current-weight">--</div>
-                <div class="text-sm text-slate-600 mt-1">Weight (g)</div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded bg-purple-50 flex items-center justify-center flex-shrink-0 text-purple-600 text-[11px]">
+                        ⚖️
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Weight</span>
+                </div>
+                <div class="text-xl font-semibold text-slate-900" id="current-weight">--</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Grams</div>
             </div>
         </section>
 
         <!-- Activity Log Section -->
-        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-12 log-section">
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-8 log-section">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <span>📋</span> Activity Log
@@ -847,18 +877,18 @@
                     </div>
 
                     <!-- Time Controls -->
-                    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg self-start md:self-auto">
+                    <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg self-start md:self-auto">
                         <button
-                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+                            class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
                             data-preset="today" id="trend-preset-today">Today</button>
-                        <button class="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800"
+                        <button class="px-4 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800"
                             data-preset="7" id="trend-preset-7">7 Days</button>
                         <button
-                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+                            class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all"
                             data-preset="30" id="trend-preset-30">30 Days</button>
                         <div class="w-px h-4 bg-slate-300 mx-1"></div>
                         <button id="toggle-custom-date"
-                            class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1">
+                            class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1">
                             <span>📅</span> <span class="hidden sm:inline">Custom</span>
                         </button>
                     </div>
@@ -1859,11 +1889,18 @@
         function updateDiaperNappyTimerDisplay() {
             if (!lastDiaperChangeTime) {
                 diaperTimerDisplay.textContent = '--:--';
-                diaperTimerSubtitle.textContent = 'No diaper/nappy changes yet';
-                diaperTimerCard.className = 'bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300';
-                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 text-2xl transition-all duration-300';
+                diaperTimerSubtitle.textContent = 'No changes yet';
+                // Reset to neutral state
+                diaperTimerCard.className = 'bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-300';
+                diaperTimerIcon.className = 'flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center transition-colors duration-300';
+                diaperTimerIcon.innerHTML = `
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                `;
+                diaperTimerDisplay.className = 'text-2xl font-semibold text-slate-900';
+                diaperTimerSubtitle.className = 'text-[10px] text-slate-400 mt-0.5';
                 
-                // Clear notification state if no diaper changes
                 const state = getNotificationState();
                 if (state.lastNotifiedTimestamp) {
                     saveNotificationState({});
@@ -1881,54 +1918,65 @@
                 hour12: true 
             });
             
-            // Send notification only once when overdue is first detected
-            // n8n will handle recurring reminders every 15 minutes
             const alertThreshold = webhookConfig.diaper_alert_hours || DIAPER_ALERT_HOURS;
+            
+            // Smart status coloring
             if (hours >= alertThreshold) {
+                // Overdue - Red alert
+                diaperTimerCard.className = 'bg-white p-4 rounded-xl shadow-sm border-2 border-red-200 transition-all duration-300';
+                diaperTimerIcon.className = 'flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center transition-colors duration-300';
+                diaperTimerIcon.innerHTML = `
+                    <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                `;
+                diaperTimerDisplay.className = 'text-2xl font-semibold text-red-600';
+                diaperTimerSubtitle.textContent = `⚠️ Last: ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-[10px] text-red-500 mt-0.5 font-medium';
+
                 const state = getNotificationState();
-                
-                // Only send if this is a different diaper change entry than last notified
                 if (state.lastNotifiedTimestamp !== lastDiaperChangeTime) {
-                    console.log('Diaper/Nappy overdue detected - sending notification (n8n will handle reminders)');
+                    console.log('Diaper/Nappy overdue detected - sending notification');
                     sendDiaperNappyNotification(hours, lastDiaperChangeTime).then(success => {
                         if (success) {
-                            saveNotificationState({
-                                lastNotifiedTimestamp: lastDiaperChangeTime
-                            });
+                            saveNotificationState({ lastNotifiedTimestamp: lastDiaperChangeTime });
                         }
                     });
                 }
-            } else {
-                // Not overdue - clear notification state
+            } else if (hours >= alertThreshold * 0.75) {
+                // Warning - Amber
+                diaperTimerCard.className = 'bg-white p-4 rounded-xl shadow-sm border border-amber-200 transition-all duration-300';
+                diaperTimerIcon.className = 'flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center transition-colors duration-300';
+                diaperTimerIcon.innerHTML = `
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                `;
+                diaperTimerDisplay.className = 'text-2xl font-semibold text-amber-600';
+                diaperTimerSubtitle.textContent = `Last: ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-[10px] text-amber-500 mt-0.5';
+                
                 const state = getNotificationState();
                 if (state.lastNotifiedTimestamp) {
-                    console.log('Diaper/Nappy change no longer overdue - resetting notification tracking');
                     saveNotificationState({});
                 }
-            }
-            
-            // Update styles based on elapsed time
-            if (hours >= alertThreshold) {
-                // Overdue - red alert
-                diaperTimerCard.className = 'bg-red-50 p-5 md:p-6 rounded-xl shadow-lg border-2 border-red-300 flex items-center justify-between gap-4 transition-all duration-300 animate-pulse';
-                diaperTimerDisplay.className = 'text-3xl font-bold text-red-700';
-                diaperTimerSubtitle.textContent = `⚠️ Overdue! Last change at ${timeStr}`;
-                diaperTimerSubtitle.className = 'text-sm text-red-600 mt-1 font-semibold';
-                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-red-200 text-2xl transition-all duration-300';
-            } else if (hours >= alertThreshold - 0.5) {
-                // Warning - approaching threshold (within 30 mins)
-                diaperTimerCard.className = 'bg-amber-50 p-5 md:p-6 rounded-xl shadow-md border-2 border-amber-300 flex items-center justify-between gap-4 transition-all duration-300';
-                diaperTimerDisplay.className = 'text-3xl font-bold text-amber-700';
-                diaperTimerSubtitle.textContent = `⏰ Soon! Last change at ${timeStr}`;
-                diaperTimerSubtitle.className = 'text-sm text-amber-600 mt-1 font-medium';
-                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-amber-200 text-2xl transition-all duration-300';
             } else {
-                // Normal - green/neutral
-                diaperTimerCard.className = 'bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4 transition-all duration-300';
-                diaperTimerDisplay.className = 'text-3xl font-bold text-emerald-600';
-                diaperTimerSubtitle.textContent = `✓ Last change at ${timeStr}`;
-                diaperTimerSubtitle.className = 'text-sm text-slate-500 mt-1';
-                diaperTimerIcon.className = 'hidden sm:flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-2xl transition-all duration-300';
+                // Normal - Neutral
+                diaperTimerCard.className = 'bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-300';
+                diaperTimerIcon.className = 'flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center transition-colors duration-300';
+                diaperTimerIcon.innerHTML = `
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                `;
+                diaperTimerDisplay.className = 'text-2xl font-semibold text-emerald-600';
+                diaperTimerSubtitle.textContent = `Last: ${timeStr}`;
+                diaperTimerSubtitle.className = 'text-[10px] text-slate-400 mt-0.5';
+                
+                const state = getNotificationState();
+                if (state.lastNotifiedTimestamp) {
+                    saveNotificationState({});
+                }
             }
         }
 
@@ -2920,7 +2968,7 @@
         });
 
         // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             // Start placeholder rotation
             startPlaceholderRotation();
             
@@ -2949,12 +2997,12 @@
             fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();
             // Setup ranges and controls before the first fetch so both history and trend pull the right window
-            setupHistoryRange();
+            await setupHistoryRange();
             setupHistoryFilters();
             initTrendChart();
             setupTrendControls();
             // Now load entries with both history and trend ranges established
-            loadEntries();
+            await loadEntries();
             setupMobileTabs();
             resetSpeechBars(false);
             renderSpeechRecent();
@@ -3176,9 +3224,9 @@
         }
 
         // History date/time range
-        function setupHistoryRange() {
+        async function setupHistoryRange() {
             // Initialize with Today
-            applyPreset('today');
+            await applyPreset('today');
         }
 
         function setupTrendControls() {
@@ -4121,8 +4169,9 @@
             const avgFeed = feedAmounts.length > 0
                 ? Math.round(feedAmounts.reduce((sum, amt) => sum + amt, 0) / feedAmounts.length)
                 : 0;
-            todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
-            totalFeedMlEl.textContent = `${Math.round(totalFeedMl)} ml`;
+            
+            if (todayFeedsEl) todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
+            if (totalFeedMlEl) totalFeedMlEl.textContent = `${Math.round(totalFeedMl)} ml`;
 
             // --- Feed Target Progress ---
             // Calculate goal based on the weight effective at the end of the selected range
@@ -4138,14 +4187,12 @@
 
             const targetEl = document.getElementById('target-feed-ml');
             const progressBar = document.getElementById('feed-progress-bar');
-            const progressText = document.getElementById('feed-progress-text');
+            const progressTextCompact = document.getElementById('feed-progress-text-compact');
             const basisText = document.getElementById('target-basis-text');
 
             if (latestWeight > 0) {
                 const weightKg = (latestWeight / 1000).toFixed(2);
                 const dailyTarget = Math.round((latestWeight / 1000) * 150);
-
-                if (targetEl) targetEl.textContent = `Goal: ${dailyTarget}`;
 
                 let days = 1;
                 if (historyRange.start && historyRange.end) {
@@ -4158,25 +4205,24 @@
 
                 if (progressBar) {
                     progressBar.style.width = `${percent}%`;
-                    if (percent < 50) progressBar.className = 'absolute top-0 left-0 h-full bg-rose-500 rounded-full transition-all duration-500';
-                    else if (percent < 85) progressBar.className = 'absolute top-0 left-0 h-full bg-amber-400 rounded-full transition-all duration-500';
-                    else progressBar.className = 'absolute top-0 left-0 h-full bg-emerald-500 rounded-full transition-all duration-500';
+                    progressBar.className = 'h-full bg-blue-500 rounded-full transition-all duration-500';
                 }
 
-                if (progressText) progressText.textContent = days > 1 ? `${percent}% of daily avg` : `${percent}% of daily goal`;
-                if (basisText) basisText.textContent = `Based on last: ${weightKg}kg`;
+                if (progressTextCompact) progressTextCompact.textContent = `${percent}%`;
+                if (basisText) basisText.textContent = `Goal: ${dailyTarget} ml (${weightKg}kg)`;
             } else {
-                if (targetEl) targetEl.textContent = '--';
                 if (progressBar) progressBar.style.width = '0%';
+                if (progressTextCompact) progressTextCompact.textContent = '0%';
+                if (basisText) basisText.textContent = 'Goal: --';
             }
 
             // Susu total
             const susuTotal = rangeEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
-            todaySusuEl.textContent = susuTotal;
+            if (todaySusuEl) todaySusuEl.textContent = susuTotal;
 
             // Poti total
             const potiTotal = rangeEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
-            todayPotiEl.textContent = potiTotal;
+            if (todayPotiEl) todayPotiEl.textContent = potiTotal;
 
             // Combined diaper total
             const diaperTotal = rangeEntries.reduce((sum, e) => {
@@ -4186,24 +4232,26 @@
                 }
                 return sum;
             }, 0);
-            totalDiapersEl.textContent = diaperTotal;
+            if (totalDiapersEl) totalDiapersEl.textContent = diaperTotal;
 
             // Average temperature
             const temps = rangeEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
             if (temps.length > 0) {
                 const avgTemp = (temps.reduce((sum, t) => sum + t, 0) / temps.length).toFixed(1);
-                avgTempEl.textContent = avgTemp;
-                avgTempEl.classList.toggle('text-red-600', avgTemp > 38);
+                if (avgTempEl) {
+                    avgTempEl.textContent = avgTemp;
+                    avgTempEl.classList.toggle('text-red-600', avgTemp > 38);
+                }
             } else {
-                avgTempEl.textContent = '--';
+                if (avgTempEl) avgTempEl.textContent = '--';
             }
 
             // Current weight
             const weightEntries = rangeEntries.filter(e => e.weight > 0).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             if (weightEntries.length > 0) {
-                currentWeightEl.textContent = weightEntries[0].weight;
+                if (currentWeightEl) currentWeightEl.textContent = weightEntries[0].weight;
             } else {
-                currentWeightEl.textContent = '--';
+                if (currentWeightEl) currentWeightEl.textContent = '--';
             }
         }
 
