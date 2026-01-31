@@ -4067,9 +4067,11 @@
                             <button onclick="editEntry(${entry.id}); stopShake(${entry.id})" class="pop-btn text-blue-500 hover:scale-110">
                                 <span class="text-xl">✏️</span>
                             </button>
+                            ${isSpeech ? '' : `
                             <button onclick="duplicateEntry(${entry.id}); stopShake(${entry.id})" class="pop-btn text-emerald-500 hover:scale-110">
                                 <span class="text-xl">📋</span>
                             </button>
+                            `}
                             <button onclick="confirmDeleteEntry(${entry.id}); stopShake(${entry.id})" class="pop-btn text-red-500 hover:scale-110">
                                 <span class="text-xl">🗑️</span>
                             </button>
@@ -4104,7 +4106,7 @@
                                     </div>
                                 </div>
 
-                                ${(isSpeech && !hasAudio && !entry.transcription) ? `
+                                ${(isSpeech && !entry.transcription) ? `
                                     <div class="text-xs text-indigo-500 mt-2 flex items-center gap-1.5 bg-indigo-50/50 p-2 rounded-lg w-fit">
                                         <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -4123,14 +4125,17 @@
                                             </svg>
                                         </button>
 
-                                        <!-- Compact Pill Player -->
+                                        <!-- Functional Pill Player -->
                                         <div class="inline-flex items-center gap-3 bg-slate-50 rounded-full pl-2 pr-4 py-1.5 border border-slate-100">
-                                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-[10px] cursor-pointer hover:bg-indigo-200 transition-colors" onclick="document.getElementById('audio-${entry.id}').play()">▶</div>
-                                             <audio id="audio-${entry.id}" src="${entry.audioUrl || entry.audio_url}" class="hidden"></audio>
-                                             <div class="h-1 w-20 bg-indigo-200 rounded-full overflow-hidden">
-                                                <div class="h-full bg-indigo-500 w-1/3 rounded-full"></div>
+                                            <button id="play-btn-${entry.id}" class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-[10px] cursor-pointer hover:bg-indigo-200 transition-colors" onclick="toggleAudioPlayback(${entry.id})">▶</button>
+                                             <audio id="audio-${entry.id}" src="${entry.audioUrl || entry.audio_url}" class="hidden" 
+                                                    onloadedmetadata="updateAudioDuration(${entry.id})"
+                                                    ontimeupdate="updateAudioProgress(${entry.id})"
+                                                    onended="resetAudioPlayer(${entry.id})"></audio>
+                                             <div class="h-1 w-20 bg-indigo-200 rounded-full overflow-hidden cursor-pointer" onclick="seekAudio(event, ${entry.id})">
+                                                <div id="progress-${entry.id}" class="h-full bg-indigo-500 rounded-full" style="width: 0%"></div>
                                              </div>
-                                             <span class="text-[10px] font-bold text-slate-400 tabular-nums">0:05</span>
+                                             <span id="time-${entry.id}" class="text-[10px] font-bold text-slate-400 tabular-nums">0:00</span>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -5015,6 +5020,95 @@
                 });
             }
         });
+
+        // ----------------------------------------------------
+        // AUDIO PLAYER CONTROLS
+        // ----------------------------------------------------
+        function toggleAudioPlayback(id) {
+            const audio = document.getElementById(`audio-${id}`);
+            const playBtn = document.getElementById(`play-btn-${id}`);
+            
+            if (!audio || !playBtn) return;
+            
+            if (audio.paused) {
+                // Pause all other audio players
+                document.querySelectorAll('audio').forEach(a => {
+                    if (a.id !== `audio-${id}` && !a.paused) {
+                        a.pause();
+                        const otherId = a.id.replace('audio-', '');
+                        const otherBtn = document.getElementById(`play-btn-${otherId}`);
+                        if (otherBtn) otherBtn.textContent = '▶';
+                    }
+                });
+                
+                audio.play();
+                playBtn.textContent = '⏸';
+            } else {
+                audio.pause();
+                playBtn.textContent = '▶';
+            }
+        }
+
+        function updateAudioDuration(id) {
+            const audio = document.getElementById(`audio-${id}`);
+            const timeDisplay = document.getElementById(`time-${id}`);
+            
+            if (!audio || !timeDisplay) return;
+            
+            const duration = audio.duration;
+            if (isFinite(duration)) {
+                timeDisplay.textContent = formatTime(duration);
+            }
+        }
+
+        function updateAudioProgress(id) {
+            const audio = document.getElementById(`audio-${id}`);
+            const progressBar = document.getElementById(`progress-${id}`);
+            const timeDisplay = document.getElementById(`time-${id}`);
+            
+            if (!audio || !progressBar || !timeDisplay) return;
+            
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = `${percent}%`;
+            
+            // Show current time / total duration
+            if (isFinite(audio.duration)) {
+                timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+            }
+        }
+
+        function resetAudioPlayer(id) {
+            const playBtn = document.getElementById(`play-btn-${id}`);
+            const progressBar = document.getElementById(`progress-${id}`);
+            const audio = document.getElementById(`audio-${id}`);
+            const timeDisplay = document.getElementById(`time-${id}`);
+            
+            if (playBtn) playBtn.textContent = '▶';
+            if (progressBar) progressBar.style.width = '0%';
+            if (audio && timeDisplay && isFinite(audio.duration)) {
+                timeDisplay.textContent = formatTime(audio.duration);
+            }
+        }
+
+        function seekAudio(event, id) {
+            const audio = document.getElementById(`audio-${id}`);
+            const progressContainer = event.currentTarget;
+            
+            if (!audio || !progressContainer) return;
+            
+            const rect = progressContainer.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const percent = clickX / rect.width;
+            
+            audio.currentTime = percent * audio.duration;
+        }
+
+        function formatTime(seconds) {
+            if (!isFinite(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
     </script>
 </body>
 
