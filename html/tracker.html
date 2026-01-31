@@ -1567,11 +1567,9 @@
         let speechStatus = 'idle';
         let selectedMimeType = 'audio/webm';
         
-        // Transcription polling state
-        let transcriptionPollingInterval = null;
-        const TRANSCRIPTION_POLL_INTERVAL = 3000; // Poll every 3 seconds
-        const POLLING_MAX_DURATION = 15000; // Stop polling after 45 seconds max
-        let pollingStartTime = null;
+        // Transcription polling state - using SSE for push notifications
+        let sseConnection = null;
+        let pendingSpeechEntries = new Set(); // Track entries waiting for transcription
 
         // Diaper timer state
         let diaperTimerInterval = null;
@@ -2321,8 +2319,8 @@
                     showToast('Re-transcribing and mapping...', 'success');
                 }
 
-                // Start polling to watch for transcription and auto-mapping
-                startTranscriptionPolling();
+                // Track this entry as pending transcription
+                pendingSpeechEntries.add(id);
                 
                 // Refresh list to show deleted entries
                 await loadEntries();
@@ -2362,61 +2360,122 @@
             updateSpeechUI();
         }
         
-        // Transcription polling functions
-        function startTranscriptionPolling() {
-            // Stop any existing polling first
-            stopTranscriptionPolling();
+        // Server-Sent Events (SSE) for real-time transcription updates
+        function initializeSSE() {
+            console.log('🔌 Initializing SSE connection...');
+            // Close existing connection if any
+            if (sseConnection) {
+                sseConnection.close();
+            }
             
-            console.log('▶️ Starting transcription polling (45 second max)');
-            pollingStartTime = Date.now();
+            const sseUrl = `${API_BASE_URL}/events/transcription`;
+            console.log('📡 Connecting to SSE endpoint:', sseUrl);
             
-            // Start polling - simple approach: just refresh data every 3 seconds
-            transcriptionPollingInterval = setInterval(async () => {
-                await checkForTranscriptionUpdates();
-            }, TRANSCRIPTION_POLL_INTERVAL);
+            // Create new SSE connection
+            sseConnection = new EventSource(sseUrl);
             
-            // Initial check
-            checkForTranscriptionUpdates();
+            sseConnection.onopen = () => {
+                console.log('✅ SSE connection established');
+            };
+            
+            // Listen for transcription complete events
+            sseConnection.addEventListener('transcription_complete', async (event) => {
+                const data = JSON.parse(event.data);
+                console.log('📨 Transcription complete event received:', data);
+                
+                const { speech_entry_id, success } = data;
+                
+                // Remove from pending set
+                pendingSpeechEntries.delete(speech_entry_id);
+                
+                if (success) {
+                    // Refresh speech entries to show new transcription
+                    await refreshSpeechEntries();
+                    showToast('Transcription complete!', 'success');
+                } else {
+                    showToast('Transcription failed', 'error');
+                }
+            });
+            
+            // Listen for auto-mapping complete events
+            sseConnection.addEventListener('mapping_complete', async (event) => {
+                const data = JSON.parse(event.data);
+                console.log('📨 Auto-mapping complete event received:', data);
+                
+                const { speech_entry_id, entry_id, success } = data;
+                
+                if (success) {
+                    // Refresh both speech entries (for notes update) and regular entries (for new entry)
+                    await Promise.all([
+                        refreshSpeechEntries(),
+                        loadEntries()
+                    ]);
+                    showToast(`Auto-mapped to entry #${entry_id}!`, 'success');
+                } else {
+                    // Still refresh to show updated notes
+                    await refreshSpeechEntries();
+                }
+            });
+            
+            sseConnection.onerror = (error) => {
+                console.error('❌ SSE connection error:', error);
+                console.log('SSE readyState:', sseConnection?.readyState);
+                // Start fallback polling if there are pending entries
+                if (pendingSpeechEntries.size > 0) {
+                    console.log('⚠️ SSE failed, starting fallback polling');
+                    startFallbackPolling();
+                }
+                // Attempt to reconnect after 5 seconds
+                setTimeout(() => {
+                    console.log('🔄 Reconnecting SSE...');
+                    stopFallbackPolling(); // Stop fallback when reconnecting
+                    initializeSSE();
+                }, 5000);
+            };
         }
         
-        function stopTranscriptionPolling() {
-            if (transcriptionPollingInterval) {
-                clearInterval(transcriptionPollingInterval);
-                transcriptionPollingInterval = null;
-                pollingStartTime = null;
-                console.log('⏹️ Stopped transcription polling');
+        // Helper to refresh speech entries without full page reload
+        async function refreshSpeechEntries() {
+            try {
+                const response = await fetch(SPEECH_ENTRIES_URL);
+                if (response.ok) {
+                    speechEntries = await response.json();
+                    renderSpeechRecent();
+                    console.log('🔄 Speech entries refreshed');
+                }
+            } catch (error) {
+                console.error('Failed to refresh speech entries:', error);
             }
         }
         
-        async function checkForTranscriptionUpdates() {
-            try {
-                // Check timeout - stop after max duration
-                const elapsed = Date.now() - pollingStartTime;
-                if (elapsed > POLLING_MAX_DURATION) {
-                    console.log(`⏰ Polling timeout (${elapsed}ms), stopping`);
-                    stopTranscriptionPolling();
+        // Fallback polling for when SSE is not available or fails
+        let fallbackPollingInterval = null;
+        
+        function startFallbackPolling() {
+            if (pendingSpeechEntries.size === 0) return;
+            
+            // Stop any existing polling
+            stopFallbackPolling();
+            
+            console.log('⏰ Starting fallback polling for:', Array.from(pendingSpeechEntries));
+            
+            fallbackPollingInterval = setInterval(async () => {
+                if (pendingSpeechEntries.size === 0) {
+                    stopFallbackPolling();
                     return;
                 }
                 
-                console.log(`🔍 Polling... (${Math.round(elapsed/1000)}s elapsed)`);
-                
-                // Fetch latest speech entries
-                const speechResponse = await fetch(SPEECH_ENTRIES_URL);
-                if (speechResponse.ok) {
-                    speechEntries = await speechResponse.json();
-                    renderSpeechRecent();
-                }
-                
-                // Fetch latest entries
-                const entriesResponse = await fetch(`${API_BASE_URL}/entries`);
-                if (entriesResponse.ok) {
-                    entries = await entriesResponse.json();
-                    renderEntries();
-                    updateStats();
-                }
-                
-            } catch (err) {
-                console.error('Polling error:', err);
+                console.log('🔍 Fallback polling... pending:', pendingSpeechEntries.size);
+                await refreshSpeechEntries();
+                await loadEntries();
+            }, 5000); // Poll every 5 seconds as fallback
+        }
+        
+        function stopFallbackPolling() {
+            if (fallbackPollingInterval) {
+                clearInterval(fallbackPollingInterval);
+                fallbackPollingInterval = null;
+                console.log('⏹️ Stopped fallback polling');
             }
         }
 
@@ -2496,9 +2555,9 @@
                 
                 // Show message about transcription status
                 if (!transcription) {
-                    showToast('Speech saved. Transcription processing in background...', 'success');
-                    // Start polling to watch for transcription completion
-                    startTranscriptionPolling();
+                    showToast('Speech saved. Waiting for transcription...', 'success');
+                    // Track this entry as pending
+                    pendingSpeechEntries.add(saved.id);
                 } else {
                     showToast('Speech saved.', 'success');
                 }
@@ -2674,13 +2733,21 @@
             if (diaperTimerInterval) {
                 clearInterval(diaperTimerInterval);
             }
-            stopTranscriptionPolling();
+            if (speechStream) {
+                speechStream.getTracks().forEach(track => track.stop());
+            }
+            stopFallbackPolling();
+            if (sseConnection) {
+                sseConnection.close();
+            }
         });
 
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             // Stop any stale polling from previous sessions
-            stopTranscriptionPolling();
+            stopFallbackPolling();
+            // Initialize SSE connection for real-time transcription updates
+            initializeSSE();
             
             fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();
