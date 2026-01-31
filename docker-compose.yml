@@ -55,10 +55,12 @@ services:
     command: >
       uv run gunicorn 
       --workers 4 
+      --worker-class gevent 
+      --worker-connections 1000 
       --bind 0.0.0.0:5000 
       --certfile=cert.pem 
       --keyfile=key.pem 
-      --timeout 120 
+      --timeout 300 
       app:app
     environment:
       DB_HOST: ${DB_HOST:-clickhouse}
@@ -75,6 +77,7 @@ services:
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
       AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
       AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       # Notification settings
       N8N_WEBHOOK_ID: ${N8N_WEBHOOK_ID}
       N8N_HOST: ${N8N_HOST:-n8n:5678}
@@ -89,6 +92,8 @@ services:
         condition: service_healthy
       n8n:
         condition: service_started
+      redis:
+        condition: service_started
     restart: unless-stopped
     volumes:
       - ./html:/app/html
@@ -96,6 +101,13 @@ services:
       - ./src:/app/src
       - ./cert.pem:/app/cert.pem
       - ./key.pem:/app/key.pem
+
+  redis:
+    image: redis:7-alpine
+    container_name: baby-tracker-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
 
   n8n:
     image: n8nio/n8n:latest

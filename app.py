@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory, Response
+from flask import Flask, jsonify, request, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import OperationalError
@@ -8,6 +8,9 @@ import time
 import pytz
 import uuid
 import threading
+import json
+import queue
+import redis
 from typing import Optional
 
 from src.log import get_logger
@@ -23,6 +26,40 @@ logger = get_logger(__name__)
 
 app = Flask(__name__, static_folder='html', static_url_path='')
 CORS(app)
+
+# SSE (Server-Sent Events) for real-time transcription updates
+# Global dict to store SSE queues for active connections
+sse_queues = {}
+sse_lock = threading.Lock()
+SSE_CHANNEL = 'sse_events'
+
+redis_client = None
+redis_url = os.environ.get('REDIS_URL')
+if redis_url:
+    try:
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        logger.info("Redis client initialized for SSE pubsub")
+    except Exception as e:
+        logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
+        redis_client = None
+
+def get_redis_client():
+    """Lazily initialize Redis client for SSE pubsub if available."""
+    global redis_client
+    if not redis_url:
+        return None
+    if redis_client is not None:
+        return redis_client
+    try:
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        logger.info("Redis client initialized for SSE pubsub (lazy)")
+        return redis_client
+    except Exception as e:
+        logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
+        redis_client = None
+        return None
 
 # Database configuration
 DB_CONFIG = {
@@ -131,6 +168,40 @@ else:
 # Background notification checker
 notification_checker_running = False
 notification_thread = None
+
+def broadcast_sse_event(event_type: str, data: dict):
+    """Broadcast an SSE event to all connected clients.
+    
+    Args:
+        event_type: Type of event (e.g., 'transcription_complete', 'mapping_complete')
+        data: Event data to send to clients
+    """
+    message = {'type': event_type, 'data': data}
+    redis_pub = get_redis_client()
+    if redis_pub:
+        try:
+            redis_pub.publish(SSE_CHANNEL, json.dumps(message))
+            logger.info(f"Published {event_type} to Redis SSE channel")
+            return
+        except Exception as e:
+            logger.warning(f"Redis publish failed, falling back to in-memory SSE: {e}")
+
+    with sse_lock:
+        disconnected_clients = []
+        for client_id, q in sse_queues.items():
+            try:
+                q.put_nowait(message)
+                logger.info(f"Broadcast {event_type} to client {client_id}")
+            except queue.Full:
+                logger.warning(f"Client {client_id} queue full, skipping event")
+            except Exception as e:
+                logger.error(f"Error broadcasting to client {client_id}: {e}")
+                disconnected_clients.append(client_id)
+        
+        # Clean up disconnected clients
+        for client_id in disconnected_clients:
+            sse_queues.pop(client_id, None)
+            logger.info(f"Removed disconnected client {client_id}")
 
 def run_notification_checker():
     """Background thread that periodically checks for overdue diaper changes."""
@@ -291,6 +362,13 @@ def update_speech_entry_transcription(result: dict):
             })
             logger.info(f"Updated entry {entry_id} with transcription")
             
+            # Broadcast SSE event for transcription completion
+            broadcast_sse_event('transcription_complete', {
+                'speech_entry_id': entry_id,
+                'success': True
+            })
+            logger.info(f"Broadcasted transcription_complete event for entry {entry_id}")
+            
             # If we have categorization enabled, submit categorization task
             if transcription and speech_processor and categorization_service:
                 # Get the object_key from the entry
@@ -313,6 +391,12 @@ def update_speech_entry_transcription(result: dict):
             client.close()
     except Exception as e:
         logger.error(f"Failed to update transcription for entry {entry_id}: {e}", exc_info=True)
+        # Broadcast failure event
+        broadcast_sse_event('transcription_complete', {
+            'speech_entry_id': entry_id,
+            'success': False,
+            'error': str(e)
+        })
 
 
 def create_entry_from_mapping(mapping_data: dict):
@@ -399,10 +483,25 @@ def create_entry_from_mapping(mapping_data: dict):
                 'sync': MUTATIONS_SYNC_LEVEL
             })
             
+            # Broadcast SSE event for mapping completion
+            broadcast_sse_event('mapping_complete', {
+                'speech_entry_id': speech_entry_id,
+                'entry_id': entry_id,
+                'category': category,
+                'success': True
+            })
+            logger.info(f"Broadcasted mapping_complete event for entry {entry_id}")
+            
         finally:
             client.close()
     except Exception as e:
         logger.error(f"Failed to create entry from speech entry {speech_entry_id}: {e}", exc_info=True)
+        # Broadcast failure event
+        broadcast_sse_event('mapping_complete', {
+            'speech_entry_id': speech_entry_id,
+            'success': False,
+            'error': str(e)
+        })
 
 
 def get_db_connection():
@@ -635,6 +734,76 @@ def index():
 def serve_static(path):
     """Serve static files"""
     return send_from_directory('html', path)
+
+@app.route('/api/events/transcription')
+def sse_stream():
+    """Server-Sent Events endpoint for real-time transcription updates."""
+    def event_stream():
+        redis_sub = get_redis_client()
+        if redis_sub:
+            client_id = str(uuid.uuid4())
+            pubsub = redis_sub.pubsub(ignore_subscribe_messages=True)
+            pubsub.subscribe(SSE_CHANNEL)
+            logger.info(f"SSE client {client_id} connected (Redis pubsub)")
+            try:
+                yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
+                while True:
+                    message = pubsub.get_message(timeout=30)
+                    if message and message.get('type') == 'message':
+                        try:
+                            payload = json.loads(message.get('data', '{}'))
+                            yield f"event: {payload['type']}\ndata: {json.dumps(payload['data'])}\n\n"
+                        except Exception as e:
+                            logger.error(f"Failed to parse SSE payload: {e}")
+                    else:
+                        yield f": heartbeat\n\n"
+            except GeneratorExit:
+                logger.info(f"SSE client {client_id} disconnected (Redis pubsub)")
+            finally:
+                try:
+                    pubsub.unsubscribe(SSE_CHANNEL)
+                    pubsub.close()
+                except Exception:
+                    pass
+            return
+
+        # Generate a unique client ID
+        client_id = str(uuid.uuid4())
+        
+        # Create a queue for this client
+        client_queue = queue.Queue(maxsize=10)
+        
+        with sse_lock:
+            sse_queues[client_id] = client_queue
+        
+        logger.info(f"SSE client {client_id} connected")
+        
+        try:
+            # Send initial connection confirmation
+            yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
+            
+            # Keep connection alive and send events
+            while True:
+                try:
+                    # Wait for events with timeout for heartbeat
+                    event = client_queue.get(timeout=30)
+                    yield f"event: {event['type']}\ndata: {json.dumps(event['data'])}\n\n"
+                except queue.Empty:
+                    # Send heartbeat to keep connection alive
+                    yield f": heartbeat\n\n"
+                    
+        except GeneratorExit:
+            logger.info(f"SSE client {client_id} disconnected")
+        finally:
+            # Clean up the client queue
+            with sse_lock:
+                sse_queues.pop(client_id, None)
+    
+    response = Response(stream_with_context(event_stream()), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
+    response.headers['Connection'] = 'keep-alive'
+    return response
 
 @app.route('/api/speech/upload', methods=['POST'])
 def upload_speech():
