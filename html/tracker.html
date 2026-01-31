@@ -1570,6 +1570,8 @@
         // Transcription polling state
         let transcriptionPollingInterval = null;
         const TRANSCRIPTION_POLL_INTERVAL = 3000; // Poll every 3 seconds
+        const POLLING_MAX_DURATION = 15000; // Stop polling after 45 seconds max
+        let pollingStartTime = null;
 
         // Diaper timer state
         let diaperTimerInterval = null;
@@ -2319,16 +2321,10 @@
                     showToast('Re-transcribing and mapping...', 'success');
                 }
 
-                // Reload speech entries to get the updated transcription state
-                const speechResponse = await fetch(SPEECH_ENTRIES_URL);
-                if (speechResponse.ok) {
-                    speechEntries = await speechResponse.json();
-                }
-                
-                // Start polling to watch for transcription and auto-mapping completion
+                // Start polling to watch for transcription and auto-mapping
                 startTranscriptionPolling();
                 
-                // Refresh list to show updated entries
+                // Refresh list to show deleted entries
                 await loadEntries();
             } catch (err) {
                 console.error('Retranscribe error:', err);
@@ -2368,129 +2364,59 @@
         
         // Transcription polling functions
         function startTranscriptionPolling() {
-            // Only start polling if there are entries without transcriptions
-            if (!speechEntries || speechEntries.length === 0) {
-                console.log('No speech entries to poll for');
-                return;
-            }
-            
-            const needsTranscription = speechEntries.some(e => !e.transcription);
-            if (!needsTranscription) {
-                console.log('All entries already have transcriptions');
-                return;
-            }
-            
-            // Stop any existing polling
+            // Stop any existing polling first
             stopTranscriptionPolling();
             
-            // Start polling for transcription updates
+            console.log('▶️ Starting transcription polling (45 second max)');
+            pollingStartTime = Date.now();
+            
+            // Start polling - simple approach: just refresh data every 3 seconds
             transcriptionPollingInterval = setInterval(async () => {
                 await checkForTranscriptionUpdates();
             }, TRANSCRIPTION_POLL_INTERVAL);
             
-            console.log('Started transcription polling');
+            // Initial check
+            checkForTranscriptionUpdates();
         }
         
         function stopTranscriptionPolling() {
             if (transcriptionPollingInterval) {
                 clearInterval(transcriptionPollingInterval);
                 transcriptionPollingInterval = null;
-                console.log('Stopped transcription polling');
+                pollingStartTime = null;
+                console.log('⏹️ Stopped transcription polling');
             }
         }
         
         async function checkForTranscriptionUpdates() {
             try {
-                console.log('🔍 Polling for transcription updates...');
-                
-                // Safety check
-                if (!speechEntries || speechEntries.length === 0) {
-                    console.log('⏹️ No speech entries, stopping polling');
+                // Check timeout - stop after max duration
+                const elapsed = Date.now() - pollingStartTime;
+                if (elapsed > POLLING_MAX_DURATION) {
+                    console.log(`⏰ Polling timeout (${elapsed}ms), stopping`);
                     stopTranscriptionPolling();
                     return;
                 }
                 
+                console.log(`🔍 Polling... (${Math.round(elapsed/1000)}s elapsed)`);
+                
                 // Fetch latest speech entries
                 const speechResponse = await fetch(SPEECH_ENTRIES_URL);
-                if (!speechResponse.ok) {
-                    console.warn('Failed to fetch speech entries:', speechResponse.status);
-                    return;
-                }
-                
-                const latestSpeechEntries = await speechResponse.json();
-                
-                // Validate response
-                if (!Array.isArray(latestSpeechEntries)) {
-                    console.warn('Invalid speech entries response format:', latestSpeechEntries);
-                    return;
-                }
-                
-                // Also fetch latest regular entries to detect auto-mapped entries
-                const entriesResponse = await fetch(`${API_BASE_URL}/entries`);
-                if (!entriesResponse.ok) {
-                    console.warn('Failed to fetch entries:', entriesResponse.status);
-                    return;
-                }
-                
-                const latestRegularEntries = await entriesResponse.json();
-                
-                let hasUpdates = false;
-                let updateReasons = [];
-                
-                // Check if any speech entries got new transcriptions or notes updates
-                latestSpeechEntries.forEach(latest => {
-                    if (!latest || !latest.id) return;
-                    
-                    const existing = speechEntries.find(e => e && e.id === latest.id);
-                    if (existing) {
-                        // Check for new transcription
-                        if (!existing.transcription && latest.transcription) {
-                            hasUpdates = true;
-                            updateReasons.push(`New transcription for speech #${latest.id}`);
-                        }
-                        // Check for notes updates (auto-mapping references added)
-                        if (existing.notes !== latest.notes) {
-                            hasUpdates = true;
-                            updateReasons.push(`Notes updated for speech #${latest.id}`);
-                        }
-                    }
-                });
-                
-                // Check if new regular entries were created (auto-mapping)
-                if (latestRegularEntries.length > entries.length) {
-                    hasUpdates = true;
-                    const newCount = latestRegularEntries.length - entries.length;
-                    updateReasons.push(`${newCount} new entries created`);
-                }
-                
-                if (hasUpdates) {
-                    console.log('✅ Updates detected:', updateReasons.join(', '));
-                    
-                    // Update speech entries
-                    speechEntries = latestSpeechEntries;
+                if (speechResponse.ok) {
+                    speechEntries = await speechResponse.json();
                     renderSpeechRecent();
-                    
-                    // Update regular entries
-                    entries = latestRegularEntries;
+                }
+                
+                // Fetch latest entries
+                const entriesResponse = await fetch(`${API_BASE_URL}/entries`);
+                if (entriesResponse.ok) {
+                    entries = await entriesResponse.json();
                     renderEntries();
                     updateStats();
-                    updateTrendChart();
-                    
-                    // Count entries still pending transcription
-                    const pendingCount = speechEntries.filter(e => e && !e.transcription).length;
-                    console.log(`📊 Pending transcriptions: ${pendingCount}`);
-                    
-                    // Stop polling only if no entries are pending transcription
-                    if (pendingCount === 0) {
-                        console.log('🎉 All transcriptions complete, stopping polling');
-                        stopTranscriptionPolling();
-                    }
-                } else {
-                    console.log('⏸️ No updates detected');
                 }
+                
             } catch (err) {
-                console.error('Transcription polling error:', err);
-                // Don't stop polling on error, it might be transient
+                console.error('Polling error:', err);
             }
         }
 
@@ -2571,7 +2497,7 @@
                 // Show message about transcription status
                 if (!transcription) {
                     showToast('Speech saved. Transcription processing in background...', 'success');
-                    // Start polling for transcription updates
+                    // Start polling to watch for transcription completion
                     startTranscriptionPolling();
                 } else {
                     showToast('Speech saved.', 'success');
@@ -2753,6 +2679,9 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
+            // Stop any stale polling from previous sessions
+            stopTranscriptionPolling();
+            
             fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();
             // Setup ranges and controls before the first fetch so both history and trend pull the right window
