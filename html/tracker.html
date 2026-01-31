@@ -434,6 +434,7 @@
             right: 0;
             display: flex;
             z-index: 0;
+            border-radius: 1rem;
         }
 
         .swipe-action-btn {
@@ -447,16 +448,19 @@
             transition: background-color 0.2s;
         }
 
+        .swipe-action-btn:last-child {
+            border-radius: 0 1rem 1rem 0;
+        }
+
         .swipe-content {
             position: relative;
             z-index: 10;
-            background: white;
             transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
             will-change: transform;
         }
 
         .swipe-content:active {
-            background-color: #f8fafc;
+            opacity: 0.95;
         }
 
         /* Context Menu */
@@ -3957,9 +3961,6 @@
             const spansMultipleDays = historyRange?.start && historyRange?.end
                 ? historyRange.start.toDateString() !== historyRange.end.toDateString()
                 : false;
-            // const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            // const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-            // const timeStr = (spansMultipleDays || !isToday) ? `${dateLabel} | ${timeLabel}` : timeLabel;
 
             const dateTimeLabel = date.toLocaleString('en-GB', {
                 day: '2-digit',
@@ -3980,45 +3981,57 @@
             let title = '';
             let subtitle = '';
             let bgColor = 'bg-slate-50';
+            let iconBg = 'bg-slate-100';
 
             if (entry.feed_amount || entry.feed_type) {
                 icon = '🍼';
                 title = 'Feed';
                 subtitle = entry.feed_amount ? `${entry.feed_amount}mL ${entry.feed_type ? `(${entry.feed_type})` : ''}` : entry.feed_type || '';
                 bgColor = 'bg-sky-50';
+                iconBg = 'bg-sky-100';
             } else if (entry.susu_count > 0) {
                 icon = '💧';
                 title = 'Urine';
                 const { itemType } = parseSusuNotes(entry.notes);
                 subtitle = formatItemSubtitle(entry.susu_count, 'wet', itemType);
                 bgColor = 'bg-indigo-50';
+                iconBg = 'bg-indigo-100';
             } else if (entry.poti_count > 0) {
                 icon = '💩';
                 title = 'Stool';
                 const { itemType } = parsePotiNotes(entry.notes);
                 subtitle = `${formatItemSubtitle(entry.poti_count, 'soiled', itemType)}${entry.poti_color ? ` (${entry.poti_color})` : ''}`;
                 bgColor = 'bg-amber-50';
+                iconBg = 'bg-amber-100';
             } else if (entry.temperature) {
                 icon = '🌡️';
                 title = 'Temperature';
                 subtitle = `${entry.temperature}°C`;
                 bgColor = entry.temperature > 38 ? 'bg-red-50' : 'bg-emerald-50';
+                iconBg = entry.temperature > 38 ? 'bg-red-100' : 'bg-emerald-100';
             } else if (entry.weight) {
                 icon = '⚖️';
                 title = 'Weight';
                 subtitle = `${entry.weight}g`;
                 bgColor = 'bg-purple-50';
+                iconBg = 'bg-purple-100';
             } else if (getEntryType(entry) === 'speech') {
                 icon = '🎙️';
-                title = 'Speech';
+                title = 'Speech Log';
                 const categoryLabel = entry.category ? entry.category : 'Voice note';
                 const transcribingLabel = (!entry.transcription) ? ' • <span class="text-indigo-500 animate-pulse">Transcribing...</span>' : '';
-                subtitle = `${formatDuration(entry.duration_ms)} · ${categoryLabel}${transcribingLabel}`;
+                subtitle = `${categoryLabel}${transcribingLabel}`;
                 bgColor = 'bg-rose-50';
+                iconBg = 'bg-rose-100';
             }
 
+            const isSpeech = getEntryType(entry) === 'speech';
+            const hasAudio = isSpeech && (entry.audioUrl || entry.audio_url);
+            const hasTranscription = isSpeech && entry.transcription;
+            const hasMetadata = hasAudio || hasTranscription;
+
             return `
-                <div class="swipe-container rounded-xl mb-3 shadow-sm" data-id="${entry.id}">
+                <div class="timeline-item swipe-container rounded-2xl mb-3" data-id="${entry.id}">
                     <!-- Actions (Background) -->
                     <div class="swipe-actions">
                         <button class="swipe-action-btn bg-slate-100 text-slate-600 hover:bg-slate-200" onclick="editEntry(${entry.id})">
@@ -4032,62 +4045,54 @@
                     </div>
 
                     <!-- Content (Foreground) -->
-                    <div class="swipe-content ${bgColor} p-4 border border-slate-200 rounded-xl flex items-center gap-4 cursor-pointer"
-                         onclick="handleEntryClick(event, ${entry.id})"
+                    <div class="swipe-content ${bgColor} p-4 border-0 rounded-2xl shadow-sm hover:shadow-md transition-all"
                          ontouchstart="handleTouchStart(event)"
                          ontouchmove="handleTouchMove(event)"
                          ontouchend="handleTouchEnd(event)"
                          oncontextmenu="handleContextMenu(event, ${entry.id})">
                         
-                        <div class="text-3xl w-10 text-center flex-shrink-0">${icon}</div>
-                        
-                        <div class="flex-1 min-w-0">
-                            <div class="font-bold text-slate-800 text-lg truncate pr-2">${title}</div>
-                            <div class="text-slate-600 text-sm truncate">${subtitle}</div>
-                            ${entry.notes ? `
-                                <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1 truncate">
-                                    <span class="opacity-70">📝</span> <span class="italic">${entry.notes}</span>
-                                </div>
-                            ` : ''}
-                            ${(getEntryType(entry) === 'speech' && entry.transcription) ? `
-                                <div class="text-xs text-slate-600 mt-1.5 overflow-hidden text-ellipsis line-clamp-2">
-                                    "${entry.transcription}"
-                                </div>
-                            ` : ''}
-                            ${(getEntryType(entry) === 'speech' && !entry.transcription) ? `
-                                <div class="text-xs text-indigo-500 mt-1.5 italic flex items-center gap-1">
-                                    <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span>Generating transcription...</span>
-                                </div>
-                            ` : ''}
-                        </div>
-
-                        <div class="flex flex-col items-end justify-between self-stretch flex-shrink-0 gap-2">
-                            <div class="text-sm font-semibold text-slate-500 whitespace-nowrap">${timeStr}</div>
+                        <div class="flex items-start gap-3.5">
+                            <!-- Icon - Primary Visual Anchor -->
+                            <div class="timeline-icon ${iconBg} flex-shrink-0">${icon}</div>
                             
-                            <div class="flex items-center gap-2">
-                                ${getEntryType(entry) === 'speech' && (entry.audioUrl || entry.audio_url) ? `
-                                    <button onclick="event.stopPropagation(); retranscribeEntry(${entry.id})" title="Re-transcribe" 
-                                            class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                    </button>
-                                    <div class="w-32 md:w-36">
-                                        <audio id="audio-${entry.id}" controls src="${entry.audioUrl || entry.audio_url}" class="w-full h-8"></audio>
+                            <!-- Content -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-start justify-between gap-3 mb-1">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-slate-900 text-base mb-1">${title}</div>
+                                        <div class="text-slate-600 text-sm">${subtitle}</div>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <div class="text-xs font-medium text-slate-400 whitespace-nowrap">${timeStr}</div>
+                                    </div>
+                                </div>
+                                
+                                ${entry.notes ? `
+                                    <div class="text-xs text-slate-500 mt-1.5 flex items-start gap-1">
+                                        <span class="opacity-50">📝</span> <span class="italic">${entry.notes}</span>
                                     </div>
                                 ` : ''}
 
-                                <!-- Desktop Menu Trigger -->
-                                <button class="desktop-menu-btn hidden md:block opacity-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-opacity rounded-full hover:bg-black/5" 
-                                        onclick="showContextMenu(event, ${entry.id})">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                                    </svg>
-                                </button>
+                                ${isSpeech && !entry.transcription ? `
+                                    <div class="text-xs text-indigo-500 mt-1.5 italic flex items-center gap-1.5">
+                                        <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Generating transcription...</span>
+                                    </div>
+                                ` : ''}
+
+                                ${hasMetadata ? `
+                                    <!-- Inline Metadata Content -->
+                                    <div class="metadata-content mt-2.5">
+                                        ${hasAudio ? `
+                                            <div class="flex items-center gap-2">
+                                                <audio id="audio-${entry.id}" controls src="${entry.audioUrl || entry.audio_url}" class="flex-1 h-9" style="max-width: 280px;"></audio>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
