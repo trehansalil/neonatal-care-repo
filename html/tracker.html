@@ -92,15 +92,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Apple-style Swipe Container */
-        .swipe-content {
-            background: white;
-            border: 1px solid rgba(0, 0, 0, 0.03);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-            /* Will be set to position relative by logic, 
-               but we overwrite styling here to ensure clean white look */
-        }
-
         .action-card {
             cursor: pointer;
             transition: all 0.3s ease;
@@ -546,17 +537,6 @@
 
         .swipe-action-btn:last-child {
             border-radius: 0 1rem 1rem 0;
-        }
-
-        .swipe-content {
-            position: relative;
-            z-index: 10;
-            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            will-change: transform;
-        }
-
-        .swipe-content:active {
-            opacity: 0.95;
         }
 
         /* Context Menu */
@@ -3100,7 +3080,7 @@
             fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();
             // Setup ranges and controls before the first fetch so both history and trend pull the right window
-            await setupHistoryRange();
+            setupHistoryRange();
             setupHistoryFilters();
             // Sync filter chip UI with typeFilters Set
             document.querySelectorAll('.filter-chip[data-type]').forEach(chip => {
@@ -3336,9 +3316,14 @@
         }
 
         // History date/time range
-        async function setupHistoryRange() {
-            // Initialize with Today
-            await applyPreset('today');
+        function setupHistoryRange() {
+            // Initialize with Today range (without loading entries)
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            const end = new Date();
+            end.setHours(23, 59, 59, 999);
+            historyRange = { start, end };
+            updateRangeSummary('Today', 'today');
         }
 
         function setupTrendControls() {
@@ -3797,88 +3782,7 @@
             renderEntries();
         }
 
-        // --- Interaction Logic for Swipe & Context Menu ---
-
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let isSwiping = false;
-
-        function handleEntryClick(e, id) {
-            // If we were swiping, don't trigger click
-            if (isSwiping) return;
-
-            // If clicking on menu button, don't trigger edit
-            if (e.target.closest('.desktop-menu-btn')) return;
-
-            // If swiped open, close it
-            const content = e.currentTarget;
-            if (content.style.transform && content.style.transform !== 'translateX(0px)') {
-                resetSwipe(content);
-                return;
-            }
-
-            editEntry(id);
-        }
-
-        function handleTouchStart(e) {
-            const content = e.currentTarget;
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            isSwiping = false;
-
-            // Close other open swipes
-            document.querySelectorAll('.swipe-content').forEach(el => {
-                if (el !== content) resetSwipe(el);
-            });
-        }
-
-        function handleTouchMove(e) {
-            const content = e.currentTarget;
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            const diffX = touchX - touchStartX;
-            const diffY = touchY - touchStartY;
-
-            // Determine if scrolling or swiping
-            if (!isSwiping) {
-                // More horizontal than vertical movement
-                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
-                    isSwiping = true;
-                } else {
-                    return; // Vertical scroll, let browser handle it
-                }
-            }
-
-            if (isSwiping) {
-                if (e.cancelable) e.preventDefault(); // Prevent scroll
-                // Only allow swiping left (negative diffX)
-                // Limit swipe to -160px (width of 2 buttons)
-                const newX = Math.min(0, Math.max(-160, diffX));
-                content.style.transform = `translateX(${newX}px)`;
-            }
-        }
-
-        function handleTouchEnd(e) {
-            const content = e.currentTarget;
-            if (!isSwiping) return;
-
-            const touchX = e.changedTouches[0].clientX;
-            const diffX = touchX - touchStartX;
-
-            // Snap to open or closed
-            if (diffX < -60) { // Swiped enough to open
-                content.style.transform = 'translateX(-160px)';
-            } else {
-                resetSwipe(content);
-            }
-
-            // Reset flag after a short delay to prevent click trigger
-            setTimeout(() => { isSwiping = false; }, 100);
-        }
-
-        function resetSwipe(element) {
-            element.style.transform = 'translateX(0px)';
-        }
+        // --- Interaction Logic for Context Menu ---
 
         function confirmDeleteEntry(id) {
             // Use a custom modal or native confirm
@@ -4160,7 +4064,7 @@
 
                         <div class="flex items-start gap-5">
                             <!-- Icon Circle -->
-                            <div class="w-12 h-12 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0 text-xl shadow-inner-sm">
+                            <div class="w-12 h-12 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0 text-xl shadow-inner shadow-sm">
                                 ${icon}
                             </div>
                             
