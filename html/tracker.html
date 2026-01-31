@@ -2747,7 +2747,24 @@
             // Stop any stale polling from previous sessions
             stopFallbackPolling();
             // Initialize SSE connection for real-time transcription updates
-            initializeSSE();
+            const sseSupported = typeof EventSource !== 'undefined';
+            if (sseSupported) {
+                initializeSSE();
+            } else {
+                console.warn('SSE not supported in this browser. Using fallback polling.');
+                startFallbackPolling();
+            }
+
+            // Reconnect SSE when returning to the tab
+            document.addEventListener('visibilitychange', () => {
+                if (!sseSupported) return;
+                if (document.visibilityState === 'visible') {
+                    const closed = !sseConnection || sseConnection.readyState === EventSource.CLOSED;
+                    if (closed) {
+                        initializeSSE();
+                    }
+                }
+            });
             
             fetchWebhookConfig(); // Load webhook configuration
             restoreViewPrefs();

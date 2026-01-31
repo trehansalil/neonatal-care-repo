@@ -44,6 +44,23 @@ if redis_url:
         logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
         redis_client = None
 
+def get_redis_client():
+    """Lazily initialize Redis client for SSE pubsub if available."""
+    global redis_client
+    if not redis_url:
+        return None
+    if redis_client is not None:
+        return redis_client
+    try:
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        logger.info("Redis client initialized for SSE pubsub (lazy)")
+        return redis_client
+    except Exception as e:
+        logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
+        redis_client = None
+        return None
+
 # Database configuration
 DB_CONFIG = {
     # Default to localhost for easy local dev; docker-compose passes DB_HOST=clickhouse
@@ -160,9 +177,10 @@ def broadcast_sse_event(event_type: str, data: dict):
         data: Event data to send to clients
     """
     message = {'type': event_type, 'data': data}
-    if redis_client:
+    redis_pub = get_redis_client()
+    if redis_pub:
         try:
-            redis_client.publish(SSE_CHANNEL, json.dumps(message))
+            redis_pub.publish(SSE_CHANNEL, json.dumps(message))
             logger.info(f"Published {event_type} to Redis SSE channel")
             return
         except Exception as e:
@@ -721,9 +739,10 @@ def serve_static(path):
 def sse_stream():
     """Server-Sent Events endpoint for real-time transcription updates."""
     def event_stream():
-        if redis_client:
+        redis_sub = get_redis_client()
+        if redis_sub:
             client_id = str(uuid.uuid4())
-            pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
+            pubsub = redis_sub.pubsub(ignore_subscribe_messages=True)
             pubsub.subscribe(SSE_CHANNEL)
             logger.info(f"SSE client {client_id} connected (Redis pubsub)")
             try:
