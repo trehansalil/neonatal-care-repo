@@ -1531,6 +1531,7 @@
         </div>
     </div>
 
+
     <script>
         // API Configuration
         const API_BASE_URL = '/api';
@@ -2373,52 +2374,68 @@
             
             // Create new SSE connection
             sseConnection = new EventSource(sseUrl);
+
             
             sseConnection.onopen = () => {
-                console.log('✅ SSE connection established');
+                console.log(`[${new Date().toISOString()}] ✅ SSE connection established`);
+            };
+
+            // Log generic messages (e.g., initial connected payload)
+            sseConnection.onmessage = (event) => {
+                console.log(`[${new Date().toISOString()}] 📨 SSE message`, event.data);
             };
             
             // Listen for transcription complete events
             sseConnection.addEventListener('transcription_complete', async (event) => {
-                const data = JSON.parse(event.data);
-                console.log('📨 Transcription complete event received:', data);
+                try {
+                    console.log(`[${new Date().toISOString()}] 📨 transcription_complete raw`, event.data);
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 📨 transcription_complete`, data);
                 
-                const { speech_entry_id, success } = data;
+                    const { speech_entry_id, success } = data;
                 
-                // Remove from pending set
-                pendingSpeechEntries.delete(speech_entry_id);
+                    // Remove from pending set
+                    pendingSpeechEntries.delete(speech_entry_id);
                 
-                if (success) {
-                    // Refresh speech entries to show new transcription
-                    await refreshSpeechEntries();
-                    showToast('Transcription complete!', 'success');
-                } else {
-                    showToast('Transcription failed', 'error');
+                    if (success) {
+                        // Refresh speech entries to show new transcription
+                        await refreshSpeechEntries();
+                        showToast('Transcription complete!', 'success');
+                    } else {
+                        showToast('Transcription failed', 'error');
+                    }
+                } catch (err) {
+                    console.error(`[${new Date().toISOString()}] ❌ transcription_complete handler error`, err, event.data);
                 }
             });
             
             // Listen for auto-mapping complete events
             sseConnection.addEventListener('mapping_complete', async (event) => {
-                const data = JSON.parse(event.data);
-                console.log('📨 Auto-mapping complete event received:', data);
+                try {
+                    console.log(`[${new Date().toISOString()}] 📨 mapping_complete raw`, event.data);
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 📨 mapping_complete`, data);
                 
-                const { speech_entry_id, entry_id, success } = data;
+                    const { speech_entry_id, entry_id, success } = data;
                 
-                if (success) {
-                    // Refresh both speech entries (for notes update) and regular entries (for new entry)
-                    await Promise.all([
-                        refreshSpeechEntries(),
-                        loadEntries()
-                    ]);
-                    showToast(`Auto-mapped to entry #${entry_id}!`, 'success');
-                } else {
-                    // Still refresh to show updated notes
-                    await refreshSpeechEntries();
+                    if (success) {
+                        // Refresh both speech entries (for notes update) and regular entries (for new entry)
+                        await Promise.all([
+                            refreshSpeechEntries(),
+                            loadEntries()
+                        ]);
+                        showToast(`Auto-mapped to entry #${entry_id}!`, 'success');
+                    } else {
+                        // Still refresh to show updated notes
+                        await refreshSpeechEntries();
+                    }
+                } catch (err) {
+                    console.error(`[${new Date().toISOString()}] ❌ mapping_complete handler error`, err, event.data);
                 }
             });
             
             sseConnection.onerror = (error) => {
-                console.error('❌ SSE connection error:', error);
+                console.error(`[${new Date().toISOString()}] ❌ SSE connection error`, error);
                 console.log('SSE readyState:', sseConnection?.readyState);
                 // Start fallback polling if there are pending entries
                 if (pendingSpeechEntries.size > 0) {
