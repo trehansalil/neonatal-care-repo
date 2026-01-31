@@ -231,9 +231,11 @@
             user-select: none;
         }
 
-        /* Make emojis slightly larger for better visibility */
-        .filter-chip::first-line {
+        /* Make emojis slightly larger for better visibility.
+           Wrap the emoji in: <span class="filter-chip-emoji">😊</span> */
+        .filter-chip-emoji {
             font-size: 16px;
+            line-height: 1;
         }
 
         /* Active Touch State */
@@ -1031,12 +1033,12 @@
             <!-- iOS Style Scrollable Filters -->
             <div class="mb-4">
                 <div class="filter-scroll-container">
-                    <button class="filter-chip active" data-type="feed">🍼 Feed</button>
-                    <button class="filter-chip active" data-type="susu">💧 Susu</button>
-                    <button class="filter-chip active" data-type="poti">💩 Poti</button>
-                    <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
-                    <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
-                    <button class="filter-chip" data-type="speech">🎙️ Speech</button>
+                    <button class="filter-chip active" data-type="feed"><span class="filter-chip-emoji">🍼</span> Feed</button>
+                    <button class="filter-chip active" data-type="susu"><span class="filter-chip-emoji">💧</span> Susu</button>
+                    <button class="filter-chip active" data-type="poti"><span class="filter-chip-emoji">💩</span> Poti</button>
+                    <button class="filter-chip active" data-type="temp"><span class="filter-chip-emoji">🌡️</span> Temp</button>
+                    <button class="filter-chip active" data-type="weight"><span class="filter-chip-emoji">⚖️</span> Weight</button>
+                    <button class="filter-chip" data-type="speech"><span class="filter-chip-emoji">🎙️</span> Speech</button>
                 </div>
             </div>
 
@@ -4038,6 +4040,8 @@
                 <div class="timeline-item mb-4 select-none" data-id="${entry.id}"
                      onmousedown="handleLongPressStart(event, ${entry.id})" 
                      ontouchstart="handleLongPressStart(event, ${entry.id})"
+                     onmousemove="handleLongPressMove(event)"
+                     ontouchmove="handleLongPressMove(event)"
                      onmouseup="handleLongPressEnd()" 
                      ontouchend="handleLongPressEnd()"
                      onmouseleave="handleLongPressEnd()"
@@ -4883,7 +4887,10 @@
         // LONG PRESS / JIGGLE LOGIC
         // ----------------------------------------------------
         let longPressTimer;
+        let longPressStartX = 0;
+        let longPressStartY = 0;
         const LONG_PRESS_DURATION = 500; // ms
+        const MOVEMENT_THRESHOLD = 10; // px - cancel long press if moved more than this
 
         function handleLongPressStart(e, id) {
             // If already shaking, ignore
@@ -4892,6 +4899,15 @@
 
             // Only left click or touch
             if (e.type === 'mousedown' && e.button !== 0) return;
+
+            // Store initial position
+            if (e.type === 'touchstart') {
+                longPressStartX = e.touches[0].clientX;
+                longPressStartY = e.touches[0].clientY;
+            } else {
+                longPressStartX = e.clientX;
+                longPressStartY = e.clientY;
+            }
 
             // Prevent default context menu on long press if on touch device
             // e.preventDefault(); // This might block scrolling? Test carefully.
@@ -4903,8 +4919,31 @@
             }, LONG_PRESS_DURATION);
         }
 
+        function handleLongPressMove(e) {
+            // Cancel long press if user moves beyond threshold (likely scrolling)
+            if (!longPressTimer) return;
+
+            let currentX, currentY;
+            if (e.type === 'touchmove') {
+                currentX = e.touches[0].clientX;
+                currentY = e.touches[0].clientY;
+            } else {
+                currentX = e.clientX;
+                currentY = e.clientY;
+            }
+
+            const deltaX = Math.abs(currentX - longPressStartX);
+            const deltaY = Math.abs(currentY - longPressStartY);
+
+            if (deltaX > MOVEMENT_THRESHOLD || deltaY > MOVEMENT_THRESHOLD) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+
         function handleLongPressEnd() {
             clearTimeout(longPressTimer);
+            longPressTimer = null;
         }
 
         function startShake(id) {
