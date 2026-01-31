@@ -3674,7 +3674,20 @@
             const customLabel = document.getElementById('custom-range-label');
 
             // Deactivate all preset chips (exclude custom btn)
-            const presetChips = document.querySelectorAll('.filter-scroll-container button:not(#custom-range-btn)');
+            let presetChips;
+            if (customBtn) {
+                const presetsContainer = customBtn.closest('.filter-scroll-container');
+                if (presetsContainer) {
+                    // Scope to the presets container that holds the custom range button
+                    presetChips = presetsContainer.querySelectorAll('button:not(#custom-range-btn)');
+                } else {
+                    // Fallback: previous global behavior if container cannot be resolved
+                    presetChips = document.querySelectorAll('.filter-scroll-container button:not(#custom-range-btn)');
+                }
+            } else {
+                // Fallback: previous global behavior if custom button cannot be found
+                presetChips = document.querySelectorAll('.filter-scroll-container button:not(#custom-range-btn)');
+            }
             presetChips.forEach(chip => chip.classList.remove('active'));
 
             if (activePreset) {
@@ -4738,7 +4751,15 @@
         // Show Toast Message
         function showToast(text, type) {
             const toast = document.createElement('div');
-            toast.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} text-white font-semibold animate-slide-in`;
+            let bgColor;
+            if (type === 'success') {
+                bgColor = 'bg-emerald-500';
+            } else if (type === 'info') {
+                bgColor = 'bg-blue-500';
+            } else {
+                bgColor = 'bg-red-500';
+            }
+            toast.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${bgColor} text-white font-semibold animate-slide-in`;
             toast.textContent = text;
             document.body.appendChild(toast);
 
@@ -4818,6 +4839,23 @@
                 if (!resp.ok) {
                     const errorData = await resp.json().catch(() => ({}));
                     throw new Error(errorData.error || 'Transcription request failed');
+                }
+
+                // Ensure retranscription is tracked in case SSE is unavailable
+                try {
+                    if (typeof pendingSpeechEntries !== 'undefined') {
+                        // Support both Set-like and Array-like implementations
+                        if (typeof pendingSpeechEntries.add === 'function') {
+                            pendingSpeechEntries.add(id);
+                        } else if (Array.isArray(pendingSpeechEntries) && !pendingSpeechEntries.includes(id)) {
+                            pendingSpeechEntries.push(id);
+                        }
+                    }
+                    if (typeof startFallbackPolling === 'function') {
+                        startFallbackPolling();
+                    }
+                } catch (trackingErr) {
+                    console.warn('Failed to register pending retranscription', trackingErr);
                 }
 
                 if (deletedCount > 0) {
@@ -4959,7 +4997,9 @@
         }
 
         function stopShake(id) {
-            if (event) event.stopPropagation();
+            if (typeof event !== 'undefined' && event) {
+                event.stopPropagation();
+            }
 
             const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
             if (item) {
