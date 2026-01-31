@@ -1566,6 +1566,10 @@
         let speechDraft = null;
         let speechStatus = 'idle';
         let selectedMimeType = 'audio/webm';
+        
+        // Transcription polling state
+        let transcriptionPollingInterval = null;
+        const TRANSCRIPTION_POLL_INTERVAL = 3000; // Poll every 3 seconds
 
         // Diaper timer state
         let diaperTimerInterval = null;
@@ -2111,11 +2115,6 @@
             speechStatus = 'stopped';
             resetSpeechBars(false);
             updateSpeechUI();
-
-            // Auto-transcribe immediately after stopping
-            setTimeout(() => {
-                hydrateSpeechTranscription();
-            }, 10);
         }
 
         async function startSpeechRecording() {
@@ -2233,77 +2232,79 @@
         }
 
         async function hydrateSpeechTranscription(force = false) {
-            if (!speechDraft || (!speechDraft.blob && !speechDraft.object_key)) {
-                showToast('Please record something first.', 'info');
-                return;
-            }
-
-            const btn = force ? document.getElementById('speech-retranscribe-modal-btn') : document.querySelector('button[onclick="hydrateSpeechTranscription()"]');
-            const originalText = btn ? btn.textContent : (force ? '🔄 Retranscribe' : 'Fill from mic');
-
-            try {
-                if (btn) {
-                    btn.disabled = true;
-                    btn.textContent = 'Transcribing...';
-                }
-
-                // 1. Upload if not yet uploaded
-                if (!speechDraft.object_key) {
-                    const formData = new FormData();
-                    formData.append('file', speechDraft.blob, speechDraft.filename || 'speech.webm');
-                    formData.append('duration_ms', speechDraft.duration_ms || 0);
-
-                    const uploadResp = await fetch(SPEECH_UPLOAD_URL, { method: 'POST', body: formData });
-                    if (!uploadResp.ok) throw new Error('Upload failed');
-                    const uploadResult = await uploadResp.json();
-
-                    speechDraft.object_key = uploadResult.object_key;
-                    speechDraft.audioUrl = uploadResult.url;
-                    speechDraft.audio_url = uploadResult.url;
-                }
-
-                // 2. Transcribe
-                // Optimization: if it's already in the DB, we could use the new endpoint, 
-                // but let's stick to the generic one for simplicity in the draft stage.
-                const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ object_key: speechDraft.object_key })
-                });
-
-                if (!tResp.ok) throw new Error('Transcription failed');
-                const tJson = await tResp.json();
-
-                if (tJson.transcript) {
-                    speechDraft.transcription = tJson.transcript;
-                    if (speechTranscriptionEl) {
-                        speechTranscriptionEl.value = tJson.transcript;
-                    }
-                    showToast('Transcription complete', 'success');
-                } else {
-                    showToast('Transcription returned empty text', 'warning');
-                }
-
-            } catch (err) {
-                console.error(err);
-                showToast(err.message, 'error');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                }
-                updateSpeechUI();
-            }
+            // Transcription now happens automatically in the background after saving
+            // This function is kept for backward compatibility but just shows a message
+            showToast('Transcription will happen automatically after saving', 'info');
         }
 
         async function retranscribeEntry(id) {
             try {
-                const btn = document.querySelector(`button[onclick="retranscribeEntry(${id})"]`);
+                const btn = document.querySelector(`button[onclick="event.stopPropagation(); retranscribeEntry(${id})"]`);
                 if (btn) {
                     btn.disabled = true;
                     btn.classList.add('animate-spin');
                 }
 
+                // Find the speech entry to check for auto-mapped entries
+                const speechEntry = speechEntries.find(e => e.id === id);
+                const autoMappedIds = [];
+                
+                if (speechEntry && speechEntry.notes) {
+                    // Extract auto-mapped entry IDs from notes like "(Auto-mapped to entry #123456)"
+                    // Match both singular and multiple patterns
+                    const regex = /#(\d+)/g;
+                    let match;
+                    while ((match = regex.exec(speechEntry.notes)) !== null) {
+                        autoMappedIds.push(parseInt(match[1]));
+                    }
+                }
+
+                console.log(`Found ${autoMappedIds.length} auto-mapped entries to delete:`, autoMappedIds);
+
+                // Delete auto-mapped entries before retranscribing
+                const deletePromises = autoMappedIds.map(async (mappedId) => {
+                    try {
+                        const deleteResp = await fetch(`${API_BASE_URL}/entries/${mappedId}`, { method: 'DELETE' });
+                        if (deleteResp.ok) {
+                            console.log(`✓ Deleted auto-mapped entry #${mappedId}`);
+                            return true;
+                        } else {
+                            console.warn(`✗ Failed to delete entry #${mappedId}:`, deleteResp.status);
+                            return false;
+                        }
+                    } catch (deleteErr) {
+                        console.error(`✗ Error deleting entry #${mappedId}:`, deleteErr);
+                        return false;
+                    }
+                });
+
+                // Wait for all deletions to complete
+                const deleteResults = await Promise.all(deletePromises);
+                const deletedCount = deleteResults.filter(r => r).length;
+                
+                if (autoMappedIds.length > 0) {
+                    console.log(`Deleted ${deletedCount}/${autoMappedIds.length} old mappings`);
+                    
+                    // Clean up notes by removing all auto-mapped references
+                    if (speechEntry.notes) {
+                        const cleanedNotes = speechEntry.notes.replace(/\[Auto-mapped to entry #\d+\]\s*/g, '').trim();
+                        
+                        // Update the speech entry with cleaned notes
+                        const updateResponse = await fetch(`${SPEECH_ENTRIES_URL}/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ notes: cleanedNotes })
+                        });
+                        
+                        if (updateResponse.ok) {
+                            console.log('✓ Cleaned notes from old auto-mapped references');
+                        } else {
+                            console.warn('✗ Failed to update notes');
+                        }
+                    }
+                }
+
+                // Now retranscribe
                 const resp = await fetch(`${SPEECH_ENTRIES_URL}/${id}/retranscribe`, { method: 'POST' });
                 if (!resp.ok) {
                     const error = await resp.json();
@@ -2311,13 +2312,34 @@
                 }
 
                 const result = await resp.json();
-                showToast('Entry re-transcribed!', 'success');
+                
+                if (deletedCount > 0) {
+                    showToast(`Re-transcribed! ${deletedCount} old mapping(s) removed. Processing...`, 'success');
+                } else {
+                    showToast('Re-transcribing and mapping...', 'success');
+                }
 
-                // Refresh list
+                // Reload speech entries to get the updated transcription state
+                const speechResponse = await fetch(SPEECH_ENTRIES_URL);
+                if (speechResponse.ok) {
+                    speechEntries = await speechResponse.json();
+                }
+                
+                // Start polling to watch for transcription and auto-mapping completion
+                startTranscriptionPolling();
+                
+                // Refresh list to show updated entries
                 await loadEntries();
             } catch (err) {
-                console.error(err);
-                showToast(err.message, 'error');
+                console.error('Retranscribe error:', err);
+                showToast(err.message || 'Failed to retranscribe', 'error');
+            } finally {
+                // Re-enable button
+                const btn = document.querySelector(`button[onclick="event.stopPropagation(); retranscribeEntry(${id})"]`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('animate-spin');
+                }
             }
         }
 
@@ -2342,6 +2364,134 @@
             speechStatus = 'idle';
             resetSpeechBars(false);
             updateSpeechUI();
+        }
+        
+        // Transcription polling functions
+        function startTranscriptionPolling() {
+            // Only start polling if there are entries without transcriptions
+            if (!speechEntries || speechEntries.length === 0) {
+                console.log('No speech entries to poll for');
+                return;
+            }
+            
+            const needsTranscription = speechEntries.some(e => !e.transcription);
+            if (!needsTranscription) {
+                console.log('All entries already have transcriptions');
+                return;
+            }
+            
+            // Stop any existing polling
+            stopTranscriptionPolling();
+            
+            // Start polling for transcription updates
+            transcriptionPollingInterval = setInterval(async () => {
+                await checkForTranscriptionUpdates();
+            }, TRANSCRIPTION_POLL_INTERVAL);
+            
+            console.log('Started transcription polling');
+        }
+        
+        function stopTranscriptionPolling() {
+            if (transcriptionPollingInterval) {
+                clearInterval(transcriptionPollingInterval);
+                transcriptionPollingInterval = null;
+                console.log('Stopped transcription polling');
+            }
+        }
+        
+        async function checkForTranscriptionUpdates() {
+            try {
+                console.log('🔍 Polling for transcription updates...');
+                
+                // Safety check
+                if (!speechEntries || speechEntries.length === 0) {
+                    console.log('⏹️ No speech entries, stopping polling');
+                    stopTranscriptionPolling();
+                    return;
+                }
+                
+                // Fetch latest speech entries
+                const speechResponse = await fetch(SPEECH_ENTRIES_URL);
+                if (!speechResponse.ok) {
+                    console.warn('Failed to fetch speech entries:', speechResponse.status);
+                    return;
+                }
+                
+                const latestSpeechEntries = await speechResponse.json();
+                
+                // Validate response
+                if (!Array.isArray(latestSpeechEntries)) {
+                    console.warn('Invalid speech entries response format:', latestSpeechEntries);
+                    return;
+                }
+                
+                // Also fetch latest regular entries to detect auto-mapped entries
+                const entriesResponse = await fetch(`${API_BASE_URL}/entries`);
+                if (!entriesResponse.ok) {
+                    console.warn('Failed to fetch entries:', entriesResponse.status);
+                    return;
+                }
+                
+                const latestRegularEntries = await entriesResponse.json();
+                
+                let hasUpdates = false;
+                let updateReasons = [];
+                
+                // Check if any speech entries got new transcriptions or notes updates
+                latestSpeechEntries.forEach(latest => {
+                    if (!latest || !latest.id) return;
+                    
+                    const existing = speechEntries.find(e => e && e.id === latest.id);
+                    if (existing) {
+                        // Check for new transcription
+                        if (!existing.transcription && latest.transcription) {
+                            hasUpdates = true;
+                            updateReasons.push(`New transcription for speech #${latest.id}`);
+                        }
+                        // Check for notes updates (auto-mapping references added)
+                        if (existing.notes !== latest.notes) {
+                            hasUpdates = true;
+                            updateReasons.push(`Notes updated for speech #${latest.id}`);
+                        }
+                    }
+                });
+                
+                // Check if new regular entries were created (auto-mapping)
+                if (latestRegularEntries.length > entries.length) {
+                    hasUpdates = true;
+                    const newCount = latestRegularEntries.length - entries.length;
+                    updateReasons.push(`${newCount} new entries created`);
+                }
+                
+                if (hasUpdates) {
+                    console.log('✅ Updates detected:', updateReasons.join(', '));
+                    
+                    // Update speech entries
+                    speechEntries = latestSpeechEntries;
+                    renderSpeechRecent();
+                    
+                    // Update regular entries
+                    entries = latestRegularEntries;
+                    renderEntries();
+                    updateStats();
+                    updateTrendChart();
+                    
+                    // Count entries still pending transcription
+                    const pendingCount = speechEntries.filter(e => e && !e.transcription).length;
+                    console.log(`📊 Pending transcriptions: ${pendingCount}`);
+                    
+                    // Stop polling only if no entries are pending transcription
+                    if (pendingCount === 0) {
+                        console.log('🎉 All transcriptions complete, stopping polling');
+                        stopTranscriptionPolling();
+                    }
+                } else {
+                    console.log('⏸️ No updates detected');
+                }
+            } catch (err) {
+                console.error('Transcription polling error:', err);
+                // Don't stop polling on error, it might be transient
+            }
         }
 
         function discardSpeech() {
@@ -2390,23 +2540,9 @@
                 return;
             }
 
-            let transcription = speechTranscriptionEl?.value?.trim() || speechDraft.transcription || '';
-            if (!transcription && objectKey) {
-                try {
-                    const tResp = await fetch(SPEECH_TRANSCRIBE_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ object_key: objectKey })
-                    });
-                    if (tResp.ok) {
-                        const tJson = await tResp.json();
-                        transcription = tJson.transcript || transcription;
-                    }
-                } catch (err) {
-                    console.warn('Transcription failed', err);
-                    showToast(`Transcription request failed: ${err.message}`, 'error');
-                }
-            }
+            // Get transcription from the input field if manually entered, otherwise leave empty
+            // Backend will handle async transcription
+            const transcription = speechTranscriptionEl?.value?.trim() || '';
 
             const payload = {
                 object_key: objectKey,
@@ -2431,7 +2567,16 @@
                 speechEntries = [saved, ...speechEntries.filter(e => e.id !== saved.id)];
                 renderSpeechRecent();
                 renderEntries();
-                showToast('Speech saved.', 'success');
+                
+                // Show message about transcription status
+                if (!transcription) {
+                    showToast('Speech saved. Transcription processing in background...', 'success');
+                    // Start polling for transcription updates
+                    startTranscriptionPolling();
+                } else {
+                    showToast('Speech saved.', 'success');
+                }
+                
                 resetSpeechState();
                 closeModal('speech');
             } catch (err) {
@@ -2449,10 +2594,13 @@
 
             const rows = speechEntries.slice(0, 3).map(entry => {
                 const ts = new Date(entry.timestamp);
+                const displayText = entry.transcription 
+                    ? entry.transcription 
+                    : '<span class="text-indigo-500 italic flex items-center gap-1"><svg class="animate-spin h-3 w-3 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Transcribing...</span>';
                 return `
                     <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2">
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-slate-800 truncate">${entry.transcription || 'Voice note'}</p>
+                            <p class="text-sm font-semibold text-slate-800 truncate">${displayText}</p>
                             <p class="text-xs text-slate-500">${formatDuration(entry.duration_ms)} · ${ts.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                         ${(entry.audioUrl || entry.audio_url) ? `<audio controls src="${entry.audioUrl || entry.audio_url}" class="ml-3 w-28"></audio>` : ''}
@@ -2600,6 +2748,7 @@
             if (diaperTimerInterval) {
                 clearInterval(diaperTimerInterval);
             }
+            stopTranscriptionPolling();
         });
 
         // Initialize
@@ -3621,7 +3770,9 @@
             } else if (getEntryType(entry) === 'speech') {
                 icon = '🎙️';
                 title = 'Speech';
-                subtitle = `${formatDuration(entry.duration_ms)} · ${entry.category ? entry.category : 'Voice note'}`;
+                const categoryLabel = entry.category ? entry.category : 'Voice note';
+                const transcribingLabel = (!entry.transcription) ? ' • <span class="text-indigo-500 animate-pulse">Transcribing...</span>' : '';
+                subtitle = `${formatDuration(entry.duration_ms)} · ${categoryLabel}${transcribingLabel}`;
                 bgColor = 'bg-rose-50';
             }
 
@@ -3662,6 +3813,15 @@
                                     "${entry.transcription}"
                                 </div>
                             ` : ''}
+                            ${(getEntryType(entry) === 'speech' && !entry.transcription) ? `
+                                <div class="text-xs text-indigo-500 mt-1.5 italic flex items-center gap-1">
+                                    <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Generating transcription...</span>
+                                </div>
+                            ` : ''}
                         </div>
 
                         <div class="flex flex-col items-end justify-between self-stretch flex-shrink-0 gap-2">
@@ -3669,7 +3829,7 @@
                             
                             <div class="flex items-center gap-2">
                                 ${getEntryType(entry) === 'speech' && (entry.audioUrl || entry.audio_url) ? `
-                                    <button onclick="retranscribeEntry(${entry.id})" title="Re-transcribe" 
+                                    <button onclick="event.stopPropagation(); retranscribeEntry(${entry.id})" title="Re-transcribe" 
                                             class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

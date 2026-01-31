@@ -10,20 +10,23 @@ logger = get_logger(__name__)
 
 
 class AsyncSpeechProcessor:
-    """Background processor that handles LLM categorization and mapping tasks asynchronously."""
+    """Background processor that handles transcription, LLM categorization and mapping tasks asynchronously."""
     
-    def __init__(self, categorization_service, mapping_service, max_workers: int = 2):
+    def __init__(self, categorization_service, mapping_service, stt_service, max_workers: int = 2):
         """Initialize the async processor.
         
         Args:
             categorization_service: Instance of CategorizationService
             mapping_service: Instance of EntryMappingService (optional)
+            stt_service: Instance of STTService for transcription (optional)
             max_workers: Number of worker threads to process tasks
         """
         from .llm.categorization_service import CategorizationService
         from .llm.entry_mapping_service import EntryMappingService
+        from ..stt_service import STTService
         self.categorization_service: CategorizationService = categorization_service
         self.mapping_service: EntryMappingService = mapping_service
+        self.stt_service: STTService = stt_service
         self.max_workers = max_workers
         self.task_queue = queue.Queue()
         self.workers = []
@@ -96,16 +99,81 @@ class AsyncSpeechProcessor:
         logger.info(f"{worker_name} stopped")
     
     def _process_task(self, task: dict):
-        """Process a single categorization and mapping task.
+        """Process a single transcription, categorization and mapping task.
         
         Args:
             task: Dictionary containing:
+                - task_type: 'transcribe' or 'categorize'
                 - entry_id: The speech entry ID
-                - object_key: Audio object key
-                - transcription: The transcription text
-                - callback: Function to call with categorization results
+                - object_key: Audio object key (for transcription)
+                - transcription: The transcription text (for categorization)
+                - callback: Function to call with results
                 - mapping_callback: Function to call with mapping results (optional)
                 - enable_mapping: Whether to perform entry mapping (default: True)
+        """
+        task_type = task.get('task_type', 'categorize')
+        entry_id = task.get('entry_id')
+        
+        try:
+            if task_type == 'transcribe':
+                self._process_transcription_task(task)
+            elif task_type == 'categorize':
+                self._process_categorization_task(task)
+            else:
+                logger.error(f"Unknown task type: {task_type}")
+        except Exception as e:
+            logger.error(f"Error processing {task_type} task for entry {entry_id}: {e}", exc_info=True)
+    
+    def _process_transcription_task(self, task: dict):
+        """Process a transcription task.
+        
+        Args:
+            task: Dictionary containing entry_id, object_key, and callback
+        """
+        entry_id = task.get('entry_id')
+        object_key = task.get('object_key')
+        bucket_name = task.get('bucket_name')
+        callback = task.get('callback')
+        
+        logger.info(f"Processing transcription for entry {entry_id}")
+        
+        if not self.stt_service:
+            logger.error(f"STT service not available for entry {entry_id}")
+            if callback:
+                callback({
+                    'entry_id': entry_id,
+                    'transcription': '',
+                    'error': 'STT service not configured'
+                })
+            return
+        
+        try:
+            # Perform transcription
+            transcription = self.stt_service.transcribe_object(object_key=object_key)
+            
+            logger.info(f"Entry {entry_id} transcribed: {len(transcription)} chars")
+            
+            # Call the callback with transcription result
+            if callback:
+                callback({
+                    'entry_id': entry_id,
+                    'transcription': transcription
+                })
+                
+        except Exception as e:
+            logger.error(f"Error transcribing entry {entry_id}: {e}", exc_info=True)
+            if callback:
+                callback({
+                    'entry_id': entry_id,
+                    'transcription': '',
+                    'error': str(e)
+                })
+    
+    def _process_categorization_task(self, task: dict):
+        """Process a categorization and mapping task.
+        
+        Args:
+            task: Dictionary containing entry_id, transcription, callback, and mapping_callback
         """
         entry_id = task.get('entry_id')
         transcription: str = task.get('transcription', "")
@@ -204,6 +272,7 @@ class AsyncSpeechProcessor:
             return False
             
         task = {
+            'task_type': 'categorize',
             'entry_id': entry_id,
             'object_key': object_key,
             'transcription': transcription,
@@ -214,6 +283,39 @@ class AsyncSpeechProcessor:
         
         self.task_queue.put(task)
         logger.info(f"Submitted categorization task for entry {entry_id} (mapping: {enable_mapping})")
+        return True
+    
+    def submit_transcription_task(self, entry_id: int, object_key: str, bucket_name: str,
+                                 callback: Optional[Callable] = None):
+        """Submit a transcription task to the queue.
+        
+        Args:
+            entry_id: The speech entry ID to transcribe
+            object_key: The audio object key in S3
+            bucket_name: The S3 bucket name
+            callback: Optional callback function(result: dict) to call with transcription results
+        
+        Returns:
+            bool: True if task was submitted successfully
+        """
+        if not self.running:
+            logger.warning("Cannot submit transcription task, processor not running")
+            return False
+        
+        if not self.stt_service:
+            logger.error("Cannot submit transcription task, STT service not configured")
+            return False
+        
+        task = {
+            'task_type': 'transcribe',
+            'entry_id': entry_id,
+            'object_key': object_key,
+            'bucket_name': bucket_name,
+            'callback': callback
+        }
+        
+        self.task_queue.put(task)
+        logger.info(f"Submitted transcription task for entry {entry_id}")
         return True
     
     def get_queue_size(self) -> int:

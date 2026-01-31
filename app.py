@@ -106,19 +106,20 @@ except Exception as e:
     logger.error(f"Failed to initialize entry mapping service: {e}")
     mapping_service = None
 
-# Async categorization processor (now includes mapping)
+# Async categorization processor (now includes mapping and transcription)
 if categorization_service:
     speech_processor = AsyncSpeechProcessor(
         categorization_service=categorization_service,
         mapping_service=mapping_service,
+        stt_service=stt_service,
         max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
     )
     # Start the processor when app starts
     speech_processor.start()
-    logger.info("Async categorization processor started")
+    logger.info("Async speech processor started (transcription, categorization, mapping)")
 else:
     speech_processor = None
-    logger.warning("Categorization processor not started (LLM service unavailable)")
+    logger.warning("Speech processor not started (LLM service unavailable)")
 
 # Notification service for care alerts
 notification_service = NotificationService()
@@ -256,6 +257,62 @@ def update_speech_entry_category(result: dict):
             client.close()
     except Exception as e:
         logger.error(f"Failed to update category for entry {entry_id}: {e}", exc_info=True)
+
+
+def update_speech_entry_transcription(result: dict):
+    """Callback to update the database with transcription results.
+    
+    Args:
+        result: Dict containing entry_id, transcription, and optional error
+    """
+    entry_id = result.get('entry_id')
+    transcription = result.get('transcription', '')
+    error = result.get('error')
+
+    if error:
+        logger.error(f"Transcription failed for entry {entry_id}: {error}")
+        return
+    
+    logger.info(f"Updating entry {entry_id} with transcription ({len(transcription)} chars)")
+    
+    try:
+        client = get_db_connection()
+        try:
+            # Update the transcription in the database
+            client.command('''
+                ALTER TABLE speech_entries 
+                UPDATE transcription = %(transcription)s 
+                WHERE id = %(id)s 
+                SETTINGS mutations_sync=%(sync)s
+            ''', parameters={
+                'transcription': transcription,
+                'id': entry_id,
+                'sync': MUTATIONS_SYNC_LEVEL
+            })
+            logger.info(f"Updated entry {entry_id} with transcription")
+            
+            # If we have categorization enabled, submit categorization task
+            if transcription and speech_processor and categorization_service:
+                # Get the object_key from the entry
+                result = client.query(
+                    'SELECT object_key FROM speech_entries WHERE id = %(id)s',
+                    parameters={'id': entry_id}
+                )
+                if result.result_rows:
+                    object_key = result.result_rows[0][0]
+                    speech_processor.submit_task(
+                        entry_id=entry_id,
+                        object_key=object_key,
+                        transcription=transcription,
+                        callback=update_speech_entry_category,
+                        mapping_callback=create_entry_from_mapping,
+                        enable_mapping=True
+                    )
+                    logger.info(f"Submitted categorization task for entry {entry_id}")
+        finally:
+            client.close()
+    except Exception as e:
+        logger.error(f"Failed to update transcription for entry {entry_id}: {e}", exc_info=True)
 
 
 def create_entry_from_mapping(mapping_data: dict):
@@ -874,7 +931,7 @@ def create_speech_entry():
         client = get_db_connection()
         entry_id = get_next_id(client)
         
-        transcription = data.get('transcription')
+        transcription = data.get('transcription', '')
 
         client.insert('speech_entries', [[
             entry_id,
@@ -892,8 +949,17 @@ def create_speech_entry():
             'duration_ms', 'notes', 'timestamp', 'created_at'
         ])
         
-        # Trigger async categorization if transcription is available
-        if transcription and speech_processor:
+        # Trigger async transcription if not already provided
+        if not transcription and object_key and speech_processor:
+            speech_processor.submit_transcription_task(
+                entry_id=entry_id,
+                object_key=object_key,
+                bucket_name=configured_settings.minio_bucket_name,
+                callback=update_speech_entry_transcription
+            )
+            logger.info(f"Submitted async transcription task for new entry {entry_id}")
+        # If transcription is already available, trigger categorization
+        elif transcription and speech_processor:
             speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
