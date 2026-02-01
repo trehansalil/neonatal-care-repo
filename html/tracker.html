@@ -794,6 +794,201 @@
             user-select: none;
             -webkit-user-select: none;
         }
+
+        /* Mobile Metrics Slider */
+        .metrics-slider-container {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            /* Hide third metric card on mobile */
+            .dashboard-grid > div:nth-child(3) {
+                display: none;
+            }
+
+            /* Reduce header padding on mobile */
+            header .container {
+                padding-top: 0.75rem !important;
+                padding-bottom: 0.75rem !important;
+            }
+
+            /* Reduce main container top padding */
+            main {
+                padding-top: 1rem !important;
+                padding-bottom: 1rem !important;
+            }
+
+            /* Consistent spacing between sections */
+            .log-section {
+                margin-bottom: 0.75rem !important;
+            }
+
+            /* Reduce Feed Volume and Last Diaper card heights */
+            .dashboard-grid > div {
+                padding: 0.75rem !important;
+            }
+
+            /* Consistent gap between Feed Volume and Last Diaper on mobile */
+            .dashboard-grid.grid {
+                gap: 0.75rem !important;
+            }
+
+            .dashboard-grid .text-2xl {
+                font-size: 1.5rem !important;
+                line-height: 1.75rem !important;
+            }
+
+            .dashboard-grid .text-xs {
+                font-size: 0.688rem !important;
+            }
+
+            .dashboard-grid .text-\[10px\] {
+                font-size: 0.625rem !important;
+            }
+
+            .dashboard-grid .w-8 {
+                width: 1.75rem !important;
+                height: 1.75rem !important;
+            }
+
+            .dashboard-grid .gap-3 {
+                gap: 0.625rem !important;
+            }
+
+            .dashboard-grid .mt-2 {
+                margin-top: 0.375rem !important;
+            }
+
+            .dashboard-grid .mt-1 {
+                margin-top: 0.25rem !important;
+            }
+
+            /* Show slider container on mobile */
+            .metrics-slider-container {
+                display: block;
+                margin-bottom: 0.75rem !important;
+            }
+
+            /* Horizontal scrollable slider */
+            .metrics-slider {
+                display: flex;
+                gap: 0.625rem;
+                overflow-x: auto;
+                overflow-y: hidden;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                padding: 0.1rem 0;
+                scrollbar-width: none; /* Firefox */
+            }
+
+            /* Hide scrollbar for Chrome/Safari/Edge */
+            .metrics-slider::-webkit-scrollbar {
+                display: none;
+            }
+
+            /* Slider items - good balance */
+            .metrics-slider > div {
+                flex: 0 0 auto;
+                width: 130px;
+                scroll-snap-align: start;
+                padding: 0.625rem !important;
+            }
+
+            /* Slider card font sizes - more readable */
+            .metrics-slider .text-base {
+                font-size: 1rem !important;
+                line-height: 1.375rem !important;
+            }
+
+            .metrics-slider .text-\[10px\] {
+                font-size: 0.688rem !important;
+            }
+
+            .metrics-slider .text-\[9px\] {
+                font-size: 0.625rem !important;
+            }
+
+            .metrics-slider .w-6 {
+                width: 1.375rem !important;
+                height: 1.375rem !important;
+            }
+
+            /* Adjust summary stats grid to not show on mobile */
+            .summary-stats-grid {
+                display: none !important;
+            }
+
+            /* Reduce padding for activity log section */
+            .log-section.bg-white {
+                padding: 0.875rem !important;
+            }
+
+            /* Activity Log header - keep readable */
+            .log-section.bg-white h2,
+            .log-section.bg-white .text-2xl {
+                font-size: 1.25rem !important;
+                line-height: 1.5rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+
+            /* Reduce spacing between filter sections */
+            .log-section .mb-6 {
+                margin-bottom: 0.75rem !important;
+            }
+
+            .log-section .mb-4 {
+                margin-bottom: 0.5rem !important;
+            }
+
+            /* Filter chips - compact but readable */
+            .filter-chip {
+                padding: 0.438rem 0.875rem !important;
+                font-size: 0.813rem !important;
+            }
+
+            /* Segmented control buttons */
+            .segmented button {
+                padding: 0.375rem 0.75rem !important;
+                font-size: 0.813rem !important;
+            }
+
+            /* Timeline items - compact */
+            .timeline-item {
+                padding: 0.625rem 0 !important;
+            }
+
+            /* Entry cards in timeline - smaller but readable */
+            .entry-card,
+            .swipe-content {
+                padding: 0.625rem !important;
+            }
+
+            /* Entry card text sizes - refined */
+            .entry-card .text-lg,
+            .swipe-content .text-lg {
+                font-size: 0.875rem !important;
+                line-height: 1.25rem !important;
+            }
+
+            .entry-card .text-sm,
+            .swipe-content .text-sm {
+                font-size: 0.75rem !important;
+                line-height: 1rem !important;
+            }
+
+            .entry-card .text-xs,
+            .swipe-content .text-xs {
+                font-size: 0.688rem !important;
+                line-height: 0.875rem !important;
+            }
+
+            /* Timeline icons - slightly smaller */
+            .timeline-item .w-10,
+            .timeline-item .h-10 {
+                width: 2.25rem !important;
+                height: 2.25rem !important;
+            }
+        }
     </style>
 </head>
 
@@ -829,7 +1024,7 @@
         <!-- Speech Log Entry Section -->
         <section class="mb-4 log-section">
             <div class="bg-white hero-card rounded-2xl overflow-hidden">
-                <div class="p-4">
+                <div class="p-3">
                     <!-- Compact Chat-like Interface -->
                     <div class="flex items-center gap-3">
                         <!-- Microphone Button -->
@@ -855,12 +1050,7 @@
 
                         <!-- Input-like Display Area -->
                         <div class="flex-1 speech-input-area px-4 py-3" id="speech-input-area">
-                            <div class="flex flex-col gap-1">
-                                <!-- Label -->
-                                <div class="quick-log-label">Quick Log</div>
-
-                                <!-- Content Area -->
-                                <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3">
                                     <!-- Waveform (hidden by default) -->
                                     <div class="waveform hidden" id="waveform">
                                         <div class="waveform-bar"></div>
@@ -876,26 +1066,11 @@
                                     <div class="flex-1">
                                         <p data-speech-status
                                             class="text-slate-600 text-sm font-medium placeholder-text"
-                                            id="speech-placeholder">Try saying: "5oz milk at 2pm"...</p>
+                                            id="speech-placeholder">Say: "20ml express milk at 2pm"...</p>
                                         <p data-speech-timer class="text-slate-400 text-xs mt-0.5 hidden tabular-nums"
                                             id="speech-timer-text">00:00</p>
                                     </div>
-                                </div>
                             </div>
-                        </div>
-
-                        <!-- Action Buttons Container -->
-                        <div data-speech-cta class="flex items-center gap-2">
-                            <!-- Default: View arrow -->
-                            <button onclick="openModal('speech')"
-                                class="hero-action flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all"
-                                aria-label="View speech logs">
-                                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -904,7 +1079,7 @@
 
         <!-- Dashboard Metrics - Bento Box Grid -->
         <section class="mb-4 log-section">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="dashboard-grid grid grid-cols-2 md:grid-cols-3 gap-3">
                 <!-- Feed Volume Card -->
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex items-start gap-3">
@@ -961,8 +1136,93 @@
             </div>
         </section>
 
+        <!-- Mobile Metrics Slider (visible only on mobile) -->
+        <section class="metrics-slider-container log-section">
+            <div class="metrics-slider">
+                <!-- Diapers Used Card (duplicate for mobile) -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-start gap-2">
+                        <div
+                            class="flex-shrink-0 w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 text-[11px]">
+                            🧷
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-medium text-slate-500 mb-0.5">Diapers</p>
+                            <div class="text-base font-semibold text-slate-900" id="total-diapers-mobile">0</div>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Selected range</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feeds Card -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <div
+                            class="w-6 h-6 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 text-[11px]">
+                            🍼
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Feeds</span>
+                    </div>
+                    <div class="text-base font-semibold text-slate-900" id="today-feeds-mobile">0 | 0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Total | Avg</div>
+                </div>
+
+                <!-- Wet Card -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <div
+                            class="w-6 h-6 rounded bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-600 text-[11px]">
+                            💧
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Wet</span>
+                    </div>
+                    <div class="text-base font-semibold text-slate-900" id="today-susu-mobile">0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Items</div>
+                </div>
+
+                <!-- Soiled Card -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <div
+                            class="w-6 h-6 rounded bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600 text-[11px]">
+                            💩
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Soiled</span>
+                    </div>
+                    <div class="text-base font-semibold text-slate-900" id="today-poti-mobile">0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Items</div>
+                </div>
+
+                <!-- Temp Card -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <div
+                            class="w-6 h-6 rounded bg-red-50 flex items-center justify-center flex-shrink-0 text-red-600 text-[11px]">
+                            🌡️
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Temp</span>
+                    </div>
+                    <div class="text-base font-semibold text-slate-900" id="avg-temp-mobile">--</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Avg (°C)</div>
+                </div>
+
+                <!-- Weight Card -->
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <div
+                            class="w-6 h-6 rounded bg-purple-50 flex items-center justify-center flex-shrink-0 text-purple-600 text-[11px]">
+                            ⚖️
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Weight</span>
+                    </div>
+                    <div class="text-base font-semibold text-slate-900" id="current-weight-mobile">--</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Grams</div>
+                </div>
+            </div>
+        </section>
+
         <!-- Summary Stats - Compact Grid -->
-        <section class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 log-section">
+        <section class="summary-stats-grid grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 log-section">
             <div class="bg-white p-3 rounded-lg border border-slate-200">
                 <div class="flex items-center gap-2 mb-1">
                     <div
@@ -1893,13 +2153,13 @@
 
         // Rotating placeholder prompts
         const placeholderPrompts = [
-            'Try saying: "50ml formula milk at 2pm"...',
-            'Try: "Stool was soft and yellow"...',
-            'Try: "Baby had susu just now"...',
-            'Try: "Fed 60ml at lunch time"...',
-            'Try: "Urine diaper at 3:30pm"...',
-            'Try: "Temperature log of 98.6°F"...',
-            'Try: "Weight entry of 4.312 Kg"...'
+            'Say: "50ml formula milk at 2pm"...',
+            'Say: "Stool was soft and yellow"...',
+            'Say: "Baby had susu just now"...',
+            'Say: "Fed 60ml at lunch time"...',
+            'Say: "Urine diaper at 3:30pm"...',
+            'Say: "Temperature log of 98.6°F"...',
+            'Say: "Weight entry of 4.312 Kg"...'
         ];
         let currentPlaceholderIndex = 0;
         let placeholderRotationInterval = null;
@@ -1947,6 +2207,14 @@
         const todayPotiEl = document.getElementById('today-poti');
         const avgTempEl = document.getElementById('avg-temp');
         const currentWeightEl = document.getElementById('current-weight');
+
+        // Mobile Stats Elements
+        const todayFeedsMobileEl = document.getElementById('today-feeds-mobile');
+        const totalDiapersMobileEl = document.getElementById('total-diapers-mobile');
+        const todaySusuMobileEl = document.getElementById('today-susu-mobile');
+        const todayPotiMobileEl = document.getElementById('today-poti-mobile');
+        const avgTempMobileEl = document.getElementById('avg-temp-mobile');
+        const currentWeightMobileEl = document.getElementById('current-weight-mobile');
 
         // Helper function to get current datetime in local timezone
         function getCurrentDateTime() {
@@ -4302,6 +4570,7 @@
                 : 0;
 
             if (todayFeedsEl) todayFeedsEl.textContent = `${feedsCount} | ${avgFeed}ml`;
+            if (todayFeedsMobileEl) todayFeedsMobileEl.textContent = `${feedsCount} | ${avgFeed}ml`;
             if (totalFeedMlEl) totalFeedMlEl.textContent = `${Math.round(totalFeedMl)} ml`;
 
             // --- Feed Target Progress ---
@@ -4350,10 +4619,12 @@
             // Susu total
             const susuTotal = rangeEntries.reduce((sum, e) => sum + (e.susu_count || 0), 0);
             if (todaySusuEl) todaySusuEl.textContent = susuTotal;
+            if (todaySusuMobileEl) todaySusuMobileEl.textContent = susuTotal;
 
             // Poti total
             const potiTotal = rangeEntries.reduce((sum, e) => sum + (e.poti_count || 0), 0);
             if (todayPotiEl) todayPotiEl.textContent = potiTotal;
+            if (todayPotiMobileEl) todayPotiMobileEl.textContent = potiTotal;
 
             // Combined diaper total
             const diaperTotal = rangeEntries.reduce((sum, e) => {
@@ -4364,6 +4635,7 @@
                 return sum;
             }, 0);
             if (totalDiapersEl) totalDiapersEl.textContent = diaperTotal;
+            if (totalDiapersMobileEl) totalDiapersMobileEl.textContent = diaperTotal;
 
             // Average temperature
             const temps = rangeEntries.filter(e => e.temperature).map(e => parseFloat(e.temperature));
@@ -4373,16 +4645,23 @@
                     avgTempEl.textContent = avgTemp;
                     avgTempEl.classList.toggle('text-red-600', avgTemp > 38);
                 }
+                if (avgTempMobileEl) {
+                    avgTempMobileEl.textContent = avgTemp;
+                    avgTempMobileEl.classList.toggle('text-red-600', avgTemp > 38);
+                }
             } else {
                 if (avgTempEl) avgTempEl.textContent = '--';
+                if (avgTempMobileEl) avgTempMobileEl.textContent = '--';
             }
 
             // Current weight
             const weightEntries = rangeEntries.filter(e => e.weight > 0).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             if (weightEntries.length > 0) {
                 if (currentWeightEl) currentWeightEl.textContent = weightEntries[0].weight;
+                if (currentWeightMobileEl) currentWeightMobileEl.textContent = weightEntries[0].weight;
             } else {
                 if (currentWeightEl) currentWeightEl.textContent = '--';
+                if (currentWeightMobileEl) currentWeightMobileEl.textContent = '--';
             }
         }
 
