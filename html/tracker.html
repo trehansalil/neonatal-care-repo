@@ -5068,6 +5068,9 @@
             
             if (!audio || !progressBar || !timeDisplay) return;
             
+            // Prevent division by zero or invalid duration values
+            if (!audio.duration || !isFinite(audio.duration)) return;
+            
             const percent = (audio.currentTime / audio.duration) * 100;
             progressBar.style.width = `${percent}%`;
             
