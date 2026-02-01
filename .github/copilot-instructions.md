@@ -156,6 +156,15 @@ client.command('''
   - Calls external API or local MLX
   - Returns empty string on failure (non-blocking)
 
+### Frontend Notification Pattern
+- **Client-side timer**: JavaScript updates diaper change timer every 30 seconds in browser
+- **Visual states**: Card changes color based on elapsed time (green → amber at 75% → red at 100%)
+- **Webhook integration**: Frontend sends notifications to n8n webhook at threshold (default: 4 hours)
+- **LocalStorage deduplication**: Tracks `lastNotifiedTimestamp` to prevent duplicate alerts
+- **Backdating support**: Calculates elapsed time from entry timestamp (not creation time)
+- **Backend alternative**: `ENABLE_BACKGROUND_NOTIFICATIONS=True` enables server-side checking (disabled by default to reduce DB load)
+- **Implementation**: See `updateDiaperNappyTimerDisplay()` and `sendDiaperNappyNotification()` in [tracker.html](html/tracker.html)
+
 ## Data Backup/Restore
 ```bash
 make dev-export-data  # Exports to backups/clickhouse_export_YYYYMMDD_HHMMSS/
