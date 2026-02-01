@@ -4849,12 +4849,7 @@
                 // Ensure retranscription is tracked in case SSE is unavailable
                 try {
                     if (typeof pendingSpeechEntries !== 'undefined') {
-                        // Support both Set-like and Array-like implementations
-                        if (typeof pendingSpeechEntries.add === 'function') {
-                            pendingSpeechEntries.add(id);
-                        } else if (Array.isArray(pendingSpeechEntries) && !pendingSpeechEntries.includes(id)) {
-                            pendingSpeechEntries.push(id);
-                        }
+                        pendingSpeechEntries.add(id);
                     }
                     if (typeof startFallbackPolling === 'function') {
                         startFallbackPolling();
