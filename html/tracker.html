@@ -1080,6 +1080,9 @@
                                         <p data-speech-timer class="text-slate-400 text-xs mt-0.5 hidden tabular-nums"
                                             id="speech-timer-text">00:00</p>
                                     </div>
+
+                                    <!-- CTA container populated via JS (Save/Discard or open modal) -->
+                                    <div data-speech-cta class="flex items-center gap-2 flex-shrink-0"></div>
                                 </div>
                             </div>
                         </div>
@@ -2670,14 +2673,14 @@
                 stopped: 'Stopped'
             };
             const statusText = statusCopy[speechStatus] || 'Ready to record';
-            if (speechStatusEl) speechStatusEl.textContent = statusText;
+            if (speechStatus !== 'idle' && speechStatusEl) {
+                speechStatusEl.textContent = statusText;
+            }
             speechStatusEls.forEach(el => {
-                el.textContent = statusText;
-                if (speechStatus === 'idle') {
-                    el.style.opacity = 0;
-                } else {
-                    el.style.opacity = 1;
+                if (speechStatus !== 'idle') {
+                    el.textContent = statusText;
                 }
+                el.style.opacity = 1;
             });
 
             const recordBtn = document.getElementById('speech-record-btn');
@@ -2709,10 +2712,12 @@
                 speechHeroStopBtn.classList.toggle('hidden', !showStop);
             }
             if (speechHeroCTA) {
+                // Only show CTA when stopped (Save/Discard). Otherwise keep area empty to preserve rotating prompts.
+                speechHeroCTA.className = 'flex items-center gap-2 flex-shrink-0';
                 speechHeroCTA.classList.toggle('hidden', !showCTA);
+
                 if (showCTA) {
                     // Apple-style Save & Discard buttons
-                    speechHeroCTA.className = 'flex items-center gap-2';
                     speechHeroCTA.innerHTML = `
                         <button onclick="discardSpeech()" 
                             class="px-3 py-1.5 rounded-lg font-medium text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center gap-1.5 transition-all"
@@ -2729,17 +2734,7 @@
                         </button>
                     `;
                 } else {
-                    // Reset to arrow button
-                    speechHeroCTA.className = 'flex items-center gap-2';
-                    speechHeroCTA.innerHTML = `
-                        <button onclick="openModal('speech')" 
-                            class="hero-action flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all"
-                            aria-label="View speech logs">
-                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </button>
-                    `;
+                    speechHeroCTA.innerHTML = '';
                 }
             }
 
@@ -2803,6 +2798,7 @@
             speechStatus = 'stopped';
             resetSpeechBars(false);
             updateSpeechUI();
+            showToast('Recording stopped', 'info');
         }
 
         async function startSpeechRecording() {
@@ -2909,7 +2905,12 @@
         function stopSpeechRecording() {
             if (speechRecorder && speechRecorder.state !== 'inactive') {
                 speechRecorder.stop();
+                // handleSpeechStop will be called by the onstop event
+            } else if (speechStatus === 'recording' || speechStatus === 'paused') {
+                // If recorder is inactive but we're in recording/paused state, manually trigger stop
+                handleSpeechStop();
             } else {
+                // No recording to stop
                 speechStatus = 'idle';
                 updateSpeechUI();
             }
@@ -3394,6 +3395,7 @@
             await loadEntries();
             setupMobileTabs();
             resetSpeechBars(false);
+            updateSpeechUI();
             renderSpeechRecent();
         });
 
@@ -5117,8 +5119,13 @@
 
         // Show Toast Message
         function showToast(text, type) {
+            const palette = {
+                success: 'bg-emerald-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
             const toast = document.createElement('div');
-            toast.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} text-white font-semibold animate-slide-in`;
+            toast.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 ${palette[type] || 'bg-slate-700'} text-white font-semibold animate-slide-in`;
             toast.textContent = text;
             document.body.appendChild(toast);
 
