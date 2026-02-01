@@ -7,17 +7,45 @@ Flask-based neonatal care tracking application with speech-to-text integration, 
 ## Architecture
 
 ```
-Frontend (HTML/JS) → Flask API → ClickHouse DB
-                              → MinIO S3 Storage → Transcription Server (Mac-native)
-                              → Azure OpenAI (Categorization & Mapping)
+                    ┌──────────────┐
+                    │   Nginx      │ :443 (HTTPS gateway)
+                    │  Reverse     │
+                    │   Proxy      │
+                    └──────┬───────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+   ┌─────────┐      ┌──────────┐      ┌──────────┐
+   │ Static  │      │  Flask   │      │  MinIO   │
+   │  HTML   │      │ Backend  │      │   S3     │
+   │  Files  │      │(Gunicorn)│      │ Storage  │
+   └─────────┘      └────┬─────┘      └────┬─────┘
+                         │                  │
+                ┌────────┼──────────────────┤
+                │        │                  │
+                ▼        ▼                  ▼
+         ┌──────────┐ ┌──────────┐  ┌───────────────┐
+         │ClickHouse│ │  Redis   │  │Transcription  │
+         │    DB    │ │  Pubsub  │  │Server (Host)  │
+         └──────────┘ └──────────┘  └───────────────┘
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │ Azure OpenAI │
+                  │     LLM      │
+                  └──────────────┘
 ```
 
 ### Key Services
-- **Flask Backend** ([app.py](app.py)): Main API server (port 5000), CORS-enabled, HTTPS via self-signed certs
+- **Nginx** ([nginx.conf](nginx.conf)): Reverse proxy serving static HTML, proxies `/api/*` to Flask backend on HTTPS:5000
+- **Flask Backend** ([app.py](app.py)): Main API server (4 Gunicorn workers with Gevent), CORS-enabled, HTTPS via self-signed certs
 - **ClickHouse**: OLAP database for baby entries (port 8123), partitioned by month, timezone-aware (Asia/Kolkata default)
-- **MinIO**: S3-compatible audio storage (port 9002 external, 9000 internal)
+- **MinIO**: S3-compatible audio storage (port 9002 external, 9000 internal), CORS enabled for audio playback
+- **Redis**: Pub/sub for SSE (Server-Sent Events) across Gunicorn workers (port 6379)
 - **Transcription Server** ([transcription_server.py](transcription_server.py)): Mac-native MLX Whisper server (port 8083), runs on host machine via `host.docker.internal`
-- **Azure OpenAI**: LLM categorization/mapping via async background workers
+- **Azure OpenAI**: LLM categorization/mapping via async background workers (2 threads per worker)
+- **n8n**: Webhook automation for notifications (port 5678)
 
 ## Development Workflow
 
@@ -27,7 +55,7 @@ Frontend (HTML/JS) → Flask API → ClickHouse DB
 make setup  # Installs ffmpeg, uv, syncs dependencies
 
 # Start all services (Docker Compose)
-make dev-up  # Backend at https://localhost:8082, MinIO console at localhost:9001
+make dev-up  # Nginx at https://localhost, Backend at https://localhost:8082, MinIO console at localhost:9001
 
 # View logs
 make dev-logs
@@ -36,6 +64,12 @@ make dev-logs
 make dev-down  # Preserves data
 make clean     # Removes volumes (DESTRUCTIVE)
 ```
+
+### Production Deployment Pattern
+- **Nginx** serves as HTTPS gateway (port 80→443 redirect), proxies `/api/*` to Gunicorn backend
+- **Gunicorn** runs 4 workers with gevent async workers (300s timeout for long-running transcriptions)
+- **Redis** enables SSE (Server-Sent Events) across Gunicorn workers for real-time transcription updates
+- **Single notification checker**: Uses file-based lock (`/tmp/baby_tracker_notification_checker.lock`) to ensure only one Gunicorn worker runs background notification thread
 
 ### Local Development (No Docker - rarely used)
 1. Start native transcription server: `./start_transcription_server.sh` (requires Apple Silicon Mac)
@@ -47,15 +81,33 @@ make clean     # Removes volumes (DESTRUCTIVE)
 ### Testing
 - Use [test_categorization.py](test_categorization.py) to validate LLM categorization
 - Use [test_entry_mapping.py](test_entry_mapping.py) to test entry mapping
+- Use [test_notifications.py](test_notifications.py) to test notification webhooks
 - No formal test suite; manual testing via `/api/health` and HTML UI
 
 ## Critical Patterns
+
+### Real-Time Updates: SSE (Server-Sent Events)
+- **Multi-worker challenge**: Gunicorn runs 4 workers; client connections stick to one worker
+- **Redis pub/sub solution**: `broadcast_sse_event()` publishes to Redis channel, all workers subscribe
+- **Fallback**: In-memory `sse_queues` dict if Redis unavailable (single-worker only)
+- **Client endpoint**: `GET /api/events/transcription` streams `text/event-stream` with heartbeats
+- **Nginx config**: `X-Accel-Buffering: no` header disables proxy buffering for streaming
+- **Event types**: `transcription_complete`, `mapping_complete`, `categorization_update`
+
+Example SSE broadcast:
+```python
+broadcast_sse_event('transcription_complete', {
+    'entry_id': entry_id,
+    'transcription': text
+})
+```
 
 ### Database Operations (ClickHouse-specific)
 - **Mutations are async by default**: Use `SETTINGS mutations_sync=2` for DELETE/UPDATE (set via `MUTATIONS_SYNC_LEVEL` env var)
 - **No auto-increment IDs**: Call `get_next_id(client)` before INSERT (uses MAX(id)+1)
 - **Timezone handling**: All DateTime64 columns use `LOCAL_TIMEZONE` (pytz object from `TZ` env var)
-- **Table structure**: See [init_clickhouse.sql](init_clickhouse.sql) - two tables: `entries` (main), `entries_backup` (TTL 1 day)
+- **Table structure**: See [init_clickhouse.sql](init_clickhouse.sql) - three tables: `entries` (main), `entries_backup` (TTL 1 day), `speech_entries`
+- **Connection pattern**: Always use `client = get_db_connection()` followed by `client.close()` in finally block
 
 Example DELETE pattern:
 ```python
@@ -91,6 +143,9 @@ client.command('''
   - `MINIO_ENDPOINT` (internal: `minio:9000`), `MINIO_EXTERNAL_ENDPOINT` (presigned URLs: `localhost:9002`)
   - `HOST_TRANSCRIPTION_URL` (Docker → host Mac: `http://host.docker.internal:8083/transcribe`)
   - `TZ` (default: `Asia/Kolkata`)
+  - `REDIS_URL` (default: `redis://redis:6379/0` for SSE pub/sub)
+  - `N8N_WEBHOOK_ID`, `N8N_HOST` (notification webhooks)
+  - `ENABLE_BACKGROUND_NOTIFICATIONS` (bool, default: False - frontend timer handles alerts)
 
 ### Service Clients (src/services/)
 - **S3StorageService**: [s3_compatible_service.py](src/services/s3_compatible_service.py)
@@ -155,4 +210,5 @@ make dev-import-data  # Imports latest backup (with --truncate-first flag)
 - **No PostgreSQL**: Project migrated from PostgreSQL to ClickHouse (legacy references may exist in docs)
 - **Medical disclaimer**: Tool is for tracking only, not medical advice (see [README.md](README.md))
 - **Self-signed certs**: [cert.pem](cert.pem) and [key.pem](key.pem) for local HTTPS (browser warnings expected)
-- **Branch strategy**: Current branch `feat/design_log_pivot_to_speech` focuses on speech integration
+- **Current branch**: `feat/design_imporvements_dashboard` (see PR #17 for design improvements)
+- **Gunicorn pattern**: File-based locks in `/tmp/` used to coordinate single-instance background tasks across workers
