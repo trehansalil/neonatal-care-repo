@@ -806,6 +806,11 @@
                 display: none;
             }
 
+            /* Hide Quick Log label on mobile */
+            .quick-log-label {
+                display: none !important;
+            }
+
             /* Reduce header padding on mobile */
             header .container {
                 padding-top: 0.75rem !important;
@@ -1050,7 +1055,12 @@
 
                         <!-- Input-like Display Area -->
                         <div class="flex-1 speech-input-area px-4 py-3" id="speech-input-area">
-                            <div class="flex items-center gap-3">
+                            <div class="flex flex-col gap-1">
+                                <!-- Label -->
+                                <div class="quick-log-label">Quick Log</div>
+
+                                <!-- Content Area -->
+                                <div class="flex items-center gap-3">
                                     <!-- Waveform (hidden by default) -->
                                     <div class="waveform hidden" id="waveform">
                                         <div class="waveform-bar"></div>
@@ -1070,6 +1080,7 @@
                                         <p data-speech-timer class="text-slate-400 text-xs mt-0.5 hidden tabular-nums"
                                             id="speech-timer-text">00:00</p>
                                     </div>
+                                </div>
                             </div>
                         </div>
                     </div>
