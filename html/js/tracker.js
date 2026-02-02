@@ -121,6 +121,10 @@ const avgTempMobileEl = document.getElementById('avg-temp-mobile');
 const currentWeightMobileEl = document.getElementById('current-weight-mobile');
 
 // Helper function to get current datetime in local timezone
+/**
+ * Get the current date and time formatted for datetime-local inputs
+ * @returns {Object} Object containing date (YYYY-MM-DD) and time (HH:mm)
+ */
 function getCurrentDateTime() {
 const now = new Date();
 const year = now.getFullYear();
@@ -136,6 +140,10 @@ time: `${hours}:${minutes}`
 }
 
 // Helper function to set current date/time for a form
+/**
+ * Set current date and time values in form inputs
+ * @param {string} type - The entry type (feed, susu, poti, temp, weight)
+ */
 function setCurrentDateTime(type) {
 const { date, time } = getCurrentDateTime();
 document.getElementById(`${type}-date`).value = date;
@@ -143,6 +151,10 @@ document.getElementById(`${type}-time`).value = time;
 }
 
 // Diaper Timer Functions
+/**
+ * Fetch notification webhook configuration from the backend
+ * @async
+ */
 async function fetchWebhookConfig() {
 try {
 const response = await fetch(`${API_BASE_URL}/notifications/webhook-config`);
@@ -155,6 +167,10 @@ console.error('Error fetching webhook config:', error);
 }
 }
 
+/**
+ * Retrieve notification state from localStorage
+ * @returns {Object} Notification state object
+ */
 function getNotificationState() {
 try {
 const state = localStorage.getItem('diaperNotificationState');
@@ -164,6 +180,10 @@ return {};
 }
 }
 
+/**
+ * Save notification state to localStorage
+ * @param {Object} state - Notification state to persist
+ */
 function saveNotificationState(state) {
 try {
 localStorage.setItem('diaperNotificationState', JSON.stringify(state));
@@ -172,6 +192,14 @@ console.error('Error saving notification state:', error);
 }
 }
 
+/**
+ * Send diaper/nappy change notification via n8n webhook
+ * @async
+ * @param {number} hours - Hours since last diaper change
+ * @param {Date} lastChangeTime - Timestamp of last diaper change
+ * @param {boolean} isNewEntry - Whether this is triggered by a new entry
+ * @returns {Promise<boolean>} Success status
+ */
 async function sendDiaperNappyNotification(hours, lastChangeTime, isNewEntry = false) {
 if (!webhookConfig.configured) {
 console.log('Webhook not configured, skipping notification');
@@ -254,6 +282,11 @@ return false;
 }
 }
 
+/**
+ * Format elapsed time since a given timestamp
+ * @param {Date} timestamp - Starting timestamp
+ * @returns {string} Formatted time string (e.g., "2h 30m")
+ */
 function formatTimeSince(timestamp) {
 if (!timestamp) return { hours: 0, minutes: 0, display: '--:--' };
 const now = new Date();
@@ -266,6 +299,10 @@ const display = `${hours}h ${String(minutes).padStart(2, '0')}m`;
 return { hours, minutes, display };
 }
 
+/**
+ * Update the diaper timer display with current elapsed time and visual state
+ * Changes card colors based on elapsed time thresholds
+ */
 function updateDiaperNappyTimerDisplay() {
 if (!lastDiaperChangeTime) {
 diaperTimerDisplay.textContent = '--:--';
@@ -360,6 +397,9 @@ saveNotificationState({});
 }
 }
 
+/**
+ * Start the diaper timer interval to update the display every 30 seconds
+ */
 function startDiaperTimer() {
 // Clear existing timer if any
 if (diaperTimerInterval) {
@@ -373,6 +413,10 @@ updateDiaperNappyTimerDisplay();
 diaperTimerInterval = setInterval(updateDiaperNappyTimerDisplay, 30000);
 }
 
+/**
+ * Find the most recent diaper change entry from entries array
+ * @returns {Object|null} Most recent susu or poti entry, or null if none found
+ */
 function findLastDiaperChange() {
 // Find most recent entry with susu_count OR poti_count > 0
 const diaperEntries = entries
@@ -389,6 +433,13 @@ startDiaperTimer();
 }
 
 // Generic note metadata parser for "Label: value" prefixes
+/**
+ * Parse a specific field from note text with optional validation
+ * @param {string} noteText - Full note text to parse
+ * @param {string} label - Field label to search for
+ * @param {Array<string>} validValues - Optional array of valid values for validation
+ * @returns {string|null} Parsed value or null if not found/invalid
+ */
 function parseNoteField(noteText, label, validValues = []) {
 if (!noteText) return { value: null, remaining: '', error: null };
 const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -409,6 +460,12 @@ return { value, remaining, error: null };
 }
 
 // Rebuild notes with structured metadata prefixes so we can parse later
+/**
+ * Build complete notes string from metadata parts and free text
+ * @param {Array<string>} metadataParts - Array of metadata strings
+ * @param {string} freeText - User-entered free text
+ * @returns {string} Combined notes string
+ */
 function buildNotes(metadataParts, freeText) {
 const meta = metadataParts
 .filter(part => part.value)
@@ -419,6 +476,11 @@ return [meta, text].filter(Boolean).join('. ').trim();
 }
 
 // Parse susu notes to extract item type, urine color, and remaining text
+/**
+ * Parse susu (wet diaper) specific fields from notes
+ * @param {string} noteText - Note text to parse
+ * @returns {Object} Object containing color, susu_count
+ */
 function parseSusuNotes(noteText) {
 if (!noteText) return { itemType: null, color: null, text: '', errors: [] };
 
@@ -435,6 +497,11 @@ errors: [itemParsed.error, colorParsed.error].filter(Boolean)
 
 // Parse poti notes to extract item type, consistency, and free-text notes
 // Valid consistency values are: loose, soft, normal, hard, watery
+/**
+ * Parse poti (soiled diaper) specific fields from notes
+ * @param {string} noteText - Note text to parse
+ * @returns {Object} Object containing color, consistency, poti_count
+ */
 function parsePotiNotes(noteText) {
 if (!noteText) return { itemType: null, consistency: null, text: '', errors: [] };
 
@@ -457,12 +524,24 @@ return `${count} ${descriptor} ${pluralBase}`;
 
 // Helper function to combine date and time inputs
 // Return a local-naive timestamp string so the backend treats it as local time
+/**
+ * Get timestamp from date/time form inputs
+ * @param {string} type - Entry type (feed, susu, poti, etc.)
+ * @returns {Date} Parsed date object
+ */
 function getTimestampFromInputs(type) {
 const date = document.getElementById(`${type}-date`).value;
 const time = document.getElementById(`${type}-time`).value;
 return `${date}T${time}`;
 }
 
+/**
+ * Parse date and time strings into a Date object
+ * @param {string} dateStr - Date string (YYYY-MM-DD)
+ * @param {string} timeStr - Time string (HH:mm)
+ * @param {boolean} asRangeEnd - If true, set time to end of day
+ * @returns {Date} Parsed date object
+ */
 function parseDateTime(dateStr, timeStr, asRangeEnd = false) {
 if (!dateStr || !timeStr) return null;
 const ts = new Date(`${dateStr}T${timeStr}`);
@@ -474,6 +553,11 @@ return ts;
 
 // Format a Date object as local datetime string (YYYY-MM-DDTHH:mm:ss) without timezone
 // This ensures the backend interprets it as local time, not UTC
+/**
+ * Format a Date object for backend API (ISO 8601 format)
+ * @param {Date} date - Date to format
+ * @returns {string} Formatted datetime string
+ */
 function formatDateTimeForBackend(date) {
 if (!date) return null;
 const year = date.getFullYear();
@@ -487,6 +571,11 @@ return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`;
 }
 
 // Format milliseconds into mm:ss
+/**
+ * Format milliseconds as minutes and seconds
+ * @param {number} ms - Milliseconds to format
+ * @returns {string} Formatted duration (e.g., "2:30")
+ */
 function formatDuration(ms = 0) {
 const totalSeconds = Math.max(0, Math.floor(ms / 1000));
 const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -665,6 +754,10 @@ speechTimerInterval = null;
 }
 }
 
+/**
+ * Handle stopping speech recording and initiate transcription
+ * Uploads audio to backend and polls for transcription results
+ */
 function handleSpeechStop() {
 stopSpeechTimer();
 const duration = speechStartTime ? Date.now() - speechStartTime : 0;
@@ -698,6 +791,11 @@ updateSpeechUI();
 showToast('Recording stopped', 'info');
 }
 
+/**
+ * Start speech recording via microphone
+ * Initializes MediaRecorder and begins capturing audio
+ * @async
+ */
 async function startSpeechRecording() {
 try {
 // Check for Secure Context first
@@ -2200,6 +2298,10 @@ if (icon) icon.style.transform = 'rotate(-90deg)';
 }
 
 // Render Entries
+/**
+ * Render all entries to the timeline display
+ * Applies current filters and date range
+ */
 function renderEntries() {
 const allEntries = [...entries, ...speechEntries];
 
@@ -2424,6 +2526,11 @@ openModal('speech', entry);
 }
 
 // Delete Entry
+/**
+ * Delete an entry via backend API
+ * @async
+ * @param {number} id - Entry ID to delete
+ */
 async function deleteEntry(id) {
 // Handle local speech entries separately
 const speechMatch = speechEntries.find(e => e.id === id);
@@ -2460,6 +2567,10 @@ showToast('Error deleting entry', 'error');
 }
 
 // Update Stats
+/**
+ * Update dashboard statistics based on current entries
+ * Calculates totals for feeds, diapers, temperature, weight
+ */
 function updateStats() {
 const rangeEntries = entries.filter(e => {
 const ts = new Date(e.timestamp);
