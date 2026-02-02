@@ -3966,8 +3966,9 @@
             const customBtn = document.getElementById('custom-range-btn');
             const customLabel = document.getElementById('custom-range-label');
 
-            // Deactivate all preset chips (exclude custom btn)
-            const presetChips = document.querySelectorAll('.filter-scroll-container button:not(#custom-range-btn)');
+            // Deactivate all preset chips (exclude custom btn and type filter chips)
+            // Only target buttons without data-type attribute (time range filters only)
+            const presetChips = document.querySelectorAll('.filter-scroll-container button:not(#custom-range-btn):not([data-type])');
             presetChips.forEach(chip => chip.classList.remove('active'));
 
             if (activePreset) {
