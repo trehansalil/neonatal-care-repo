@@ -4049,7 +4049,8 @@
             typeFilters.clear();
             typeFilters.add(type);
 
-            const chips = document.querySelectorAll('.filter-chip');
+            // Only target type filter chips (those with data-type attribute)
+            const chips = document.querySelectorAll('.filter-chip[data-type]');
             chips.forEach(chip => {
                 const isActive = chip.dataset.type === type;
                 chip.classList.toggle('active', isActive);
