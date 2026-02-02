@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     diaper_alert_hours: int = Field(default=4, alias="DIAPER_ALERT_HOURS")
     notification_check_interval_minutes: int = Field(default=60, alias="NOTIFICATION_CHECK_INTERVAL_MINUTES")
     enable_background_notifications: bool = Field(default=False, alias="ENABLE_BACKGROUND_NOTIFICATIONS")
+    external_transcription_service_bool: int = Field(default=1, alias="EXTERNAL_TRANSCRIPTION_SERVICE_BOOL")
     
     @property
     def n8n_webhook_url(self) -> str:

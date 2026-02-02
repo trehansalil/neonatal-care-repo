@@ -113,7 +113,8 @@ transcription_url = os.environ.get('HOST_TRANSCRIPTION_URL', 'http://host.docker
 stt_service = STTService(
     storage_client=s3_storage,
     bucket_name=configured_settings.minio_bucket_name,
-    transcription_url=transcription_url
+    transcription_url=transcription_url,
+    use_transcription_outside_docker=configured_settings.external_transcription_service_bool,
 )
 
 # LLM Categorization service - uses Azure OpenAI
