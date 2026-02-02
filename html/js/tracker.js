@@ -2861,6 +2861,7 @@ function updateTrendChart() {
     };
     if (compare && compareUnit !== unit) {
         trendChart.options.scales.y1 = {
+            display: true,
             position: 'right',
             beginAtZero: false,
             grid: { display: false },
@@ -2872,7 +2873,14 @@ function updateTrendChart() {
             }
         };
     } else {
-        trendChart.options.scales.y1 = undefined;
+        // Keep y1 as a valid scale config with display: false — setting to undefined
+        // causes Chart.js to throw "Invalid scale configuration for scale: y1" on update.
+        trendChart.options.scales.y1 = {
+            display: false,
+            beginAtZero: false,
+            position: 'right',
+            grid: { drawOnChartArea: false }
+        };
     }
     trendChart.options.scales.x.ticks = {
         maxTicksLimit: Math.min(grouped.labels.length, groupBy === 'day' ? 12 : groupBy === 'week' ? 12 : 12) || 6,
