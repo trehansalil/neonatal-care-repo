@@ -1,1 +1,323 @@
 
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+    background-color: #f8f8f8;
+    /* slightly greyish bg */
+}
+
+/* Timeline vertical line */
+.timeline-container {
+    position: relative;
+}
+
+/* The vertical line */
+.timeline-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 35px;
+    /* Adjust based on icon size/padding */
+    width: 2px;
+    background-color: #e2e8f0;
+    z-index: 0;
+}
+
+/* Event card styling */
+.event-card {
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+    /* so that z-index works */
+    z-index: 1;
+    /* above the vertical line */
+}
+
+/* Icon container */
+.icon-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 16px;
+    font-size: 20px;
+}
+
+/* Event header */
+.event-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.event-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin: 0;
+}
+
+/* Event time */
+.event-time {
+    font-size: 15px;
+    color: #86868b;
+    margin-bottom: 8px;
+}
+
+/* Event value */
+.event-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+}
+
+/* Event label */
+.event-label {
+    font-size: 15px;
+    color: #86868b;
+    margin-bottom: 12px;
+}
+
+/* Notes */
+.event-notes {
+    font-size: 15px;
+    color: #515154;
+    line-height: 1.5;
+    padding: 12px;
+    background-color: #f5f5f7;
+    border-radius: 8px;
+}
+
+/* Feeding icon colors */
+.icon-feeding {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Diaper icon colors */
+.icon-diaper {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+/* Sleep icon colors */
+.icon-sleep {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+/* Medicine icon colors */
+.icon-medicine {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+/* Container styling */
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #1d1d1f;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+/* Button styling */
+.add-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+    z-index: 1000;
+}
+
+.add-button:hover {
+    transform: scale(1.05);
+}
+
+.add-button:active {
+    transform: scale(0.95);
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 32px;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #86868b;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+}
+
+input[type="datetime-local"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+    transition: border-color 0.2s;
+}
+
+input[type="datetime-local"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #007aff;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.submit-button {
+    width: 100%;
+    padding: 14px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.submit-button:hover {
+    background-color: #0051d5;
+}
+
+.submit-button:active {
+    background-color: #004bb5;
+}
+
+/* Amount/Duration styling in form */
+.amount-group {
+    display: flex;
+    gap: 12px;
+}
+
+.amount-group input {
+    flex: 1;
+}
+
+/* Chart container */
+#chartContainer {
+    margin: 30px 0;
+    padding: 20px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .container {
+        padding: 16px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .event-value {
+        font-size: 28px;
+    }
+
+    .modal-content {
+        padding: 24px;
+    }
+
+    .add-button {
+        bottom: 20px;
+        right: 20px;
+    }
+}
