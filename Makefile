@@ -12,6 +12,9 @@ ipconfig:
 dev-up:
 	docker compose up -d
 
+dev-build:
+	docker compose up -d --build
+
 # Stop local development environment
 dev-down:
 	docker compose down
