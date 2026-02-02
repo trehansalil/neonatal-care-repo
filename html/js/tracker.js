@@ -1376,6 +1376,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     fetchWebhookConfig(); // Load webhook configuration
     restoreViewPrefs();
+
+    // Initialize chart BEFORE setupHistoryRange() since it calls loadEntries() which needs the chart
+    initTrendChart();
+    setupTrendControls();
+
     // Setup ranges and controls before the first fetch so both history and trend pull the right window
     await setupHistoryRange();
     setupHistoryFilters();
@@ -1388,8 +1393,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             chip.classList.remove('active');
         }
     });
-    initTrendChart();
-    setupTrendControls();
     // Now load entries with both history and trend ranges established
     await loadEntries();
     setupMobileTabs();
@@ -2417,10 +2420,9 @@ onmousedown="handleLongPressStart(event, ${entry.id})"
 ontouchstart="handleLongPressStart(event, ${entry.id})"
 onmouseup="handleLongPressEnd()" 
 ontouchend="handleLongPressEnd()"
-onmouseleave="handleLongPressEnd()"
 ontouchcancel="handleLongPressEnd()">
 
-<div class="timeline-card-content bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative z-10 transition-transform">
+<div class="timeline-card-content bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative z-10">
 
 <!-- Pop-out Menu Overlay -->
 <div class="pop-out-overlay" id="overlay-${entry.id}">
@@ -2683,72 +2685,92 @@ function updateStats() {
 
 // Initialize Trend Chart
 function initTrendChart() {
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    trendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Value',
-                data: [],
-                borderColor: 'rgb(14, 165, 233)',
-                backgroundColor: 'rgba(14, 165, 233, 0.14)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.35,
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                pointBackgroundColor: 'rgb(14, 165, 233)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-                axis: 'x'
+    try {
+        const canvas = document.getElementById('trendChart');
+        if (!canvas) {
+            console.error('trendChart canvas element not found');
+            return;
+        }
+        const ctx = canvas.getContext('2d');
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Value',
+                    data: [],
+                    borderColor: 'rgb(14, 165, 233)',
+                    backgroundColor: 'rgba(14, 165, 233, 0.14)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: 'rgb(14, 165, 233)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }]
             },
-            plugins: {
-                legend: {
-                    display: false
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                    axis: 'x'
                 },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    padding: 10,
-                    titleFont: { size: 13, weight: 'bold' },
-                    bodyFont: { size: 12 },
-                    displayColors: false,
-                    callbacks: {
-                        title: function (context) {
-                            return context[0].label;
-                        },
-                        label: function (context) {
-                            const value = context.parsed.y;
-                            const metric = context.datasetIndex === 0 ? currentMetric : compareMetric;
-                            const unit = getMetricUnit(metric);
-                            return `${value}${unit}`;
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 10,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        displayColors: false,
+                        callbacks: {
+                            title: function (context) {
+                                return context[0].label;
+                            },
+                            label: function (context) {
+                                const value = context.parsed.y;
+                                const metric = context.datasetIndex === 0 ? currentMetric : compareMetric;
+                                const unit = getMetricUnit(metric);
+                                return `${value}${unit}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        position: 'left',
+                        grid: {
+                            color: 'rgba(15, 23, 42, 0.05)'
+                        }
+                    },
+                    y1: {
+                        beginAtZero: false,
+                        position: 'right',
+                        display: false,
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(15, 23, 42, 0.04)'
                         }
                     }
                 }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    grid: {
-                        color: 'rgba(15, 23, 42, 0.05)'
-                    }
-                },
-                x: {
-                    grid: {
-                        color: 'rgba(15, 23, 42, 0.04)'
-                    }
-                }
             }
-        }
-    });
+        });
+        console.log('Trend chart initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize trend chart:', error);
+        trendChart = null;
+    }
 }
 
 // Update Trend Chart
@@ -2764,6 +2786,12 @@ function updateTrendChart() {
     const aggregationHint = document.getElementById('aggregation-hint');
     updateRangeLabel(rangeLabel, label);
     updateAggregationHint(aggregationHint, currentTimeRange);
+
+    // Safety check: ensure trendChart is initialized
+    if (!trendChart || !trendChart.data) {
+        console.warn('trendChart not fully initialized yet');
+        return;
+    }
 
     const filteredEntries = entries
         .filter(e => {
@@ -3290,6 +3318,8 @@ let longPressTimer;
 const LONG_PRESS_DURATION = 800; // ms
 
 function handleLongPressStart(e, id) {
+    console.log('handleLongPressStart called:', { event: e.type, id, button: e.button });
+
     // If already shaking, ignore
     const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
     if (item && item.classList.contains('shaking')) return;
@@ -3297,10 +3327,15 @@ function handleLongPressStart(e, id) {
     // Only left click or touch
     if (e.type === 'mousedown' && e.button !== 0) return;
 
-    // Prevent default context menu on long press if on touch device
-    // e.preventDefault(); // This might block scrolling? Test carefully.
+    // For touch, we need to handle preventDefault carefully
+    // Only prevent default if we can (non-passive listener)
+    if (e.type === 'touchstart' && e.cancelable) {
+        e.preventDefault();
+    }
 
+    console.log('Starting long press timer for id:', id);
     longPressTimer = setTimeout(() => {
+        console.log('Long press timer fired for id:', id);
         startShake(id);
         // Vibrate if supported
         if (navigator.vibrate) navigator.vibrate(50);
@@ -3308,10 +3343,12 @@ function handleLongPressStart(e, id) {
 }
 
 function handleLongPressEnd() {
+    console.log('handleLongPressEnd called, clearing timer');
     clearTimeout(longPressTimer);
 }
 
 function startShake(id) {
+    console.log('startShake called for id:', id);
     // Stop any other shaking items first
     document.querySelectorAll('.shaking').forEach(el => {
         el.classList.remove('shaking');
@@ -3319,7 +3356,10 @@ function startShake(id) {
 
     const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
     if (item) {
+        console.log('Adding shaking class to item:', id);
         item.classList.add('shaking');
+    } else {
+        console.error('Timeline item not found for id:', id);
     }
 }
 
@@ -3333,6 +3373,24 @@ function stopShake(id, e) {
         item.classList.remove('shaking');
     }
 }
+
+// Expose functions to window for inline HTML event handlers
+window.handleLongPressStart = handleLongPressStart;
+window.handleLongPressEnd = handleLongPressEnd;
+window.startShake = startShake;
+window.stopShake = stopShake;
+window.editEntry = editEntry;
+window.duplicateEntry = duplicateEntry;
+window.confirmDeleteEntry = confirmDeleteEntry;
+window.closeContextMenu = closeContextMenu;
+window.reTranscribeEntry = reTranscribeEntry;
+
+console.log('Long press handlers exposed:', {
+    handleLongPressStart: typeof window.handleLongPressStart,
+    handleLongPressEnd: typeof window.handleLongPressEnd,
+    startShake: typeof window.startShake,
+    stopShake: typeof window.stopShake
+});
 
 // Close jiggle if clicking outside
 document.addEventListener('click', (e) => {
