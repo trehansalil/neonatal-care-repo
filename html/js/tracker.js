@@ -223,6 +223,7 @@ const thresholdSeconds = thresholdHours * 3600;
 // Calculate time since the entry's timestamp (whether backdated or current)
 let timeSinceSeconds;
 let actualHours;
+let message;
 
 if (isNewEntry) {
 // For a new entry, calculate time from the entry's timestamp to NOW
@@ -325,7 +326,7 @@ saveNotificationState({});
 return;
 }
 
-const { hours, minutes, display } = formatTimeSince(lastDiaperChangeTime);
+const { hours, display } = formatTimeSince(lastDiaperChangeTime);
 diaperTimerDisplay.textContent = display;
 
 const lastChangeDate = new Date(lastDiaperChangeTime);
@@ -1000,7 +1001,7 @@ console.log(`[${new Date().toISOString()}] 📨 mapping_complete raw`, event.dat
 const data = JSON.parse(event.data);
 console.log(`[${new Date().toISOString()}] 📨 mapping_complete`, data);
 
-const { speech_entry_id, entry_id, success } = data;
+const { entry_id, success } = data;
 
 if (success) {
 // Refresh both speech entries (for notes update) and regular entries (for new entry)
@@ -1318,7 +1319,7 @@ closeModal(type);
 }
 });
 }
-}
+};
 
 // Temperature warning
 document.getElementById('temp-value').addEventListener('input', (e) => {
@@ -1496,7 +1497,7 @@ body: JSON.stringify(data)
 }
 
 if (response.ok) {
-const responseData = await response.json();
+await response.json();
 closeModal(type);
 await loadEntries();
 // Always update trend chart after any entry change
@@ -2380,12 +2381,9 @@ iconBg = 'bg-orange-100 text-orange-500'; // Matches user image (orange/peach)
 icon = '💧';
 title = 'Diaper Wet';
 const { itemType } = parseSusuNotes(entry.notes);
-// "Medium • Clear color"
-const size = itemType === 'diaper' ? 'Medium' : 'Small'; // Mock logic for size if not present, or use itemType
-details = `${size} • Clear color`; // Simplified for "less verbose", can adjust logic
-if (entry.notes) details = entry.notes; // fallback to notes if simple logic fails, or parse better
-// Actually, let's try to match "Medium • Clear color" style if data exists
-details = entry.notes || 'One wet diaper';
+// Use parsed size-based summary when notes are absent, otherwise prefer raw notes
+const size = itemType === 'diaper' ? 'Medium' : 'Small';
+details = entry.notes || `${size} • Clear color` || 'One wet diaper';
 iconBg = 'bg-blue-100 text-blue-500';
 } else if (entry.poti_count > 0) {
 icon = '💩'; // Or wind icon if available
@@ -2604,7 +2602,6 @@ return true;
 
 const latestWeight = applicableWeights.length > 0 ? applicableWeights[0].weight : 0;
 
-const targetEl = document.getElementById('target-feed-ml');
 const progressBar = document.getElementById('feed-progress-bar');
 const progressTextCompact = document.getElementById('feed-progress-text-compact');
 const basisText = document.getElementById('target-basis-text');
@@ -3326,8 +3323,10 @@ item.classList.add('shaking');
 }
 }
 
-function stopShake(id) {
-if (event) event.stopPropagation();
+function stopShake(id, e) {
+if (e && typeof e.stopPropagation === 'function') {
+e.stopPropagation();
+}
 
 const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
 if (item) {
