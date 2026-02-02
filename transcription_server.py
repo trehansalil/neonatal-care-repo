@@ -29,22 +29,30 @@ s3_storage = S3StorageService(
 )
 
 
-# def transcribe_file_mlx(local_path: str) -> str:
-#     """Run MLX Whisper transcription on the host Mac."""
-#     try:
-#         import mlx_whisper
 
-#         print(f"Transcribing {local_path} with MLX Whisper...")
-#         result = mlx_whisper.transcribe(
-#             local_path,
-#             path_or_hf_repo="mlx-community/whisper-large-v3-mlx"
-#         )
-#         transcript = result.get("text", "") if isinstance(result, dict) else ""
-#         print(f"Transcription complete: {len(transcript)} chars")
-#         return transcript
-#     except Exception as e:
-#         print(f"MLX transcription error: {e}")
-#         return ""
+def transcribe_file_mlx(local_path: str) -> str:
+    """Run MLX Whisper transcription on the host Mac."""
+    try:
+        print(f"Transcribing {local_path} with MLX Whisper...")
+        from mlx_audio.stt.utils import load_model
+        from mlx_audio.stt.generate import generate_transcription
+        model = load_model("mlx-community/whisper-large-v3-turbo-asr-fp16")
+        result = generate_transcription(
+            model=model,
+            audio_path=local_path,
+            output_path="path_to_output.txt",
+            format="txt",
+            verbose=True,
+        )
+        print(result.text)
+        transcript = result.text or ""
+        print(f"Transcription complete: {len(transcript)} chars")
+        return transcript
+    except Exception as e:
+        print(f"MLX transcription error: {e}")
+        import traceback
+        traceback.print_exc()        
+        return ""
 
 # def transcribe_file_mlx(local_path: str) -> str:
 #     """Run faster-whisper transcription."""
@@ -73,7 +81,9 @@ s3_storage = S3StorageService(
 #         logger.info(f"faster-whisper error: {e}")
 #         return ""
 
-def transcribe_file_mlx(local_path: str) -> str:
+
+
+def transcribe_file_assembly_ai(local_path: str) -> str:
     """Use AssemblyAI for transcription."""
     try:
         import assemblyai as aai
@@ -106,6 +116,36 @@ def transcribe_file_mlx(local_path: str) -> str:
         traceback.print_exc()
         return ""
 
+def transcribe_file_smallest_ai(local_path: str) -> str:
+    try:
+        import os
+        import requests
+
+        API_KEY = os.environ["SMALLEST_API_KEY"]
+        endpoint = "https://waves-api.smallest.ai/api/v1/pulse/get_text"
+        params = {
+            "model": "pulse",
+            "language": "en",
+            "word_timestamps": "true",
+        }
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "audio/webm",
+        }
+
+        with open(local_path, "rb") as audio:
+            response = requests.post(endpoint, params=params, headers=headers, data=audio.read(), timeout=120)
+
+        response.raise_for_status()
+        result = response.json()
+        trascript = result["transcription"] or ""
+        return trascript
+
+    except Exception as e:
+        logger.error(f"Smallest AI error: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return ""    
 
 def transcribe_file_mlx_asr(local_path: str) -> str:
     try:
@@ -159,7 +199,7 @@ def transcribe():
         print(f"Downloading {object_key} from bucket {bucket}...")
         tmp_path = s3_storage.download_to_tmp(object_name=object_key, container=bucket)
         
-        transcript = transcribe_file_mlx(tmp_path)
+        transcript = transcribe_file_assembly_ai(tmp_path)
         
         if not transcript:
             return jsonify({'error': 'Transcription returned empty result'}), 500
