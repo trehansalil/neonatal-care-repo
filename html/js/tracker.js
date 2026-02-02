@@ -24,3 +24,9 @@
 // ============================================================================
 
 console.log('tracker.js loaded successfully');
+
+// API Configuration
+const API_BASE_URL = '/api';
+const SPEECH_UPLOAD_URL = `${API_BASE_URL}/speech/upload`;
+const SPEECH_TRANSCRIBE_URL = `${API_BASE_URL}/speech/transcribe`;
+const SPEECH_ENTRIES_URL = `${API_BASE_URL}/speech_entries`;
