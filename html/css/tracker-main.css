@@ -1,0 +1,20 @@
+/**
+ * File: tracker-main.css
+ * Purpose: Main stylesheet that imports all modular CSS files
+ * Dependencies: All module CSS files in css/modules/
+ * 
+ * This is the single entry point for all tracker styles.
+ * Import this file in tracker.html instead of individual modules.
+ */
+
+/* Import CSS modules in dependency order */
+@import url('modules/base.css');
+@import url('modules/timeline.css');
+@import url('modules/speech-recording.css');
+@import url('modules/swipe-actions.css');
+@import url('modules/modals.css');
+@import url('modules/filters.css');
+@import url('modules/dashboard.css');
+@import url('modules/animations.css');
+@import url('modules/mobile.css');
+@import url('modules/responsive.css');

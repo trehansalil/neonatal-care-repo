@@ -1,0 +1,11 @@
+/**
+ * File: base.css
+ * Purpose: Base Styles & Layout for neonatal care tracker
+ * Part of: tracker.html modular CSS
+ */
+
+body {
+font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+background-color: #f8fafc;
+/* slightly greyish bg */
+}
