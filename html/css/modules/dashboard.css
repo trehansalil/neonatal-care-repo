@@ -2,8 +2,11 @@
  * File: dashboard.css
  * Purpose: Dashboard Grid & Metrics for neonatal care tracker
  * Part of: tracker.html modular CSS
+ * Responsive: Yes - contains mobile-specific media queries
  */
 
+/* Mobile-specific dashboard styles */
+@media (max-width: 768px) {
 .dashboard-grid > div:nth-child(3) {
 display: none;
 }
@@ -195,4 +198,4 @@ line-height: 0.875rem !important;
 width: 2.25rem !important;
 height: 2.25rem !important;
 }
-}
+} /* End mobile media query */
