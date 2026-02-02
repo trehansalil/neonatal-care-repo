@@ -1,87 +1,9 @@
 /**
- * File: tracker.js
- * Purpose: Client-side logic for neonatal care tracking interface
- * Dependencies: 
- *   - Chart.js (CDN) - for trend visualization
- *   - Tailwind CSS (CDN) - for utility classes
- * Last Modified: 2026-02-02
- * 
- * This file contains all JavaScript functionality for the baby tracker application.
- * It handles speech recording, entry management, statistics, charts, and UI interactions.
+ * File: dom-refs.js
+ * Purpose: DOM Element References
+ * Part of: tracker.html modular JavaScript
  */
 
-// ==========================================
-// SECTION: API Configuration
-// ==========================================
-
-// API Configuration
-const API_BASE_URL = '/api';
-const SPEECH_UPLOAD_URL = `${API_BASE_URL}/speech/upload`;
-const SPEECH_TRANSCRIBE_URL = `${API_BASE_URL}/speech/transcribe`;
-const SPEECH_ENTRIES_URL = `${API_BASE_URL}/speech_entries`;
-
-// ==========================================
-// SECTION: State Management
-// ==========================================
-let entries = [];
-let speechEntries = [];
-let trendChart = null;
-let currentEditingEntry = null;
-let currentMetric = 'weight-avg';
-let currentTimeRange = 'week';
-let compareMetric = null;
-let isCumulative = false;
-const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
-let historyRange = { start: null, end: null };
-let trendRange = { start: null, end: null };
-const STORAGE_KEYS = {
-    metric: 'tracker.metric',
-    range: 'tracker.range',
-    view: 'tracker.view',
-    cumulative: 'tracker.cumulative'
-};
-
-// ==========================================
-// SECTION: Speech Recording State
-// ==========================================
-let speechRecorder = null;
-let speechStream = null;
-let speechChunks = [];
-let speechTimerInterval = null;
-let speechStartTime = null;
-let speechDraft = null;
-let speechStatus = 'idle';
-let selectedMimeType = 'audio/webm';
-
-// Rotating placeholder prompts
-const placeholderPrompts = [
-    'Say: "50ml formula milk at 2pm"...',
-    'Say: "Stool was soft and yellow"...',
-    'Say: "Baby had susu just now"...',
-    'Say: "Fed 60ml at lunch time"...',
-    'Say: "Urine diaper at 3:30pm"...',
-    'Say: "Temperature log of 98.6°F"...',
-    'Say: "Weight entry of 4.312 Kg"...'
-];
-let currentPlaceholderIndex = 0;
-let placeholderRotationInterval = null;
-
-// Transcription polling state - using SSE for push notifications
-let sseConnection = null;
-let pendingSpeechEntries = new Set(); // Track entries waiting for transcription
-
-// Diaper timer state
-let diaperTimerInterval = null;
-let lastDiaperChangeTime = null;
-const DIAPER_ALERT_HOURS = 3; // Alert threshold in hours
-let webhookConfig = { configured: false, webhook_url: null, diaper_alert_hours: 3 };
-// Note: n8n handles recurring reminders every 15 minutes via backend polling
-
-// Long-press / jiggle state (must be at top level so inline handlers can use them)
-let longPressTimer = null;
-const LONG_PRESS_DURATION_MS = 800;
-
-// ==========================================
 // SECTION: DOM Element References
 // ==========================================
 const entriesContainer = document.getElementById('entries-container');
@@ -1380,11 +1302,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     fetchWebhookConfig(); // Load webhook configuration
     restoreViewPrefs();
-
-    // Initialize chart BEFORE setupHistoryRange() since it calls loadEntries() which needs the chart
-    initTrendChart();
-    setupTrendControls();
-
     // Setup ranges and controls before the first fetch so both history and trend pull the right window
     await setupHistoryRange();
     setupHistoryFilters();
@@ -1397,6 +1314,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             chip.classList.remove('active');
         }
     });
+    initTrendChart();
+    setupTrendControls();
     // Now load entries with both history and trend ranges established
     await loadEntries();
     setupMobileTabs();
@@ -2424,9 +2343,10 @@ onmousedown="handleLongPressStart(event, ${entry.id})"
 ontouchstart="handleLongPressStart(event, ${entry.id})"
 onmouseup="handleLongPressEnd()" 
 ontouchend="handleLongPressEnd()"
+onmouseleave="handleLongPressEnd()"
 ontouchcancel="handleLongPressEnd()">
 
-<div class="timeline-card-content bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative z-10">
+<div class="timeline-card-content bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative z-10 transition-transform">
 
 <!-- Pop-out Menu Overlay -->
 <div class="pop-out-overlay" id="overlay-${entry.id}">
@@ -2689,92 +2609,72 @@ function updateStats() {
 
 // Initialize Trend Chart
 function initTrendChart() {
-    try {
-        const canvas = document.getElementById('trendChart');
-        if (!canvas) {
-            console.error('trendChart canvas element not found');
-            return;
-        }
-        const ctx = canvas.getContext('2d');
-        trendChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Value',
-                    data: [],
-                    borderColor: 'rgb(14, 165, 233)',
-                    backgroundColor: 'rgba(14, 165, 233, 0.14)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.35,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: 'rgb(14, 165, 233)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }]
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Value',
+                data: [],
+                borderColor: 'rgb(14, 165, 233)',
+                backgroundColor: 'rgba(14, 165, 233, 0.14)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: 'rgb(14, 165, 233)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+                axis: 'x'
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                    axis: 'x'
+            plugins: {
+                legend: {
+                    display: false
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        padding: 10,
-                        titleFont: { size: 13, weight: 'bold' },
-                        bodyFont: { size: 12 },
-                        displayColors: false,
-                        callbacks: {
-                            title: function (context) {
-                                return context[0].label;
-                            },
-                            label: function (context) {
-                                const value = context.parsed.y;
-                                const metric = context.datasetIndex === 0 ? currentMetric : compareMetric;
-                                const unit = getMetricUnit(metric);
-                                return `${value}${unit}`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        position: 'left',
-                        grid: {
-                            color: 'rgba(15, 23, 42, 0.05)'
-                        }
-                    },
-                    y1: {
-                        beginAtZero: false,
-                        position: 'right',
-                        display: false,
-                        grid: {
-                            drawOnChartArea: false
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(15, 23, 42, 0.04)'
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    padding: 10,
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    displayColors: false,
+                    callbacks: {
+                        title: function (context) {
+                            return context[0].label;
+                        },
+                        label: function (context) {
+                            const value = context.parsed.y;
+                            const metric = context.datasetIndex === 0 ? currentMetric : compareMetric;
+                            const unit = getMetricUnit(metric);
+                            return `${value}${unit}`;
                         }
                     }
                 }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(15, 23, 42, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(15, 23, 42, 0.04)'
+                    }
+                }
             }
-        });
-        console.log('Trend chart initialized successfully');
-    } catch (error) {
-        console.error('Failed to initialize trend chart:', error);
-        trendChart = null;
-    }
+        }
+    });
 }
 
 // Update Trend Chart
@@ -2790,12 +2690,6 @@ function updateTrendChart() {
     const aggregationHint = document.getElementById('aggregation-hint');
     updateRangeLabel(rangeLabel, label);
     updateAggregationHint(aggregationHint, currentTimeRange);
-
-    // Safety check: ensure trendChart is initialized
-    if (!trendChart || !trendChart.data) {
-        console.warn('trendChart not fully initialized yet');
-        return;
-    }
 
     const filteredEntries = entries
         .filter(e => {
@@ -3326,9 +3220,10 @@ document.head.appendChild(style);
 // ----------------------------------------------------
 // LONG PRESS / JIGGLE LOGIC
 // ----------------------------------------------------
-function handleLongPressStart(e, id) {
-    console.log('handleLongPressStart called:', { event: e.type, id, button: e.button });
+let longPressTimer;
+const LONG_PRESS_DURATION = 800; // ms
 
+function handleLongPressStart(e, id) {
     // If already shaking, ignore
     const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
     if (item && item.classList.contains('shaking')) return;
@@ -3336,28 +3231,21 @@ function handleLongPressStart(e, id) {
     // Only left click or touch
     if (e.type === 'mousedown' && e.button !== 0) return;
 
-    // For touch, we need to handle preventDefault carefully
-    // Only prevent default if we can (non-passive listener)
-    if (e.type === 'touchstart' && e.cancelable) {
-        e.preventDefault();
-    }
+    // Prevent default context menu on long press if on touch device
+    // e.preventDefault(); // This might block scrolling? Test carefully.
 
-    console.log('Starting long press timer for id:', id);
     longPressTimer = setTimeout(() => {
-        console.log('Long press timer fired for id:', id);
         startShake(id);
         // Vibrate if supported
         if (navigator.vibrate) navigator.vibrate(50);
-    }, LONG_PRESS_DURATION_MS);
+    }, LONG_PRESS_DURATION);
 }
 
 function handleLongPressEnd() {
-    console.log('handleLongPressEnd called, clearing timer');
     clearTimeout(longPressTimer);
 }
 
 function startShake(id) {
-    console.log('startShake called for id:', id);
     // Stop any other shaking items first
     document.querySelectorAll('.shaking').forEach(el => {
         el.classList.remove('shaking');
@@ -3365,10 +3253,7 @@ function startShake(id) {
 
     const item = document.querySelector(`.timeline-item[data-id="${id}"]`);
     if (item) {
-        console.log('Adding shaking class to item:', id);
         item.classList.add('shaking');
-    } else {
-        console.error('Timeline item not found for id:', id);
     }
 }
 
@@ -3382,24 +3267,6 @@ function stopShake(id, e) {
         item.classList.remove('shaking');
     }
 }
-
-// Expose functions to window for inline HTML event handlers
-window.handleLongPressStart = handleLongPressStart;
-window.handleLongPressEnd = handleLongPressEnd;
-window.startShake = startShake;
-window.stopShake = stopShake;
-window.editEntry = editEntry;
-window.duplicateEntry = duplicateEntry;
-window.confirmDeleteEntry = confirmDeleteEntry;
-window.closeContextMenu = closeContextMenu;
-window.reTranscribeEntry = reTranscribeEntry;
-
-console.log('Long press handlers exposed:', {
-    handleLongPressStart: typeof window.handleLongPressStart,
-    handleLongPressEnd: typeof window.handleLongPressEnd,
-    startShake: typeof window.startShake,
-    stopShake: typeof window.stopShake
-});
 
 // Close jiggle if clicking outside
 document.addEventListener('click', (e) => {
