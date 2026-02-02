@@ -61,10 +61,3 @@ user-select: none;
 -webkit-user-select: none;
 }
 
-/* Mobile Metrics Slider */
-.metrics-slider-container {
-display: none;
-}
-
-@media (max-width: 768px) {
-/* Hide third metric card on mobile */

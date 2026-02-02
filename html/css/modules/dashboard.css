@@ -5,6 +5,16 @@
  * Responsive: Yes - contains mobile-specific media queries
  */
 
+/* Desktop: Hide mobile metrics slider by default */
+.metrics-slider-container {
+display: none;
+}
+
+/* Desktop: Hide summary stats grid (shown only via JS/conditions) */
+.summary-stats-grid {
+display: none !important;
+}
+
 /* Mobile-specific dashboard styles */
 @media (max-width: 768px) {
 .dashboard-grid > div:nth-child(3) {
@@ -121,11 +131,6 @@ font-size: 0.625rem !important;
 .metrics-slider .w-6 {
 width: 1.375rem !important;
 height: 1.375rem !important;
-}
-
-/* Adjust summary stats grid to not show on mobile */
-.summary-stats-grid {
-display: none !important;
 }
 
 /* Reduce padding for activity log section */
