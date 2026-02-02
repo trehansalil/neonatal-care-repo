@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flask-based neonatal care tracking application with speech-to-text integration, LLM-powered categorization, and ClickHouse analytics. Designed for real-time baby care logging via voice/manual entry with HTML/JS frontend.
+Flask-based neonatal care tracking application with speech-to-text integration, LLM-powered categorization, and ClickHouse analytics. Designed for real-time baby care logging via voice/manual entry with modular HTML/CSS/JS frontend.
 
 ## Architecture
 
@@ -104,6 +104,72 @@ make dev-import-data
 - Use [test_notifications.py](test_notifications.py) to test notification webhooks
 - No formal test suite; manual testing via `/api/health` and HTML UI
 
+## Frontend Architecture (Modular Structure)
+
+### File Organization
+
+**Current refactor**: Tracker frontend has been modularized for maintainability and parallel development.
+
+```
+html/
+├── tracker.html           # Main tracker page (1,141 lines, down from 5,336)
+├── index.html             # HydroCare guide page
+├── hand_expression.html   # Breastfeeding guide
+├── supply_strategies.html # Supply strategies
+├── css/
+│   ├── tracker-main.css   # Main CSS entry point (imports all modules)
+│   └── modules/           # Modular CSS (10 focused files)
+│       ├── base.css       # Base styles, typography, body
+│       ├── timeline.css   # Timeline vertical line and items
+│       ├── speech-recording.css  # Hero card, speech UI, waveform
+│       ├── swipe-actions.css     # Swipe containers and buttons
+│       ├── modals.css     # Modal overlays, animations, content
+│       ├── filters.css    # Filter chips, segmented controls
+│       ├── dashboard.css  # Dashboard grid, metric cards
+│       ├── animations.css # Shake, slide-in, pop-out animations
+│       ├── mobile.css     # Mobile-specific styles
+│       └── responsive.css # Media queries
+├── js/
+│   ├── tracker.js         # Main tracker logic (126KB, section-based)
+│   └── modules/           # Future modular JS (work in progress)
+│       ├── config.js      # API endpoints, constants
+│       ├── state.js       # Application state variables
+│       ├── dom-refs.js    # DOM element references
+│       └── [planned modules for speech, modals, entries, etc.]
+├── MODULAR_STRUCTURE.md   # Detailed refactoring documentation
+└── QUICK_REFERENCE.md     # Quick reference guide
+```
+
+### Working with Frontend Code
+
+**Modifying CSS:**
+- Identify visual component → open corresponding module in `html/css/modules/`
+- Timeline appearance → `timeline.css`
+- Speech recording UI → `speech-recording.css`
+- Modal dialogs → `modals.css`
+- Dashboard metrics → `dashboard.css`
+- Mobile layout → `mobile.css`
+- Changes apply immediately in browser (Nginx serves static files)
+
+**Modifying JavaScript:**
+- Currently in single file: `html/js/tracker.js`
+- Use section markers to navigate (e.g., `// SECTION: Modal Management`)
+- Find functions using JSDoc comments
+- Future: Will be split into ES6 modules in `html/js/modules/`
+
+**Benefits of modular structure:**
+- Faster navigation (find code in seconds, not minutes)
+- Parallel work (developers work on different modules without conflicts)
+- Isolated changes (modifications don't affect unrelated features)
+- Browser caching (individual modules cached separately)
+
+### Frontend Conventions
+- Vanilla JS + Tailwind CSS (CDN)
+- API calls via `fetch()` with HTTPS
+- Audio recording uses MediaRecorder API → Blob → FormData
+- No build step required; served directly by Nginx
+- See [MODULAR_STRUCTURE.md](html/MODULAR_STRUCTURE.md) for detailed module documentation
+
 ## Critical Patterns
 
 ### Real-Time Updates: SSE (Server-Sent Events)
@@ -200,15 +266,11 @@ client.command('''
 - **Health check**: `GET /api/health` returns `{'status': 'healthy', 'database': 'connected'}`
 - **CORS**: Enabled via Flask-CORS for all origins (production should restrict)
 
-### Frontend Conventions (HTML files in html/)
-- Vanilla JS + Tailwind CSS (CDN)
-- API calls via `fetch()` with HTTPS
-- Audio recording uses MediaRecorder API → Blob → FormData
-- No build step required; served directly by Nginx
-
 ### File Naming
 - Speech audio: `speech_{uuid}.webm` in `speech/YYYYMMDD/` prefix
 - Backups: `clickhouse_export_YYYYMMDD_HHMMSS/` with JSONL format
+- CSS modules: lowercase with hyphens (e.g., `speech-recording.css`)
+- JS modules (future): camelCase with descriptive names (e.g., `entryMapping.js`)
 
 ## Common Tasks
 
@@ -223,6 +285,13 @@ client.command('''
 2. Update `init_db()` function in [app.py](app.py) (source of truth at runtime)
 3. Run migration logic in `init_db()` (ClickHouse supports `ALTER TABLE ADD COLUMN IF NOT EXISTS`)
 4. Test with `make clean && make dev-up` to verify fresh database initialization
+
+### Add new frontend feature (CSS/JS)
+1. **CSS**: Add styles to appropriate module in `html/css/modules/`, or create new module and import in `tracker-main.css`
+2. **JavaScript**: Add to appropriate section in `html/js/tracker.js` using section markers (e.g., `// SECTION: Feature Name`)
+3. Follow existing JSDoc comment style for functions
+4. Test immediately (Nginx serves static files without rebuild)
+5. Consider future extraction to dedicated module when JS modularization continues
 
 ### Add new LLM prompt
 1. Add prompt inline in service class (standard pattern; planned future migration to [src/prompts/](src/prompts/))
@@ -265,7 +334,8 @@ ORDER BY date DESC;
 - **No PostgreSQL**: Project migrated from PostgreSQL to ClickHouse (legacy references may exist in older docs)
 - **Medical disclaimer**: Tool is for tracking only, not medical advice (see [README.md](README.md))
 - **Self-signed certs**: [cert.pem](cert.pem) and [key.pem](key.pem) for local HTTPS (browser warnings expected)
-- **Current branch**: `feat/design_imporvements_dashboard` - design improvements for dashboard UI
+- **Current branch**: `copilot/refactortracker-html-separation` - refactoring tracker frontend into modular CSS/JS structure
 - **Gunicorn pattern**: File-based locks in `/tmp/` used to coordinate single-instance background tasks across workers
 - **uv package manager**: Project uses `uv` for fast Python dependency management; see [pyproject.toml](pyproject.toml) for dependencies
 - **MTU setting**: Docker network MTU set to 1000 in docker-compose.yml for better compatibility with certain network environments
+- **Modular frontend**: CSS split into 10 modules, JS modularization in progress (see [MODULAR_STRUCTURE.md](html/MODULAR_STRUCTURE.md))
