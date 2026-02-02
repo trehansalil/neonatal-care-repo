@@ -9,7 +9,7 @@ from ..log import get_logger
 
 logger = get_logger(__name__)
 class STTService:
-    def __init__(self, storage_client, bucket_name: str, transcription_url: Optional[str] = None):
+    def __init__(self, storage_client, bucket_name: str, transcription_url: Optional[str] = None, use_transcription_outside_docker: int=1):
         """Create a service that can download audio from storage and transcribe it.
 
         Args:
@@ -22,6 +22,7 @@ class STTService:
         self.bucket = bucket_name
         self.transcription_url = transcription_url
         self._mlx_available = self._check_mlx_availability() if not transcription_url else False
+        self.use_transcription_outside_docker = use_transcription_outside_docker
         
     def _check_mlx_availability(self) -> bool:
         """Check if MLX is available (requires Apple Silicon macOS)."""
@@ -36,7 +37,7 @@ class STTService:
     def transcribe_object(self, object_key: str) -> str:
         """Download an object and transcribe it. Returns empty string on failure."""
         # Use external transcription service if configured
-        if self.transcription_url:
+        if self.transcription_url and self.use_transcription_outside_docker:
             return self._transcribe_via_api(object_key)
         
         # Otherwise download and transcribe locally
@@ -45,7 +46,7 @@ class STTService:
             logger.info(f"Starting transcription for {object_key}")
             tmp_path = self.storage.download_to_tmp(object_name=object_key, container=self.bucket)
             logger.info(f"File downloaded to {tmp_path}, starting transcription")
-            result = self._transcribe_file(tmp_path)
+            result = self._transcribe_file_assembly_ai(tmp_path)
             logger.info(f"Transcription complete, length: {len(result)} chars")
             return result
         except Exception as e:
@@ -53,6 +54,41 @@ class STTService:
             raise
         finally:
             self._cleanup_tmp(tmp_path)
+
+
+    def _transcribe_file_assembly_ai(self, local_path: str) -> str:
+        """Use AssemblyAI for transcription."""
+        try:
+            import assemblyai as aai
+            
+            api_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+            if not api_key:
+                print("ERROR: ASSEMBLYAI_API_KEY not set")
+                return ""
+                
+            aai.settings.api_key = api_key
+            transcriber = aai.Transcriber()
+            
+            logger.info(f"Transcribing {local_path} with AssemblyAI...")
+            logger.info(f"File exists: {os.path.exists(local_path)}, size: {os.path.getsize(local_path) if os.path.exists(local_path) else 0} bytes")
+            
+            # AssemblyAI can accept local file paths directly
+            transcript_obj = transcriber.transcribe(local_path)
+            
+            # Wait for transcription to complete
+            if transcript_obj.status == aai.TranscriptStatus.error:
+                logger.error(f"AssemblyAI transcription failed: {transcript_obj.error}")
+                return ""
+            
+            transcript_text = transcript_obj.text or ""
+            logger.info(f"Transcription complete: {len(transcript_text)} chars")
+            return transcript_text
+        except Exception as e:
+            logger.error(f"AssemblyAI error: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
+            return ""
+
 
     def _transcribe_via_api(self, object_key: str) -> str:
         """Call external transcription service API."""

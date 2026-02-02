@@ -1,25 +1,65 @@
-from flask import Flask, jsonify, request, send_from_directory, Response
+from flask import Flask, jsonify, request, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
 import clickhouse_connect
+from clickhouse_connect.driver.exceptions import OperationalError
 from datetime import datetime
 import os
 import time
 import pytz
 import uuid
+import threading
+import json
+import queue
+import redis
 from typing import Optional
 
 from src.log import get_logger
-from src.settings import get_settings
+from src.settings import configured_settings
 from src.services.s3_compatible_service import S3StorageService
 from src.services.stt_service import STTService
-from src.services.llm_categorization_service import LLMCategorizationService
-from src.services.entry_mapping_service import EntryMappingService
-from src.services.async_categorization_processor import AsyncCategorizationProcessor
+from src.services.speech.llm.categorization_service import CategorizationService
+from src.services.speech.llm.entry_mapping_service import EntryMappingService
+from src.services.speech.async_processor import AsyncSpeechProcessor
+from src.services.notification_service import NotificationService
 
 logger = get_logger(__name__)
 
 app = Flask(__name__, static_folder='html', static_url_path='')
 CORS(app)
+
+# SSE (Server-Sent Events) for real-time transcription updates
+# Global dict to store SSE queues for active connections
+sse_queues = {}
+sse_lock = threading.Lock()
+SSE_CHANNEL = 'sse_events'
+
+redis_client = None
+redis_url = os.environ.get('REDIS_URL')
+if redis_url:
+    try:
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        logger.info("Redis client initialized for SSE pubsub")
+    except Exception as e:
+        logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
+        redis_client = None
+
+def get_redis_client():
+    """Lazily initialize Redis client for SSE pubsub if available."""
+    global redis_client
+    if not redis_url:
+        return None
+    if redis_client is not None:
+        return redis_client
+    try:
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        logger.info("Redis client initialized for SSE pubsub (lazy)")
+        return redis_client
+    except Exception as e:
+        logger.warning(f"Redis client unavailable, falling back to in-memory SSE: {e}")
+        redis_client = None
+        return None
 
 # Database configuration
 DB_CONFIG = {
@@ -28,7 +68,10 @@ DB_CONFIG = {
     'port': int(os.environ.get('DB_PORT', '8123')),
     'database': os.environ.get('DB_NAME', 'baby_tracker'),
     'username': os.environ.get('DB_USER', 'clickhouse'),
-    'password': os.environ.get('DB_PASSWORD', 'clickhouse')
+    'password': os.environ.get('DB_PASSWORD', 'clickhouse'),
+    # Improve resilience against transient HTTP disconnects (http_retries not supported in this client version)
+    'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '5')),
+    'send_receive_timeout': int(os.environ.get('DB_SEND_RECV_TIMEOUT', '30')),
 }
 
 # Timezone configuration - set your local timezone
@@ -61,7 +104,7 @@ except (ValueError, TypeError) as e:
     MUTATIONS_SYNC_LEVEL = 2
 
 # Settings and storage clients
-settings = get_settings()
+
 s3_storage = S3StorageService()
 
 # Transcription service - use native Mac server if HOST_TRANSCRIPTION_URL is set
@@ -69,8 +112,9 @@ s3_storage = S3StorageService()
 transcription_url = os.environ.get('HOST_TRANSCRIPTION_URL', 'http://host.docker.internal:8083/transcribe')
 stt_service = STTService(
     storage_client=s3_storage,
-    bucket_name=settings.minio_bucket_name,
-    transcription_url=transcription_url
+    bucket_name=configured_settings.minio_bucket_name,
+    transcription_url=transcription_url,
+    use_transcription_outside_docker=configured_settings.external_transcription_service_bool,
 )
 
 # LLM Categorization service - uses Azure OpenAI
@@ -80,14 +124,14 @@ stt_service = STTService(
 # AZURE_OPENAI_DEPLOYMENT: Model deployment name
 # AZURE_OPENAI_API_VERSION: API version (default: 2024-02-15-preview)
 try:
-    llm_service = LLMCategorizationService()
-    if llm_service.is_available():
+    categorization_service = CategorizationService()
+    if categorization_service.is_available():
         logger.info("LLM categorization service initialized with Azure OpenAI")
     else:
         logger.warning("LLM categorization service initialized but Azure OpenAI not configured")
 except Exception as e:
     logger.error(f"Failed to initialize LLM service: {e}")
-    llm_service = None
+    categorization_service = None
 
 # Entry Mapping service - uses Azure OpenAI to map transcriptions to structured entries
 try:
@@ -100,19 +144,159 @@ except Exception as e:
     logger.error(f"Failed to initialize entry mapping service: {e}")
     mapping_service = None
 
-# Async categorization processor (now includes mapping)
-if llm_service:
-    categorization_processor = AsyncCategorizationProcessor(
-        llm_service=llm_service,
+# Async categorization processor (now includes mapping and transcription)
+if categorization_service:
+    speech_processor = AsyncSpeechProcessor(
+        categorization_service=categorization_service,
         mapping_service=mapping_service,
+        stt_service=stt_service,
         max_workers=int(os.environ.get('CATEGORIZATION_WORKERS', '2'))
     )
     # Start the processor when app starts
-    categorization_processor.start()
-    logger.info("Async categorization processor started")
+    speech_processor.start()
+    logger.info("Async speech processor started (transcription, categorization, mapping)")
 else:
-    categorization_processor = None
-    logger.warning("Categorization processor not started (LLM service unavailable)")
+    speech_processor = None
+    logger.warning("Speech processor not started (LLM service unavailable)")
+
+# Notification service for care alerts
+notification_service = NotificationService()
+if notification_service.is_configured():
+    logger.info(f"Notification service initialized with webhook URL: {notification_service.webhook_url}")
+else:
+    logger.warning("Notification service not configured - set N8N_WEBHOOK_ID to enable")
+
+# Background notification checker
+notification_checker_running = False
+notification_thread = None
+
+def broadcast_sse_event(event_type: str, data: dict):
+    """Broadcast an SSE event to all connected clients.
+    
+    Args:
+        event_type: Type of event (e.g., 'transcription_complete', 'mapping_complete')
+        data: Event data to send to clients
+    """
+    message = {'type': event_type, 'data': data}
+    redis_pub = get_redis_client()
+    if redis_pub:
+        try:
+            redis_pub.publish(SSE_CHANNEL, json.dumps(message))
+            logger.info(f"Published {event_type} to Redis SSE channel")
+            return
+        except Exception as e:
+            logger.warning(f"Redis publish failed, falling back to in-memory SSE: {e}")
+
+    with sse_lock:
+        disconnected_clients = []
+        for client_id, q in sse_queues.items():
+            try:
+                q.put_nowait(message)
+                logger.info(f"Broadcast {event_type} to client {client_id}")
+            except queue.Full:
+                logger.warning(f"Client {client_id} queue full, skipping event")
+            except Exception as e:
+                logger.error(f"Error broadcasting to client {client_id}: {e}")
+                disconnected_clients.append(client_id)
+        
+        # Clean up disconnected clients
+        for client_id in disconnected_clients:
+            sse_queues.pop(client_id, None)
+            logger.info(f"Removed disconnected client {client_id}")
+
+def run_notification_checker():
+    """Background thread that periodically checks for overdue diaper changes."""
+    global notification_checker_running
+    
+    check_interval = configured_settings.notification_check_interval_minutes * 60  # Convert to seconds
+    
+    logger.info(f"Notification checker started - checking every {configured_settings.notification_check_interval_minutes} minutes")
+    
+    while notification_checker_running:
+        try:
+            client = get_db_connection()
+            try:
+                notification_service.check_overdue_diaper_change(client, LOCAL_TIMEZONE)
+            finally:
+                client.close()
+        except Exception as e:
+            logger.error(f"Error in notification checker: {e}")
+        
+        # Sleep in small intervals to allow clean shutdown
+        for _ in range(int(check_interval)):
+            if not notification_checker_running:
+                break
+            time.sleep(1)
+    
+    logger.info("Notification checker stopped")
+
+def start_notification_checker():
+    """Start the background notification checker thread.
+    
+    Only starts if ENABLE_BACKGROUND_NOTIFICATIONS is True and in one worker 
+    to avoid duplicate notifications. Uses an environment variable to track 
+    if checker is already running.
+    
+    Note: With frontend timer implementation, background checker can be disabled
+    to reduce database load. The frontend timer will handle visual alerts.
+    """
+    global notification_checker_running, notification_thread
+    
+    # Check if background notifications are enabled
+    if not configured_settings.enable_background_notifications:
+        logger.info("Notification checker not started (ENABLE_BACKGROUND_NOTIFICATIONS=False)")
+        return
+    
+    if not notification_service.is_configured():
+        logger.info("Notification checker not started (webhook not configured)")
+        return
+    
+    if notification_thread and notification_thread.is_alive():
+        logger.warning("Notification checker already running")
+        return
+    
+    # Only start checker in one worker to avoid duplicates
+    # Check if this is the first worker by trying to acquire a marker
+    try:
+        # Use worker ID to only start in first worker
+        # Gunicorn doesn't set a standard env var, so we use a simple file lock approach
+        import fcntl
+        lock_file_path = '/tmp/baby_tracker_notification_lock'
+        
+        # Try to create and lock the file
+        try:
+            lock_file = open(lock_file_path, 'w')
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            
+            # Successfully acquired lock - this worker will run the checker
+            notification_checker_running = True
+            notification_thread = threading.Thread(target=run_notification_checker, daemon=True)
+            notification_thread.start()
+            logger.info("Notification checker thread started (acquired lock)")
+            
+            # Store lock file globally to keep it open
+            import builtins
+            builtins._notification_lock_file = lock_file
+            
+        except IOError:
+            # Another worker already has the lock
+            logger.info("Notification checker not started (another worker is running it)")
+            return
+            
+    except Exception as e:
+        logger.error(f"Error starting notification checker: {e}")
+        return
+
+def stop_notification_checker():
+    """Stop the background notification checker thread."""
+    global notification_checker_running
+    
+    if notification_checker_running:
+        logger.info("Stopping notification checker...")
+        notification_checker_running = False
+        if notification_thread:
+            notification_thread.join(timeout=5)
+        logger.info("Notification checker stopped")
 
 
 def update_speech_entry_category(result: dict):
@@ -145,6 +329,75 @@ def update_speech_entry_category(result: dict):
             client.close()
     except Exception as e:
         logger.error(f"Failed to update category for entry {entry_id}: {e}", exc_info=True)
+
+
+def update_speech_entry_transcription(result: dict):
+    """Callback to update the database with transcription results.
+    
+    Args:
+        result: Dict containing entry_id, transcription, and optional error
+    """
+    entry_id = result.get('entry_id')
+    transcription = result.get('transcription', '')
+    error = result.get('error')
+
+    if error:
+        logger.error(f"Transcription failed for entry {entry_id}: {error}")
+        return
+    
+    logger.info(f"Updating entry {entry_id} with transcription ({len(transcription)} chars)")
+    
+    try:
+        client = get_db_connection()
+        try:
+            # Update the transcription in the database
+            client.command('''
+                ALTER TABLE speech_entries 
+                UPDATE transcription = %(transcription)s 
+                WHERE id = %(id)s 
+                SETTINGS mutations_sync=%(sync)s
+            ''', parameters={
+                'transcription': transcription,
+                'id': entry_id,
+                'sync': MUTATIONS_SYNC_LEVEL
+            })
+            logger.info(f"Updated entry {entry_id} with transcription")
+            
+            # Broadcast SSE event for transcription completion
+            broadcast_sse_event('transcription_complete', {
+                'speech_entry_id': entry_id,
+                'success': True
+            })
+            logger.info(f"Broadcasted transcription_complete event for entry {entry_id}")
+            
+            # If we have categorization enabled, submit categorization task
+            if transcription and speech_processor and categorization_service:
+                # Get the object_key from the entry
+                result = client.query(
+                    'SELECT object_key FROM speech_entries WHERE id = %(id)s',
+                    parameters={'id': entry_id}
+                )
+                if result.result_rows:
+                    object_key = result.result_rows[0][0]
+                    speech_processor.submit_task(
+                        entry_id=entry_id,
+                        object_key=object_key,
+                        transcription=transcription,
+                        callback=update_speech_entry_category,
+                        mapping_callback=create_entry_from_mapping,
+                        enable_mapping=True
+                    )
+                    logger.info(f"Submitted categorization task for entry {entry_id}")
+        finally:
+            client.close()
+    except Exception as e:
+        logger.error(f"Failed to update transcription for entry {entry_id}: {e}", exc_info=True)
+        # Broadcast failure event
+        broadcast_sse_event('transcription_complete', {
+            'speech_entry_id': entry_id,
+            'success': False,
+            'error': str(e)
+        })
 
 
 def create_entry_from_mapping(mapping_data: dict):
@@ -231,10 +484,25 @@ def create_entry_from_mapping(mapping_data: dict):
                 'sync': MUTATIONS_SYNC_LEVEL
             })
             
+            # Broadcast SSE event for mapping completion
+            broadcast_sse_event('mapping_complete', {
+                'speech_entry_id': speech_entry_id,
+                'entry_id': entry_id,
+                'category': category,
+                'success': True
+            })
+            logger.info(f"Broadcasted mapping_complete event for entry {entry_id}")
+            
         finally:
             client.close()
     except Exception as e:
         logger.error(f"Failed to create entry from speech entry {speech_entry_id}: {e}", exc_info=True)
+        # Broadcast failure event
+        broadcast_sse_event('mapping_complete', {
+            'speech_entry_id': speech_entry_id,
+            'success': False,
+            'error': str(e)
+        })
 
 
 def get_db_connection():
@@ -280,7 +548,7 @@ def is_audio_extension_allowed(filename: str) -> bool:
     if not filename:
         return False
     ext = os.path.splitext(filename)[1].lower()
-    return ext in [fmt.lower() for fmt in settings.allowed_audio_formats_list]
+    return ext in [fmt.lower() for fmt in configured_settings.allowed_audio_formats_list]
 
 
 def backup_entry(client, entry_data, entry_id):
@@ -468,6 +736,76 @@ def serve_static(path):
     """Serve static files"""
     return send_from_directory('html', path)
 
+@app.route('/api/events/transcription')
+def sse_stream():
+    """Server-Sent Events endpoint for real-time transcription updates."""
+    def event_stream():
+        redis_sub = get_redis_client()
+        if redis_sub:
+            client_id = str(uuid.uuid4())
+            pubsub = redis_sub.pubsub(ignore_subscribe_messages=True)
+            pubsub.subscribe(SSE_CHANNEL)
+            logger.info(f"SSE client {client_id} connected (Redis pubsub)")
+            try:
+                yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
+                while True:
+                    message = pubsub.get_message(timeout=30)
+                    if message and message.get('type') == 'message':
+                        try:
+                            payload = json.loads(message.get('data', '{}'))
+                            yield f"event: {payload['type']}\ndata: {json.dumps(payload['data'])}\n\n"
+                        except Exception as e:
+                            logger.error(f"Failed to parse SSE payload: {e}")
+                    else:
+                        yield f": heartbeat\n\n"
+            except GeneratorExit:
+                logger.info(f"SSE client {client_id} disconnected (Redis pubsub)")
+            finally:
+                try:
+                    pubsub.unsubscribe(SSE_CHANNEL)
+                    pubsub.close()
+                except Exception:
+                    pass
+            return
+
+        # Generate a unique client ID
+        client_id = str(uuid.uuid4())
+        
+        # Create a queue for this client
+        client_queue = queue.Queue(maxsize=10)
+        
+        with sse_lock:
+            sse_queues[client_id] = client_queue
+        
+        logger.info(f"SSE client {client_id} connected")
+        
+        try:
+            # Send initial connection confirmation
+            yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
+            
+            # Keep connection alive and send events
+            while True:
+                try:
+                    # Wait for events with timeout for heartbeat
+                    event = client_queue.get(timeout=30)
+                    yield f"event: {event['type']}\ndata: {json.dumps(event['data'])}\n\n"
+                except queue.Empty:
+                    # Send heartbeat to keep connection alive
+                    yield f": heartbeat\n\n"
+                    
+        except GeneratorExit:
+            logger.info(f"SSE client {client_id} disconnected")
+        finally:
+            # Clean up the client queue
+            with sse_lock:
+                sse_queues.pop(client_id, None)
+    
+    response = Response(stream_with_context(event_stream()), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
+    response.headers['Connection'] = 'keep-alive'
+    return response
+
 @app.route('/api/speech/upload', methods=['POST'])
 def upload_speech():
     """Upload a speech recording blob to S3/MinIO and return the object key + presigned URL."""
@@ -477,15 +815,15 @@ def upload_speech():
 
     filename = file.filename or 'speech.webm'
     if not is_audio_extension_allowed(filename):
-        return jsonify({'error': f'Unsupported audio format. Allowed: {settings.allowed_audio_formats}'}), 400
+        return jsonify({'error': f'Unsupported audio format. Allowed: {configured_settings.allowed_audio_formats}'}), 400
 
     data = file.read()
     if not data:
         return jsonify({'error': 'Empty audio payload'}), 400
 
-    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    max_bytes = configured_settings.max_upload_size_mb * 1024 * 1024
     if len(data) > max_bytes:
-        return jsonify({'error': f'File too large. Limit: {settings.max_upload_size_mb} MB'}), 413
+        return jsonify({'error': f'File too large. Limit: {configured_settings.max_upload_size_mb} MB'}), 413
 
     ext = os.path.splitext(filename)[1] or '.webm'
     object_key = f"speech/{datetime.utcnow().strftime('%Y%m%d')}/speech_{uuid.uuid4().hex}{ext}"
@@ -496,7 +834,7 @@ def upload_speech():
             data=data,
             object_name=object_key,
             content_type=file.mimetype or 'audio/webm',
-            container=settings.minio_bucket_name,
+            container=configured_settings.minio_bucket_name,
             overwrite=True,
             with_sas=False  # Don't need presigned URL from internal endpoint
         )
@@ -540,8 +878,8 @@ def transcribe_speech():
             return jsonify({'error': 'Transcription failed'}), 500
         
         # Trigger async categorization if entry_id is provided and processor is available
-        if entry_id and categorization_processor:
-            categorization_processor.submit_task(
+        if entry_id and speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcript,
@@ -566,7 +904,7 @@ def proxy_audio(object_key):
     """
     try:
         # Download the audio file from MinIO
-        tmp_path = s3_storage.download_to_tmp(object_key, container=settings.minio_bucket_name)
+        tmp_path = s3_storage.download_to_tmp(object_key, container=configured_settings.minio_bucket_name)
         
         # Determine content type based on extension
         ext = os.path.splitext(object_key)[1].lower()
@@ -675,10 +1013,10 @@ def get_entries():
         if client is not None:
             client.close()
 
-
 @app.route('/api/speech_entries', methods=['GET'])
 def get_speech_entries():
     """Get speech entries with optional date/time filters."""
+
     client = None
     try:
         client = get_db_connection()
@@ -701,7 +1039,7 @@ def get_speech_entries():
             query = '''
                 SELECT * FROM speech_entries
                 WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
-                  AND (%(end)s IS NULL OR timestamp <= %(end)s)
+                    AND (%(end)s IS NULL OR timestamp <= %(end)s)
                 ORDER BY timestamp DESC
                 LIMIT 1000
             '''
@@ -732,6 +1070,7 @@ def get_speech_entries():
             })
 
         return jsonify(entries)
+
     except Exception as e:
         print(f"Error fetching speech entries: {e}")
         return jsonify({'error': str(e)}), 500
@@ -762,7 +1101,7 @@ def create_speech_entry():
         client = get_db_connection()
         entry_id = get_next_id(client)
         
-        transcription = data.get('transcription')
+        transcription = data.get('transcription', '')
 
         client.insert('speech_entries', [[
             entry_id,
@@ -780,9 +1119,18 @@ def create_speech_entry():
             'duration_ms', 'notes', 'timestamp', 'created_at'
         ])
         
-        # Trigger async categorization if transcription is available
-        if transcription and categorization_processor:
-            categorization_processor.submit_task(
+        # Trigger async transcription if not already provided
+        if not transcription and object_key and speech_processor:
+            speech_processor.submit_transcription_task(
+                entry_id=entry_id,
+                object_key=object_key,
+                bucket_name=configured_settings.minio_bucket_name,
+                callback=update_speech_entry_transcription
+            )
+            logger.info(f"Submitted async transcription task for new entry {entry_id}")
+        # If transcription is already available, trigger categorization
+        elif transcription and speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcription,
@@ -852,8 +1200,8 @@ def retranscribe_speech_entry(entry_id):
         })
         
         # 3. Trigger async categorization with the new transcript
-        if categorization_processor:
-            categorization_processor.submit_task(
+        if speech_processor:
+            speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
                 transcription=transcript,
@@ -934,13 +1282,40 @@ def delete_speech_entry(entry_id):
     client = None
     try:
         client = get_db_connection()
+
+        # Fetch object key to delete audio from storage
+        result = client.query(
+            'SELECT object_key FROM speech_entries WHERE id = %(id)s LIMIT 1',
+            parameters={'id': entry_id}
+        )
+
+        if not result.result_rows:
+            return jsonify({'error': 'Speech entry not found'}), 404
+
+        object_key = result.result_rows[0][0]
+
+        # Delete database record first (authoritative source of truth)
+        # This ensures data consistency: if DB deletion fails, S3 file remains intact
         client.command(
             'ALTER TABLE speech_entries DELETE WHERE id = %(id)s SETTINGS mutations_sync=%(sync)s',
             parameters={'id': entry_id, 'sync': MUTATIONS_SYNC_LEVEL}
         )
+
+        # Clean up S3 storage as best-effort operation
+        # If this fails, we log but don't fail the request since DB record is already deleted
+        if object_key:
+            try:
+                s3_storage.delete_object(object_key)
+            except Exception as storage_error:
+                logger.warning(
+                    f"Failed to delete storage object for speech entry {entry_id} (key: {object_key}): {storage_error}. "
+                    "Orphaned storage object may need manual cleanup.",
+                    exc_info=True
+                )
+
         return jsonify({'status': 'deleted'})
     except Exception as e:
-        print(f"Error deleting speech entry: {e}")
+        logger.error(f"Error deleting speech entry {entry_id}: {e}", exc_info=True)
         return jsonify({'error': 'Failed to delete speech entry'}), 500
     finally:
         if client is not None:
@@ -1281,20 +1656,157 @@ def health_check():
         if client is not None:
             client.close()
 
+@app.route('/api/notifications/diaper-status', methods=['GET'])
+def get_diaper_status():
+    """Get the current diaper change status and time since last change"""
+    client = None
+    try:
+        client = get_db_connection()
+        
+        # Get the most recent entry with ANY diaper change (susu_count OR poti_count > 0)
+        query = """
+            SELECT 
+                id,
+                susu_count,
+                poti_count,
+                timestamp,
+                notes
+            FROM entries
+            WHERE susu_count > 0 OR poti_count > 0
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """
+        
+        result = client.query(query)
+        
+        if not result.result_rows:
+            return jsonify({
+                'status': 'no_data',
+                'message': 'No diaper changes found in database'
+            }), 200
+        
+        last_entry = result.result_rows[0]
+        entry_id = last_entry[0]
+        susu_count = last_entry[1]
+        poti_count = last_entry[2]
+        last_timestamp = last_entry[3]
+        
+        # Ensure timestamp is timezone-aware
+        if last_timestamp.tzinfo is None:
+            last_timestamp = LOCAL_TIMEZONE.localize(last_timestamp)
+        
+        # Calculate time since last diaper change
+        now = datetime.now(LOCAL_TIMEZONE)
+        hours_since = (now - last_timestamp).total_seconds() / 3600
+        
+        is_overdue = hours_since >= configured_settings.diaper_alert_hours
+        
+        # Build description of last change
+        change_type = []
+        if susu_count > 0:
+            change_type.append(f"{susu_count} wet")
+        if poti_count > 0:
+            change_type.append(f"{poti_count} soiled")
+        change_description = " + ".join(change_type) + " diaper(s)"
+        
+        return jsonify({
+            'status': 'overdue' if is_overdue else 'ok',
+            'hours_since_last_change': round(hours_since, 2),
+            'last_change_timestamp': last_timestamp.isoformat(),
+            'last_change_formatted': last_timestamp.strftime('%I:%M %p on %B %d, %Y'),
+            'last_change_description': change_description,
+            'entry_id': entry_id,
+            'susu_count': susu_count,
+            'poti_count': poti_count,
+            'threshold_hours': configured_settings.diaper_alert_hours,
+            'webhook_configured': notification_service.is_configured()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting diaper status: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+@app.route('/api/notifications/webhook-config', methods=['GET'])
+def get_webhook_config():
+    """Get webhook configuration for frontend notifications"""
+    return jsonify({
+        'configured': notification_service.is_configured(),
+        'webhook_url': notification_service.webhook_url if notification_service.is_configured() else None,
+        'diaper_alert_hours': configured_settings.diaper_alert_hours
+    }), 200
+
+@app.route('/api/notifications/send', methods=['POST'])
+def send_notification():
+    """Send a notification from the frontend"""
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        metadata = data.get('metadata', {})
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        success = notification_service.send_notification(message, metadata)
+        
+        return jsonify({
+            'success': success,
+            'message': 'Notification sent' if success else 'Failed to send notification or webhook not configured'
+        }), 200 if success else 500
+        
+    except Exception as e:
+        logger.error(f"Error sending notification: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/check-diaper', methods=['POST'])
+def trigger_diaper_check():
+    """Manually trigger a diaper change check and notification (deprecated - use frontend timer)"""
+    client = None
+    try:
+        client = get_db_connection()
+        notification_sent = notification_service.check_overdue_diaper_change(client, LOCAL_TIMEZONE)
+        
+        return jsonify({
+            'success': True,
+            'notification_sent': notification_sent,
+            'message': 'Notification sent' if notification_sent else 'No notification needed or webhook not configured'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error triggering diaper check: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if client is not None:
+            client.close()
+
+# Start notification checker when module loads (works with both gunicorn and direct run)
+# Import atexit for cleanup registration
+import atexit
+
+# Start the notification checker after all functions are defined
+start_notification_checker()
+
+# Register cleanup
+atexit.register(stop_notification_checker)
+
 if __name__ == '__main__':
-    import atexit
     import signal
     
     # Register cleanup handler for graceful shutdown
     def cleanup():
         '''Clean up resources on shutdown.'''
-        if categorization_processor:
+        if speech_processor:
             logger.info('Shutting down categorization processor...')
-            categorization_processor.stop()
+            speech_processor.stop()
+        stop_notification_checker()
     
-    atexit.register(cleanup)
+    # atexit already registered at module level
     signal.signal(signal.SIGTERM, lambda sig, frame: cleanup())
     signal.signal(signal.SIGINT, lambda sig, frame: cleanup())
+    
+    # Notification checker already started at module level
     
     use_https = os.environ.get('ENABLE_HTTPS', 'false').lower() == 'true'
     ssl_context = None

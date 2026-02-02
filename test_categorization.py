@@ -10,11 +10,11 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.services.llm_categorization_service import LLMCategorizationService
+from src.services.speech.llm.categorization_service import CategorizationService
 
 # Example transcriptions to test
 SAMPLE_TRANSCRIPTIONS = [
-    "Baby drank 60 ml of formula at 3 PM",
+    "Baby drank 60 ml of formula at 1210",
     "Changed diaper, baby peed twice in the last hour",
     "Baby had a bowel movement, color was yellow and consistency was normal",
     "Took baby's temperature, it was 37.2 degrees Celsius",
@@ -49,7 +49,7 @@ def main():
     print(f"{'='*70}\n")
     
     try:
-        llm_service = LLMCategorizationService()
+        llm_service = CategorizationService()
         
         if not llm_service.is_available():
             print("ERROR: LLM service is not available")
@@ -73,6 +73,7 @@ def main():
                 requires_review = result.get('requires_manual_review', False)
                 review_flag = " ⚠️  (needs review)" if requires_review else ""
                 print(f"   ✓ Category: {category.upper()}{review_flag}\n")
+                print(f"   ✓ Datetime: {result.get('log_date')}, {result.get('log_time')}\n")
         
         print(f"{'='*70}")
         print("Testing complete!")

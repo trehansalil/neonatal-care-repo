@@ -55,6 +55,21 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=100, alias="MAX_UPLOAD_SIZE_MB")
     allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a,.webm,.ogg,.mp4", alias="ALLOWED_AUDIO_FORMATS")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
+    
+    # Notification Settings
+    n8n_webhook_id: str = Field(default="", alias="N8N_WEBHOOK_ID")
+    n8n_host: str = Field(default="n8n:5678", alias="N8N_HOST")
+    diaper_alert_hours: int = Field(default=4, alias="DIAPER_ALERT_HOURS")
+    notification_check_interval_minutes: int = Field(default=60, alias="NOTIFICATION_CHECK_INTERVAL_MINUTES")
+    enable_background_notifications: bool = Field(default=False, alias="ENABLE_BACKGROUND_NOTIFICATIONS")
+    external_transcription_service_bool: int = Field(default=1, alias="EXTERNAL_TRANSCRIPTION_SERVICE_BOOL")
+    
+    @property
+    def n8n_webhook_url(self) -> str:
+        """Build the complete webhook URL from host and ID."""
+        if not self.n8n_webhook_id:
+            return ""
+        return f"http://{self.n8n_host}/webhook/{self.n8n_webhook_id}"
 
     
     @property
@@ -68,3 +83,5 @@ def get_settings() -> Settings:
     """Get cached settings instance."""
     settings = Settings()
     return settings
+
+configured_settings = get_settings()

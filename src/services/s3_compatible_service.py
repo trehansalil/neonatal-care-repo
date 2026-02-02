@@ -20,9 +20,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 
 from ..log import get_logger
-from ..settings import get_settings
-
-settings = get_settings()
+from ..settings import configured_settings
 
 def remove_consecutive_underscores(s: str) -> str:
     """Replace multiple consecutive underscores with a single underscore."""
@@ -41,17 +39,17 @@ class S3StorageService:
         secure: Optional[bool] = None,
     ):
 
-        self.endpoint_url = endpoint_url or settings.minio_endpoint
-        secure = settings.minio_secure if secure is None else secure
+        self.endpoint_url = endpoint_url or configured_settings.minio_endpoint
+        secure = configured_settings.minio_secure if secure is None else secure
 
         # Ensure http/https prefix based on the secure flag
         if self.endpoint_url and not self.endpoint_url.startswith("http"):
             protocol = "https" if secure else "http"
             self.endpoint_url = f"{protocol}://{self.endpoint_url}"
 
-        self.access_key = access_key or settings.minio_access_key
-        self.secret_key = secret_key or settings.minio_secret_key
-        self.bucket_name = bucket_name or settings.minio_bucket_name
+        self.access_key = access_key or configured_settings.minio_access_key
+        self.secret_key = secret_key or configured_settings.minio_secret_key
+        self.bucket_name = bucket_name or configured_settings.minio_bucket_name
 
         self.s3_client = boto3.client(
             "s3",
@@ -171,6 +169,32 @@ class S3StorageService:
         except Exception:
             return None
 
+    def delete_object(self, object_name: str, container: Optional[str] = None, missing_ok: bool = True) -> bool:
+        """Delete an object from storage.
+
+        Args:
+            object_name: Key of the object to delete.
+            container: Optional bucket/container override.
+            missing_ok: If True, treat missing objects as a no-op.
+
+        Returns:
+            bool: True if deleted, False if object was missing and missing_ok is True.
+        """
+        bucket, key = self._get_bucket_and_key(container, object_name)
+        try:
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if missing_ok and error_code in {"NoSuchKey", "404", "NotFound"}:
+                logger.info(f"Storage object already missing: bucket={bucket}, key={key}")
+                return False
+            logger.error(f"S3 delete error for {key} in {bucket}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected delete error for {key} in {bucket}: {e}")
+            raise
+
     # --------
     # Listing
     # --------
@@ -239,11 +263,11 @@ class S3StorageService:
             # Extract just the hostname (without port) from the request host
             host_without_port = request_host.split(':')[0] if ':' in request_host else request_host
             # Use the MinIO external port (default 9002 based on docker-compose mapping)
-            minio_port = settings.minio_external_endpoint.split(':')[-1] if ':' in settings.minio_external_endpoint else '9002'
+            minio_port = configured_settings.minio_external_endpoint.split(':')[-1] if ':' in configured_settings.minio_external_endpoint else '9002'
             external_endpoint = f"{host_without_port}:{minio_port}"
         else:
             # Fall back to configured external endpoint
-            external_endpoint = settings.minio_external_endpoint
+            external_endpoint = configured_settings.minio_external_endpoint
             
         if not external_endpoint:
             # Fall back to internal endpoint if external not configured
@@ -251,7 +275,7 @@ class S3StorageService:
         
         # Ensure http/https prefix
         if external_endpoint and not external_endpoint.startswith("http"):
-            protocol = "https" if settings.minio_secure else "http"
+            protocol = "https" if configured_settings.minio_secure else "http"
             external_endpoint = f"{protocol}://{external_endpoint}"
         
         try:
@@ -266,7 +290,7 @@ class S3StorageService:
                     s3={"addressing_style": "path"},
                 ),
                 region_name="us-east-1",
-                use_ssl=settings.minio_secure,
+                use_ssl=configured_settings.minio_secure,
             )
             
             return external_client.generate_presigned_url(

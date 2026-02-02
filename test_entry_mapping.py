@@ -10,8 +10,8 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.services.entry_mapping_service import EntryMappingService
-from src.services.llm_categorization_service import LLMCategorizationService
+from src.services.speech.llm.entry_mapping_service import EntryMappingService
+from src.services.speech.llm.categorization_service import CategorizationService
 from src.settings import Settings
 
 # Sample transcriptions organized by category
@@ -175,7 +175,7 @@ def main():
         print(f"Testing Full Pipeline: Categorization → Mapping")
         print(f"{'='*80}\n")
         
-        categorization_service = LLMCategorizationService()
+        categorization_service = CategorizationService()
         
         pipeline_tests = [
             "Baby had 75ml of formula",

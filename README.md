@@ -20,7 +20,14 @@ A comprehensive web application for managing newborn care with hydronephrosis, i
 - View daily statistics
 - Historical entries with timestamps
 
-### 3. **PostgreSQL Database**
+### 3. **Automatic Notifications** 🔔
+- **Diaper change alerts** via Telegram when overdue (default: 4 hours)
+- Background monitoring with configurable intervals
+- n8n webhook integration
+- Manual check API endpoints
+- See [NOTIFICATIONS.md](NOTIFICATIONS.md) for setup details
+
+### 4. **PostgreSQL Database**
 - Persistent data storage
 - Survives container restarts
 - Indexed for performance

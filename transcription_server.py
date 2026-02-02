@@ -12,38 +12,140 @@ import os
 os.environ.setdefault('MINIO_ENDPOINT', os.environ.get('HOST_MINIO_ENDPOINT', 'localhost:9002'))
 
 from flask import Flask, request, jsonify
-from src.settings import get_settings
+from src.settings import configured_settings
 from src.services.s3_compatible_service import S3StorageService
+from src.log import get_logger
 
+logger = get_logger(__name__)
 app = Flask(__name__)
-settings = get_settings()
 
 # Create S3 client with host-accessible endpoint
 s3_storage = S3StorageService(
-    endpoint_url=settings.minio_endpoint,
-    access_key=settings.minio_access_key,
-    secret_key=settings.minio_secret_key,
-    bucket_name=settings.minio_bucket_name,
-    secure=settings.minio_secure
+    endpoint_url=configured_settings.minio_endpoint,
+    access_key=configured_settings.minio_access_key,
+    secret_key=configured_settings.minio_secret_key,
+    bucket_name=configured_settings.minio_bucket_name,
+    secure=configured_settings.minio_secure
 )
+
 
 
 def transcribe_file_mlx(local_path: str) -> str:
     """Run MLX Whisper transcription on the host Mac."""
     try:
-        import mlx_whisper
-
         print(f"Transcribing {local_path} with MLX Whisper...")
-        result = mlx_whisper.transcribe(
-            local_path,
-            path_or_hf_repo="mlx-community/whisper-large-v3-mlx"
+        from mlx_audio.stt.utils import load_model
+        from mlx_audio.stt.generate import generate_transcription
+        model = load_model("mlx-community/whisper-large-v3-turbo-asr-fp16")
+        result = generate_transcription(
+            model=model,
+            audio_path=local_path,
+            output_path="path_to_output.txt",
+            format="txt",
+            verbose=True,
         )
-        transcript = result.get("text", "") if isinstance(result, dict) else ""
+        print(result.text)
+        transcript = result.text or ""
         print(f"Transcription complete: {len(transcript)} chars")
         return transcript
     except Exception as e:
         print(f"MLX transcription error: {e}")
+        import traceback
+        traceback.print_exc()        
         return ""
+
+# def transcribe_file_mlx(local_path: str) -> str:
+#     """Run faster-whisper transcription."""
+
+#     from src.log import get_logger
+#     logger = get_logger(__name__)
+
+#     try:
+#         from faster_whisper import WhisperModel
+        
+#         print(f"Transcribing {local_path} with faster-whisper...")
+#         # Use GPU if available, otherwise CPU with INT8
+#         model = WhisperModel("large-v3", device="cpu", compute_type="int8")
+#         # For Apple Silicon, you can also try: device="auto"
+        
+#         segments, info = model.transcribe(local_path, beam_size=5)
+        
+#         print(f"Detected language: {info.language} (probability: {info.language_probability})")
+        
+#         # Combine all segments into full transcript
+#         transcript = " ".join([segment.text for segment in segments])
+        
+#         logger.info(f"Transcription complete: {len(transcript)} chars")
+#         return transcript
+#     except Exception as e:
+#         logger.info(f"faster-whisper error: {e}")
+#         return ""
+
+
+
+def transcribe_file_assembly_ai(local_path: str) -> str:
+    """Use AssemblyAI for transcription."""
+    try:
+        import assemblyai as aai
+        
+        api_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+        if not api_key:
+            print("ERROR: ASSEMBLYAI_API_KEY not set")
+            return ""
+            
+        aai.settings.api_key = api_key
+        transcriber = aai.Transcriber()
+        
+        logger.info(f"Transcribing {local_path} with AssemblyAI...")
+        logger.info(f"File exists: {os.path.exists(local_path)}, size: {os.path.getsize(local_path) if os.path.exists(local_path) else 0} bytes")
+        
+        # AssemblyAI can accept local file paths directly
+        transcript_obj = transcriber.transcribe(local_path)
+        
+        # Wait for transcription to complete
+        if transcript_obj.status == aai.TranscriptStatus.error:
+            logger.error(f"AssemblyAI transcription failed: {transcript_obj.error}")
+            return ""
+        
+        transcript_text = transcript_obj.text or ""
+        logger.info(f"Transcription complete: {len(transcript_text)} chars")
+        return transcript_text
+    except Exception as e:
+        logger.error(f"AssemblyAI error: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return ""
+
+def transcribe_file_smallest_ai(local_path: str) -> str:
+    try:
+        import os
+        import requests
+
+        API_KEY = os.environ["SMALLEST_API_KEY"]
+        endpoint = "https://waves-api.smallest.ai/api/v1/pulse/get_text"
+        params = {
+            "model": "pulse",
+            "language": "en",
+            "word_timestamps": "true",
+        }
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "audio/webm",
+        }
+
+        with open(local_path, "rb") as audio:
+            response = requests.post(endpoint, params=params, headers=headers, data=audio.read(), timeout=120)
+
+        response.raise_for_status()
+        result = response.json()
+        trascript = result["transcription"] or ""
+        return trascript
+
+    except Exception as e:
+        logger.error(f"Smallest AI error: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
+        return ""    
 
 def transcribe_file_mlx_asr(local_path: str) -> str:
     try:
@@ -90,14 +192,14 @@ def transcribe():
         return jsonify({'error': 'object_key is required'}), 400
     
     object_key = data['object_key']
-    bucket = data.get('bucket', settings.minio_bucket_name)
+    bucket = data.get('bucket', configured_settings.minio_bucket_name)
     
     tmp_path = None
     try:
         print(f"Downloading {object_key} from bucket {bucket}...")
         tmp_path = s3_storage.download_to_tmp(object_name=object_key, container=bucket)
         
-        transcript = transcribe_file_mlx(tmp_path)
+        transcript = transcribe_file_assembly_ai(tmp_path)
         
         if not transcript:
             return jsonify({'error': 'Transcription returned empty result'}), 500
@@ -123,8 +225,8 @@ if __name__ == '__main__':
     print("="*60)
     print("Native Mac Transcription Server")
     print("="*60)
-    print(f"MinIO Endpoint: {settings.minio_endpoint}")
-    print(f"Bucket: {settings.minio_bucket_name}")
+    print(f"MinIO Endpoint: {configured_settings.minio_endpoint}")
+    print(f"Bucket: {configured_settings.minio_bucket_name}")
     print("Starting server on http://0.0.0.0:8083")
     print("Backend can reach this via http://host.docker.internal:8083")
     print("="*60)

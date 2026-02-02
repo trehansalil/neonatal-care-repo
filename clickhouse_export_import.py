@@ -30,7 +30,7 @@ DB_CONFIG = {
     "password": os.environ.get("DB_PASSWORD", "clickhouse"),
 }
 
-TABLES = ["entries", "entries_backup"]
+TABLES = ["entries", "entries_backup", "speech_entries"]
 
 UINT32_MAX = 4_294_967_295
 
