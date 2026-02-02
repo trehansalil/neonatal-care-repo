@@ -2,40 +2,94 @@
 
 ## Project Overview
 
-Flask-based neonatal care tracking application with speech-to-text integration, LLM-powered categorization, and ClickHouse analytics. Designed for real-time baby care logging via voice/manual entry with HTML/JS frontend.
+Flask-based neonatal care tracking application with speech-to-text integration, LLM-powered categorization, and ClickHouse analytics. Designed for real-time baby care logging via voice/manual entry with modular HTML/CSS/JS frontend.
 
 ## Architecture
 
 ```
-Frontend (HTML/JS) → Flask API → ClickHouse DB
-                              → MinIO S3 Storage → Transcription Server (Mac-native)
-                              → Azure OpenAI (Categorization & Mapping)
+                    ┌──────────────┐
+                    │   Nginx      │ :80/:443 (HTTPS gateway)
+                    │  Reverse     │
+                    │   Proxy      │
+                    └──────┬───────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+   ┌─────────┐      ┌──────────┐      ┌──────────┐
+   │ Static  │      │  Flask   │      │  MinIO   │
+   │  HTML   │      │ Backend  │      │   S3     │
+   │  Files  │      │(Gunicorn)│      │ Storage  │
+   └─────────┘      └────┬─────┘      └────┬─────┘
+                         │                  │
+                ┌────────┼──────────────────┤
+                │        │                  │
+                ▼        ▼                  ▼
+         ┌──────────┐ ┌──────────┐  ┌───────────────┐
+         │ClickHouse│ │  Redis   │  │Transcription  │
+         │    DB    │ │  Pubsub  │  │Server (Host)  │
+         └──────────┘ └──────────┘  └───────────────┘
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │ Azure OpenAI │
+                  │     LLM      │
+                  └──────────────┘
 ```
 
 ### Key Services
-- **Flask Backend** ([app.py](app.py)): Main API server (port 5000), CORS-enabled, HTTPS via self-signed certs
-- **ClickHouse**: OLAP database for baby entries (port 8123), partitioned by month, timezone-aware (Asia/Kolkata default)
-- **MinIO**: S3-compatible audio storage (port 9002 external, 9000 internal)
+- **Nginx** ([nginx.conf](nginx.conf)): Reverse proxy serving static HTML, proxies `/api/*` to Flask backend, HTTPS on port 443, HTTP redirect from port 80
+- **Flask Backend** ([app.py](app.py)): Main API server (4 Gunicorn workers with Gevent), CORS-enabled, HTTPS via self-signed certs, port 5000 (exposed as 8082)
+- **ClickHouse**: OLAP database for baby entries (HTTP interface port 8123, native protocol port 9000), partitioned by month, timezone-aware (Asia/Kolkata default)
+- **MinIO**: S3-compatible audio storage (API port 9002 external, 9000 internal, console port 9001), CORS enabled for audio playback
+- **Redis**: Pub/sub for SSE (Server-Sent Events) across Gunicorn workers (port 6379)
 - **Transcription Server** ([transcription_server.py](transcription_server.py)): Mac-native MLX Whisper server (port 8083), runs on host machine via `host.docker.internal`
-- **Azure OpenAI**: LLM categorization/mapping via async background workers
+- **Azure OpenAI**: LLM categorization/mapping via async background workers (2 threads per worker)
+- **n8n**: Webhook automation for notifications (port 5678)
 
 ## Development Workflow
 
 ### Setup & Running
 ```bash
 # Install dependencies (uses uv package manager)
-make setup  # Installs ffmpeg, uv, syncs dependencies
+make setup  # Installs ffmpeg, uv via pip, syncs dependencies
 
 # Start all services (Docker Compose)
-make dev-up  # Backend at https://localhost:8082, MinIO console at localhost:9001
+make dev-up  # Starts all containers in detached mode
+# Access points: 
+# - Nginx: http://localhost (redirects to https://localhost)
+# - Backend (direct): https://localhost:8082
+# - MinIO console: http://localhost:9001
+# - ClickHouse HTTP: http://localhost:8123
+# - n8n: http://localhost:5678
 
-# View logs
+# View logs (follows all services)
 make dev-logs
 
-# Stop services
-make dev-down  # Preserves data
-make clean     # Removes volumes (DESTRUCTIVE)
+# Restart all services without rebuilding
+make dev-restart
+
+# Stop services (preserves volumes)
+make dev-down
+
+# Nuclear option: remove all containers, networks, volumes
+make clean
 ```
+
+### Data Backup & Restore
+```bash
+# Export to backups/clickhouse_export_YYYYMMDD_HHMMSS/
+make dev-export-data
+
+# Import latest backup (with --truncate-first flag)
+make dev-import-data
+```
+
+### Production Deployment Pattern
+- **Nginx** serves as HTTPS gateway (port 80→443 redirect), proxies `/api/*` to Gunicorn backend
+- **Gunicorn** runs 4 workers with gevent async workers (300s timeout for long-running transcriptions)
+- **Redis** enables SSE (Server-Sent Events) across Gunicorn workers for real-time transcription updates
+- **Single notification checker**: Uses file-based lock (`/tmp/baby_tracker_notification_checker.lock`) to ensure only one Gunicorn worker runs background notification thread
 
 ### Local Development (No Docker - rarely used)
 1. Start native transcription server: `./start_transcription_server.sh` (requires Apple Silicon Mac)
@@ -46,16 +100,100 @@ make clean     # Removes volumes (DESTRUCTIVE)
 
 ### Testing
 - Use [test_categorization.py](test_categorization.py) to validate LLM categorization
-- Use [test_entry_mapping.py](test_entry_mapping.py) to test entry mapping
+- Use [test_entry_mapping.py](test_entry_mapping.py) to test entry mapping logic
+- Use [test_notifications.py](test_notifications.py) to test notification webhooks
 - No formal test suite; manual testing via `/api/health` and HTML UI
+
+## Frontend Architecture (Modular Structure)
+
+### File Organization
+
+**Current refactor**: Tracker frontend has been modularized for maintainability and parallel development.
+
+```
+html/
+├── tracker.html           # Main tracker page (1,141 lines, down from 5,336)
+├── index.html             # HydroCare guide page
+├── hand_expression.html   # Breastfeeding guide
+├── supply_strategies.html # Supply strategies
+├── css/
+│   ├── tracker-main.css   # Main CSS entry point (imports all modules)
+│   └── modules/           # Modular CSS (10 focused files)
+│       ├── base.css       # Base styles, typography, body
+│       ├── timeline.css   # Timeline vertical line and items
+│       ├── speech-recording.css  # Hero card, speech UI, waveform
+│       ├── swipe-actions.css     # Swipe containers and buttons
+│       ├── modals.css     # Modal overlays, animations, content
+│       ├── filters.css    # Filter chips, segmented controls
+│       ├── dashboard.css  # Dashboard grid, metric cards
+│       ├── animations.css # Shake, slide-in, pop-out animations
+│       ├── mobile.css     # Mobile-specific styles
+│       └── responsive.css # Media queries
+├── js/
+│   ├── tracker.js         # Main tracker logic (126KB, section-based)
+│   └── modules/           # Future modular JS (work in progress)
+│       ├── config.js      # API endpoints, constants
+│       ├── state.js       # Application state variables
+│       ├── dom-refs.js    # DOM element references
+│       └── [planned modules for speech, modals, entries, etc.]
+├── MODULAR_STRUCTURE.md   # Detailed refactoring documentation
+└── QUICK_REFERENCE.md     # Quick reference guide
+```
+
+### Working with Frontend Code
+
+**Modifying CSS:**
+- Identify visual component → open corresponding module in `html/css/modules/`
+- Timeline appearance → `timeline.css`
+- Speech recording UI → `speech-recording.css`
+- Modal dialogs → `modals.css`
+- Dashboard metrics → `dashboard.css`
+- Mobile layout → `mobile.css`
+- Changes apply immediately in browser (Nginx serves static files)
+
+**Modifying JavaScript:**
+- Currently in single file: `html/js/tracker.js`
+- Use section markers to navigate (e.g., `// SECTION: Modal Management`)
+- Find functions using JSDoc comments
+- Future: Will be split into ES6 modules in `html/js/modules/`
+
+**Benefits of modular structure:**
+- Faster navigation (find code in seconds, not minutes)
+- Parallel work (developers work on different modules without conflicts)
+- Isolated changes (modifications don't affect unrelated features)
+- Browser caching (individual modules cached separately)
+
+### Frontend Conventions
+- Vanilla JS + Tailwind CSS (CDN)
+- API calls via `fetch()` with HTTPS
+- Audio recording uses MediaRecorder API → Blob → FormData
+- No build step required; served directly by Nginx
+- See [MODULAR_STRUCTURE.md](html/MODULAR_STRUCTURE.md) for detailed module documentation
 
 ## Critical Patterns
 
+### Real-Time Updates: SSE (Server-Sent Events)
+- **Multi-worker challenge**: Gunicorn runs 4 workers; client connections stick to one worker
+- **Redis pub/sub solution**: `broadcast_sse_event()` publishes to Redis channel, all workers subscribe and forward to connected clients
+- **Fallback**: In-memory `sse_queues` dict if Redis unavailable (single-worker only)
+- **Client endpoint**: `GET /api/events/transcription` streams `text/event-stream` with heartbeats every 30s
+- **Nginx config**: `X-Accel-Buffering: no` header disables proxy buffering for streaming
+- **Event types**: `transcription_complete`, `mapping_complete`, `categorization_update`
+
+Example SSE broadcast:
+```python
+broadcast_sse_event('transcription_complete', {
+    'entry_id': entry_id,
+    'transcription': text
+})
+```
+
 ### Database Operations (ClickHouse-specific)
-- **Mutations are async by default**: Use `SETTINGS mutations_sync=2` for DELETE/UPDATE (set via `MUTATIONS_SYNC_LEVEL` env var)
-- **No auto-increment IDs**: Call `get_next_id(client)` before INSERT (uses MAX(id)+1)
-- **Timezone handling**: All DateTime64 columns use `LOCAL_TIMEZONE` (pytz object from `TZ` env var)
-- **Table structure**: See [init_clickhouse.sql](init_clickhouse.sql) - two tables: `entries` (main), `entries_backup` (TTL 1 day)
+- **Mutations are async by default**: Use `SETTINGS mutations_sync=2` for DELETE/UPDATE (set via `MUTATIONS_SYNC_LEVEL` env var, default 2)
+- **No auto-increment IDs**: Call `get_next_id(client)` before INSERT (uses `MAX(id)+1` with table locking)
+- **Timezone handling**: All DateTime64 columns use `LOCAL_TIMEZONE` (pytz object from `TZ` env var, default Asia/Kolkata)
+- **Table structure**: See [init_clickhouse.sql](init_clickhouse.sql) - three tables: `entries` (main), `entries_backup` (TTL 1 day), `speech_entries`
+- **Connection pattern**: Always use `client = get_db_connection()` followed by `client.close()` in finally block
 
 Example DELETE pattern:
 ```python
@@ -67,10 +205,10 @@ client.command('''
 ```
 
 ### Speech Entry Processing Pipeline
-1. **Upload audio** → POST `/api/speech_entries` with multipart form data
+1. **Upload audio** → POST `/api/speech_entries` with multipart form data (webm/wav/mp3)
 2. **Store in MinIO** → `s3_storage.upload_bytes()` with `speech/{date}/speech_{uuid}.webm` key
 3. **Transcribe** → `stt_service.transcribe_object()` calls external API or local MLX
-4. **Insert DB** → Create `speech_entries` row with transcription
+4. **Insert DB** → Create `speech_entries` row with transcription, status 'pending_categorization'
 5. **Async categorize** → `speech_processor.submit_task()` queues LLM analysis
 6. **Update category** → Background worker updates DB via `update_speech_entry_category()`
 7. **Map to entry** (optional) → `mapping_service` creates structured `entries` row from speech
@@ -78,19 +216,24 @@ client.command('''
 ### LLM Integration
 - Uses **Azure OpenAI (gpt-4.1)** via `instructor` library for structured extraction
 - **Categorization**: [categorization_service.py](src/services/speech/llm/categorization_service.py) → returns `CategorizationExtraction` Pydantic model
-- **Mapping**: [entry_mapping_service.py](src/services/speech/llm/entry_mapping_service.py) → extracts fields like `feed_amount`, `susu_count`
-- **Async workers**: [async_processor.py](src/services/speech/async_processor.py) manages background threads (default 2 workers)
-- **Graceful degradation**: LLM failures don't break speech entry creation
+- **Mapping**: [entry_mapping_service.py](src/services/speech/llm/entry_mapping_service.py) → extracts fields like `feed_amount`, `susu_count`, `poti_color`
+- **Async workers**: [async_processor.py](src/services/speech/async_processor.py) manages background threads (default 2 workers per Gunicorn process)
+- **Graceful degradation**: LLM failures don't break speech entry creation; entries remain in pending state
 - **Prompts**: Currently inline in service classes; planned migration to [src/prompts/](src/prompts/) directory
 
 ### Configuration Management
 - **Pydantic Settings**: [src/settings.py](src/settings.py) loads from `.env` + environment variables
 - **Access via**: `from src.settings import configured_settings`
-- **Critical env vars**:
+- **Critical env vars** (see [.env.example](.env.example)):
   - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_KEY`, `AZURE_OPENAI_DEPLOYMENT` (LLM)
   - `MINIO_ENDPOINT` (internal: `minio:9000`), `MINIO_EXTERNAL_ENDPOINT` (presigned URLs: `localhost:9002`)
   - `HOST_TRANSCRIPTION_URL` (Docker → host Mac: `http://host.docker.internal:8083/transcribe`)
   - `TZ` (default: `Asia/Kolkata`)
+  - `REDIS_URL` (default: `redis://redis:6379/0` for SSE pub/sub)
+  - `N8N_WEBHOOK_ID`, `N8N_HOST` (notification webhooks)
+  - `ENABLE_BACKGROUND_NOTIFICATIONS` (bool, default: False - frontend timer handles alerts)
+  - `DIAPER_ALERT_HOURS` (default: 4)
+  - `NOTIFICATION_CHECK_INTERVAL_MINUTES` (default: 60)
 
 ### Service Clients (src/services/)
 - **S3StorageService**: [s3_compatible_service.py](src/services/s3_compatible_service.py)
@@ -98,61 +241,101 @@ client.command('''
   - `upload_bytes()` for in-memory uploads
   - `get_presigned_url()` for browser playback (uses `MINIO_EXTERNAL_ENDPOINT`)
 - **STTService**: [stt_service.py](src/services/stt_service.py)
-  - Calls external API or local MLX
+  - Calls external API or local MLX transcription server
   - Returns empty string on failure (non-blocking)
 
-## Data Backup/Restore
-```bash
-make dev-export-data  # Exports to backups/clickhouse_export_YYYYMMDD_HHMMSS/
-make dev-import-data  # Imports latest backup (with --truncate-first flag)
-```
+### Frontend Notification Pattern
+- **Client-side timer**: JavaScript updates diaper change timer every 30 seconds in browser
+- **Visual states**: Card changes color based on elapsed time (green → amber at 75% → red at 100%)
+- **Webhook integration**: Frontend sends notifications to n8n webhook at threshold (default: 4 hours)
+- **LocalStorage deduplication**: Tracks `lastNotifiedTimestamp` to prevent duplicate alerts
+- **Backdating support**: Calculates elapsed time from entry timestamp (not creation time)
+- **Backend alternative**: `ENABLE_BACKGROUND_NOTIFICATIONS=True` enables server-side checking (disabled by default to reduce DB load)
+- **Implementation**: See `updateDiaperNappyTimerDisplay()` and `sendDiaperNappyNotification()` in [tracker.html](html/tracker.html)
 
 ## Project-Specific Conventions
 
 ### Logging
 - Use `from src.log import get_logger` → `logger = get_logger(__name__)`
-- Logs to stdout + file ([transcription_server.log](transcription_server.log) for transcription server)
+- Logs to stdout (captured by Docker) + file ([transcription_server.log](transcription_server.log) for transcription server only)
+- Log levels: DEBUG for development, INFO for production
 
 ### API Response Patterns
 - **Success**: `jsonify(data)` with 200/201
 - **Error**: `jsonify({'error': 'message'})` with 400/404/500
 - **Health check**: `GET /api/health` returns `{'status': 'healthy', 'database': 'connected'}`
-
-### Frontend Conventions (HTML files in html/)
-- Vanilla JS + Tailwind CSS (CDN)
-- API calls via `fetch()` with HTTPS
-- Audio recording uses MediaRecorder API → Blob → FormData
+- **CORS**: Enabled via Flask-CORS for all origins (production should restrict)
 
 ### File Naming
 - Speech audio: `speech_{uuid}.webm` in `speech/YYYYMMDD/` prefix
 - Backups: `clickhouse_export_YYYYMMDD_HHMMSS/` with JSONL format
+- CSS modules: lowercase with hyphens (e.g., `speech-recording.css`)
+- JS modules (future): camelCase with descriptive names (e.g., `entryMapping.js`)
 
 ## Common Tasks
 
 ### Add a new API endpoint
 1. Add route in [app.py](app.py) using `@app.route('/api/<name>', methods=[...])`
-2. Use `get_db_connection()` for ClickHouse client (remember `client.close()`)
+2. Use `get_db_connection()` for ClickHouse client (remember `client.close()` in finally block)
 3. Return `jsonify()` responses with appropriate status codes
+4. Add CORS headers if needed (Flask-CORS handles most cases)
 
 ### Modify database schema
-1. Update [init_clickhouse.sql](init_clickhouse.sql) for reference
+1. Update [init_clickhouse.sql](init_clickhouse.sql) for reference documentation
 2. Update `init_db()` function in [app.py](app.py) (source of truth at runtime)
 3. Run migration logic in `init_db()` (ClickHouse supports `ALTER TABLE ADD COLUMN IF NOT EXISTS`)
+4. Test with `make clean && make dev-up` to verify fresh database initialization
+
+### Add new frontend feature (CSS/JS)
+1. **CSS**: Add styles to appropriate module in `html/css/modules/`, or create new module and import in `tracker-main.css`
+2. **JavaScript**: Add to appropriate section in `html/js/tracker.js` using section markers (e.g., `// SECTION: Feature Name`)
+3. Follow existing JSDoc comment style for functions
+4. Test immediately (Nginx serves static files without rebuild)
+5. Consider future extraction to dedicated module when JS modularization continues
 
 ### Add new LLM prompt
 1. Add prompt inline in service class (standard pattern; planned future migration to [src/prompts/](src/prompts/))
 2. Use `instructor` library with Pydantic models for structured extraction
 3. Example: See `_build_categorization_prompt()` in [categorization_service.py](src/services/speech/llm/categorization_service.py)
 4. Configure via `AZURE_OPENAI_DEPLOYMENT` (currently uses gpt-4.1)
+5. Test with [test_categorization.py](test_categorization.py) or [test_entry_mapping.py](test_entry_mapping.py)
 
 ### Debug speech transcription
 1. Check [transcription_server.log](transcription_server.log)
 2. Verify MinIO audio upload: `docker exec -it baby-tracker-minio ls /data/neonatal-data/speech/`
 3. Test transcription endpoint: `curl -X POST http://localhost:8083/transcribe -H "Content-Type: application/json" -d '{"object_key":"speech/..."}'`
+4. Check backend logs: `docker compose logs backend`
+5. Verify SSE events in browser console (tracker.html listens to `/api/events/transcription`)
+
+### Access database directly
+```bash
+# Connect to ClickHouse
+docker exec -it baby-tracker-clickhouse clickhouse-client --user clickhouse --password clickhouse
+
+# View entries
+SELECT * FROM entries ORDER BY timestamp DESC LIMIT 10;
+
+# Count entries
+SELECT COUNT(*) FROM entries;
+
+# Daily summary
+SELECT 
+  toDate(timestamp) as date,
+  COUNT(*) as total_entries,
+  SUM(susu_count) as total_wet_diapers,
+  SUM(poti_count) as total_soiled_diapers
+FROM entries
+GROUP BY date
+ORDER BY date DESC;
+```
 
 ## Important Notes
 
-- **No PostgreSQL**: Project migrated from PostgreSQL to ClickHouse (legacy references may exist in docs)
+- **No PostgreSQL**: Project migrated from PostgreSQL to ClickHouse (legacy references may exist in older docs)
 - **Medical disclaimer**: Tool is for tracking only, not medical advice (see [README.md](README.md))
 - **Self-signed certs**: [cert.pem](cert.pem) and [key.pem](key.pem) for local HTTPS (browser warnings expected)
-- **Branch strategy**: Current branch `feat/design_log_pivot_to_speech` focuses on speech integration
+- **Current branch**: `copilot/refactortracker-html-separation` - refactoring tracker frontend into modular CSS/JS structure
+- **Gunicorn pattern**: File-based locks in `/tmp/` used to coordinate single-instance background tasks across workers
+- **uv package manager**: Project uses `uv` for fast Python dependency management; see [pyproject.toml](pyproject.toml) for dependencies
+- **MTU setting**: Docker network MTU set to 1000 in docker-compose.yml for better compatibility with certain network environments
+- **Modular frontend**: CSS split into 10 modules, JS modularization in progress (see [MODULAR_STRUCTURE.md](html/MODULAR_STRUCTURE.md))
