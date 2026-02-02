@@ -4,6 +4,21 @@
  * Part of: tracker.html modular CSS
  */
 
+/* Jiggle Animation Keyframes */
+@keyframes jiggle {
+    0% {
+        transform: rotate(-1deg);
+    }
+
+    50% {
+        transform: rotate(1.5deg);
+    }
+
+    100% {
+        transform: rotate(-1deg);
+    }
+}
+
 .shaking .timeline-card-content {
     animation: jiggle 0.25s infinite;
     cursor: default;
