@@ -77,6 +77,10 @@ const DIAPER_ALERT_HOURS = 3; // Alert threshold in hours
 let webhookConfig = { configured: false, webhook_url: null, diaper_alert_hours: 3 };
 // Note: n8n handles recurring reminders every 15 minutes via backend polling
 
+// Long-press / jiggle state (must be at top level so inline handlers can use them)
+let longPressTimer = null;
+const LONG_PRESS_DURATION_MS = 800;
+
 // ==========================================
 // SECTION: DOM Element References
 // ==========================================
@@ -3314,9 +3318,6 @@ document.head.appendChild(style);
 // ----------------------------------------------------
 // LONG PRESS / JIGGLE LOGIC
 // ----------------------------------------------------
-let longPressTimer;
-const LONG_PRESS_DURATION = 800; // ms
-
 function handleLongPressStart(e, id) {
     console.log('handleLongPressStart called:', { event: e.type, id, button: e.button });
 
@@ -3339,7 +3340,7 @@ function handleLongPressStart(e, id) {
         startShake(id);
         // Vibrate if supported
         if (navigator.vibrate) navigator.vibrate(50);
-    }, LONG_PRESS_DURATION);
+    }, LONG_PRESS_DURATION_MS);
 }
 
 function handleLongPressEnd() {
