@@ -13,7 +13,7 @@ services:
       - "8123:8123"  # HTTP interface
       - "9000:9000"  # Native protocol
     volumes:
-      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_data_v2:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
     ulimits:
       nofile:
@@ -149,7 +149,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  clickhouse_data:
+  clickhouse_data_v2:
   clickhouse_logs:
   minio_data:
   n8n_data:
