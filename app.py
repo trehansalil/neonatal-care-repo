@@ -303,31 +303,73 @@ def update_speech_entry_category(result: dict):
     """Callback to update the database with categorization results.
     
     Args:
-        result: Dict containing entry_id, category, and optional metadata
+        result: Dict containing entry_id, category, log_date, log_time, and optional metadata
     """
+    from datetime import datetime
+    
     entry_id = result.get('entry_id')
     category = result.get('category', 'unclear')
+    log_date = result.get('log_date')
+    log_time = result.get('log_time')
 
-    logger.info(f"Updating entry {entry_id} with category '{category}'")
+    print(f"[UPDATE_CATEGORY] Entry {entry_id}: category='{category}', log_date='{log_date}', log_time='{log_time}'")
+    logger.info(f"Updating entry {entry_id} with category '{category}', date '{log_date}', time '{log_time}'")
     
     try:
         client = get_db_connection()
         try:
-            # Update the category in the database
-            client.command('''
-                ALTER TABLE speech_entries 
-                UPDATE category = %(category)s 
-                WHERE id = %(id)s 
-                SETTINGS mutations_sync=%(sync)s
-            ''', parameters={
-                'category': category,
-                'id': entry_id,
-                'sync': MUTATIONS_SYNC_LEVEL
-            })
-            logger.info(f"Updated entry {entry_id} with category '{category}'")
+            # Parse log_date and log_time to update timestamp
+            timestamp_to_update = None
+            if log_date and log_time:
+                try:
+                    # Combine date and time strings (format: "YYYY-MM-DD" and "HH:MM")
+                    datetime_str = f"{log_date} {log_time}"
+                    naive_dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                    # Localize to the configured timezone
+                    timestamp_to_update = naive_dt
+                    print(f"[UPDATE_CATEGORY] Parsed timestamp for entry {entry_id}: {timestamp_to_update}")
+                    logger.info(f"Parsed timestamp for entry {entry_id}: {timestamp_to_update}")
+                except Exception as e:
+                    print(f"[UPDATE_CATEGORY] Failed to parse timestamp for entry {entry_id}: {e}")
+                    logger.warning(f"Failed to parse log_date/log_time for entry {entry_id}: {e}")
+            
+            # Update the category and timestamp in the database
+            if timestamp_to_update:
+                print(f"[UPDATE_CATEGORY] Updating entry {entry_id} with category='{category}' and timestamp={timestamp_to_update}")
+                client.command('''
+                    ALTER TABLE speech_entries 
+                    UPDATE 
+                        category = %(category)s,
+                        timestamp = %(timestamp)s
+                    WHERE id = %(id)s 
+                    SETTINGS mutations_sync=%(sync)s
+                ''', parameters={
+                    'category': category,
+                    'timestamp': timestamp_to_update,
+                    'id': entry_id,
+                    'sync': MUTATIONS_SYNC_LEVEL
+                })
+                print(f"[UPDATE_CATEGORY] ✓ Successfully updated entry {entry_id} with category and timestamp")
+                logger.info(f"Updated entry {entry_id} with category '{category}' and timestamp '{timestamp_to_update}'")
+            else:
+                print(f"[UPDATE_CATEGORY] Updating entry {entry_id} with category='{category}' only (no timestamp)")
+                # Only update category if timestamp parsing failed
+                client.command('''
+                    ALTER TABLE speech_entries 
+                    UPDATE category = %(category)s 
+                    WHERE id = %(id)s 
+                    SETTINGS mutations_sync=%(sync)s
+                ''', parameters={
+                    'category': category,
+                    'id': entry_id,
+                    'sync': MUTATIONS_SYNC_LEVEL
+                })
+                print(f"[UPDATE_CATEGORY] ✓ Successfully updated entry {entry_id} with category only")
+                logger.info(f"Updated entry {entry_id} with category '{category}' (timestamp not updated)")
         finally:
             client.close()
     except Exception as e:
+        print(f"[UPDATE_CATEGORY] ERROR for entry {entry_id}: {e}")
         logger.error(f"Failed to update category for entry {entry_id}: {e}", exc_info=True)
 
 
@@ -665,13 +707,15 @@ def init_db():
                 timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
                 created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}')
             ) ENGINE = MergeTree()
-            ORDER BY (timestamp, id)
-            PRIMARY KEY (timestamp, id)
-            PARTITION BY toYYYYMM(timestamp)
+            ORDER BY (created_at, id)
+            PRIMARY KEY (created_at, id)
+            PARTITION BY toYYYYMM(created_at)
             SETTINGS index_granularity = 8192
         ''')
 
         # Speech entries table
+        # Note: Uses created_at for ORDER BY/PRIMARY KEY to allow timestamp updates
+        # timestamp can be updated with extracted log time from LLM categorization
         client.command(f'''
             CREATE TABLE IF NOT EXISTS speech_entries (
                 id UInt32,
@@ -685,9 +729,9 @@ def init_db():
                 timestamp DateTime64(3, '{LOCAL_TIMEZONE.zone}'),
                 created_at DateTime64(3, '{LOCAL_TIMEZONE.zone}')
             ) ENGINE = MergeTree()
-            ORDER BY (timestamp, id)
-            PRIMARY KEY (timestamp, id)
-            PARTITION BY toYYYYMM(timestamp)
+            ORDER BY (created_at, id)
+            PRIMARY KEY (created_at, id)
+            PARTITION BY toYYYYMM(created_at)
             SETTINGS index_granularity = 8192
         ''')
         
@@ -1023,6 +1067,7 @@ def get_speech_entries():
 
         start_param = request.args.get('start')
         end_param = request.args.get('end')
+        print(f"[GET_SPEECH] Fetching entries with filters: start={start_param}, end={end_param}")
 
         def parse_ts(value):
             if not value:
@@ -1044,11 +1089,14 @@ def get_speech_entries():
                 LIMIT 1000
             '''
             result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
+            print(f"[GET_SPEECH] Executed filtered query")
         else:
             query = 'SELECT * FROM speech_entries ORDER BY timestamp DESC LIMIT 500'
             result = client.query(query)
+            print(f"[GET_SPEECH] Executed unfiltered query (LIMIT 500)")
 
         entries = []
+        print(f"[GET_SPEECH] Query returned {len(result.result_rows)} rows")
         for row in result.result_rows:
             object_key = row[1]
             
@@ -1069,10 +1117,13 @@ def get_speech_entries():
                 'type': 'speech'
             })
 
+        print(f"[GET_SPEECH] Returning {len(entries)} speech entries")
+        logger.info(f"Returning {len(entries)} speech entries with filters start={start_param}, end={end_param}")
         return jsonify(entries)
 
     except Exception as e:
-        print(f"Error fetching speech entries: {e}")
+        print(f"[GET_SPEECH] ERROR: {e}")
+        logger.error(f"Error fetching speech entries: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if client is not None:
@@ -1093,13 +1144,21 @@ def create_speech_entry():
     client = None
     try:
         data = request.get_json() or {}
+        print(f"[CREATE_SPEECH] Received data: {data}")
+        logger.info(f"Creating speech entry with data: {data}")
+        
         object_key = data.get('object_key')
         if not object_key:
+            print(f"[CREATE_SPEECH] ERROR: Missing object_key")
             return jsonify({'error': 'object_key is required'}), 400
 
         timestamp = parse_local_timestamp(data.get('timestamp'))
+        print(f"[CREATE_SPEECH] Parsed timestamp: {timestamp}")
+        
         client = get_db_connection()
         entry_id = get_next_id(client)
+        print(f"[CREATE_SPEECH] Generated entry_id: {entry_id}")
+        logger.info(f"Generated entry_id {entry_id} for object_key {object_key}")
         
         transcription = data.get('transcription', '')
 
@@ -1119,6 +1178,9 @@ def create_speech_entry():
             'duration_ms', 'notes', 'timestamp', 'created_at'
         ])
         
+        print(f"[CREATE_SPEECH] Successfully inserted entry {entry_id} into database")
+        logger.info(f"Inserted speech entry {entry_id} into database with timestamp {timestamp}")
+        
         # Trigger async transcription if not already provided
         if not transcription and object_key and speech_processor:
             speech_processor.submit_transcription_task(
@@ -1127,9 +1189,11 @@ def create_speech_entry():
                 bucket_name=configured_settings.minio_bucket_name,
                 callback=update_speech_entry_transcription
             )
+            print(f"[CREATE_SPEECH] Submitted async transcription task for entry {entry_id}")
             logger.info(f"Submitted async transcription task for new entry {entry_id}")
         # If transcription is already available, trigger categorization
         elif transcription and speech_processor:
+            print(f"[CREATE_SPEECH] Submitting categorization task for entry {entry_id}")
             speech_processor.submit_task(
                 entry_id=entry_id,
                 object_key=object_key,
@@ -1138,9 +1202,10 @@ def create_speech_entry():
                 mapping_callback=create_entry_from_mapping,
                 enable_mapping=True
             )
+            print(f"[CREATE_SPEECH] Submitted categorization task for entry {entry_id}")
             logger.info(f"Submitted categorization and mapping task for new entry {entry_id}")
 
-        return jsonify({
+        response_data = {
             'id': entry_id,
             'object_key': object_key,
             'audio_url': data.get('audio_url'),
@@ -1152,9 +1217,12 @@ def create_speech_entry():
             'timestamp': timestamp.isoformat(),
             'created_at': datetime.now(LOCAL_TIMEZONE).isoformat(),
             'type': 'speech'
-        })
+        }
+        print(f"[CREATE_SPEECH] Returning response for entry {entry_id}: {response_data}")
+        return jsonify(response_data)
     except Exception as e:
-        print(f"Error creating speech entry: {e}")
+        print(f"[CREATE_SPEECH] ERROR: {e}")
+        logger.error(f"Error creating speech entry: {e}", exc_info=True)
         return jsonify({'error': 'Failed to create speech entry'}), 500
     finally:
         if client is not None:
