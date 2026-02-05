@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Module Loading Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+        .step {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .success { background: #065f46; }
+        .error { background: #991b1b; }
+        .pending { background: #713f12; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Module Loading Debug</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+
+        function log(message, type = 'pending') {
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.textContent = message;
+            output.appendChild(div);
+        }
+
+        log('1. Starting debug tests...', 'pending');
+
+        try {
+            // Test 1: Can we load config.js?
+            log('2. Loading config.js...', 'pending');
+            const config = await import('./js/config.js');
+            log('✓ config.js loaded! API_BASE_URL: ' + config.API_BASE_URL, 'success');
+
+            // Test 2: Can we load api.js?
+            log('3. Loading api.js...', 'pending');
+            const apiModule = await import('./js/core/api.js');
+            log('✓ api.js loaded! API client available', 'success');
+
+            // Test 3: Can we load state.js?
+            log('4. Loading state.js...', 'pending');
+            const stateModule = await import('./js/core/state.js');
+            log('✓ state.js loaded! State manager available', 'success');
+
+            // Test 4: Can we call the API?
+            log('5. Testing API call to /api/entries...', 'pending');
+            const response = await fetch('/api/entries?page=1&limit=5');
+            const data = await response.json();
+            log(`✓ API call successful! Got ${data.entries.length} entries`, 'success');
+            log(`   Pagination: page ${data.pagination.page} of ${data.pagination.total_pages}`, 'success');
+
+            // Test 5: Can we use API client?
+            log('6. Testing API client wrapper...', 'pending');
+            const result = await apiModule.api.fetchEntries({ page: 1, limit: 3 });
+            log(`✓ API client works! Got ${result.entries.length} entries via client`, 'success');
+
+            // Test 6: Can we update state?
+            log('7. Testing state management...', 'pending');
+            stateModule.state.setState({
+                entries: result.entries,
+                pagination: result.pagination
+            });
+            const storedEntries = stateModule.state.getState('entries');
+            log(`✓ State management works! Stored ${storedEntries.length} entries`, 'success');
+
+            // Test 7: Can we load EntryList component?
+            log('8. Loading EntryList component...', 'pending');
+            const entryListModule = await import('./js/components/entry-list.js');
+            log('✓ EntryList component loaded!', 'success');
+
+            log('🎉 ALL TESTS PASSED! Modules are working correctly!', 'success');
+            log('→ The issue may be in the HTML selectors or DOM elements', 'pending');
+
+        } catch (error) {
+            log('❌ ERROR: ' + error.message, 'error');
+            log('Stack: ' + error.stack, 'error');
+            console.error('Full error:', error);
+        }
+    </script>
+</body>
+</html>

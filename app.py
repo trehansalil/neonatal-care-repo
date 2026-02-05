@@ -944,12 +944,34 @@ def proxy_audio(object_key):
 
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
-    """Get all entries"""
+    """Get entries with pagination support
+
+    Query params:
+        page: Page number (1-indexed, default: 1)
+        limit: Items per page (default: 20, max: 100)
+        start: Start date filter (ISO format)
+        end: End date filter (ISO format)
+        types: Comma-separated entry types (feed,susu,poti,temp,weight)
+
+    Returns:
+        JSON with entries array and pagination metadata
+    """
     client = None
     try:
         client = get_db_connection()
-        
-        # Optional date/time range filters
+
+        # Parse pagination params
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 20, type=int)
+
+        # Validate pagination params
+        page = max(1, page)  # Minimum page 1
+        limit = min(max(1, limit), 100)  # Between 1-100
+
+        # Calculate offset
+        offset = (page - 1) * limit
+
+        # Parse date/time range filters
         start_param = request.args.get('start')
         end_param = request.args.get('end')
 
@@ -974,20 +996,55 @@ def get_entries():
         start_ts = parse_ts(start_param)
         end_ts = parse_ts(end_param)
 
-        if start_ts or end_ts:
-            query = '''
-                SELECT * FROM entries 
-                WHERE (%(start)s IS NULL OR timestamp >= %(start)s)
-                  AND (%(end)s IS NULL OR timestamp <= %(end)s)
-                ORDER BY timestamp DESC
-                LIMIT 1000
-            '''
-            result = client.query(query, parameters={'start': start_ts, 'end': end_ts})
-        else:
-            # Get last 500 entries by default
-            query = 'SELECT * FROM entries ORDER BY timestamp DESC LIMIT 500'
-            result = client.query(query)
-        
+        # Parse type filters
+        types_param = request.args.get('types')
+        type_filters = []
+        if types_param:
+            requested_types = types_param.split(',')
+            # Build OR conditions for each type
+            if 'feed' in requested_types:
+                type_filters.append('(feed_amount > 0 OR feed_type IS NOT NULL)')
+            if 'susu' in requested_types:
+                type_filters.append('susu_count > 0')
+            if 'poti' in requested_types:
+                type_filters.append('poti_count > 0')
+            if 'temp' in requested_types:
+                type_filters.append('temperature IS NOT NULL')
+            if 'weight' in requested_types:
+                type_filters.append('weight IS NOT NULL')
+
+        # Build WHERE clause
+        where_conditions = []
+        query_params = {}
+
+        if start_ts:
+            where_conditions.append('timestamp >= %(start)s')
+            query_params['start'] = start_ts
+        if end_ts:
+            where_conditions.append('timestamp <= %(end)s')
+            query_params['end'] = end_ts
+        if type_filters:
+            where_conditions.append(f"({' OR '.join(type_filters)})")
+
+        where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+
+        # Get total count (for pagination metadata)
+        count_query = f'SELECT COUNT(*) as total FROM entries {where_clause}'
+        count_result = client.query(count_query, parameters=query_params)
+        total_count = count_result.result_rows[0][0]
+
+        # Get paginated entries
+        entries_query = f'''
+            SELECT * FROM entries
+            {where_clause}
+            ORDER BY timestamp DESC
+            LIMIT %(limit)s OFFSET %(offset)s
+        '''
+        query_params['limit'] = limit
+        query_params['offset'] = offset
+
+        result = client.query(entries_query, parameters=query_params)
+
         # Convert result to list of dictionaries
         entries = []
         for row in result.result_rows:
@@ -1004,10 +1061,25 @@ def get_entries():
                 'timestamp': row[9].isoformat() if row[9] else None,
                 'created_at': row[10].isoformat() if row[10] else None
             })
-        
-        return jsonify(entries)
+
+        # Calculate pagination metadata
+        total_pages = (total_count + limit - 1) // limit  # Ceiling division
+
+        # Return paginated response
+        return jsonify({
+            'entries': entries,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total': total_count,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_prev': page > 1
+            }
+        })
+
     except Exception as e:
-        print(f"Error fetching entries: {e}")
+        logger.error(f"Error fetching entries: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if client is not None:
