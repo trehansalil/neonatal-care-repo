@@ -204,10 +204,9 @@ If the transcription is too vague or unclear, use "unclear"."""
                 extraction.get('log_time'),
             )
 
-            print("Categorized transcription as '%s' (date: %s, time: %s)",
-                category,
-                extraction.get('log_date'),
-                extraction.get('log_time')
+            print(
+                f"Categorized transcription as '{category}' "
+                f"(date: {extraction.get('log_date')}, time: {extraction.get('log_time')})"
             )
 
             return metadata
