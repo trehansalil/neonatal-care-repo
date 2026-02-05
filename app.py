@@ -312,7 +312,7 @@ def update_speech_entry_category(result: dict):
     log_date = result.get('log_date')
     log_time = result.get('log_time')
 
-    print(f"[UPDATE_CATEGORY] Entry {entry_id}: category='{category}', log_date='{log_date}', log_time='{log_time}'")
+    logger.debug(f"[UPDATE_CATEGORY] Entry {entry_id}: category='{category}', log_date='{log_date}', log_time='{log_time}'")
     logger.info(f"Updating entry {entry_id} with category '{category}', date '{log_date}', time '{log_time}'")
     
     try:
