@@ -103,10 +103,19 @@ Valid categories:
 
 Temporal extraction rules:
 - Only extract a log_date if an explicit calendar date is provided; format it as YYYY-MM-DD.
-- If AM/PM is missing (e.g., "at 5:00"), infer it based on the logical context of the sentence relative to the Current System Timestamp or standard human behavior (e.g., "breakfast" implies AM, "dinner" implies PM).
 - Only extract a log_time if a time is provided; format it in 24-hour HH:MM.
 - If no detail on date or time is mentioned, assume it as the current date and time.
-- if relative times are mentioned (e.g., "an hour ago"), convert them in reference to current date and time.
+- If relative times are mentioned (e.g., "an hour ago"), convert them in reference to current date and time.
+- When a time is mentioned without AM/PM (e.g., "at 6" or "6:00"):
+  * Default to the nearest occurrence of that time in the PAST relative to the current time
+  * Exception: If the mentioned time is within the next hour of the current time, it can be interpreted as near future (e.g., if current time is 1:25 AM and user says "1:30", interpret as 1:30 AM, not 1:30 PM yesterday)
+  * Examples:
+    - Current time: 1:25 AM, user says "6" → interpret as 6:00 PM (previous day)
+    - Current time: 1:25 AM, user says "12:10" → interpret as 00:10 AM (same day)
+    - Current time: 1:25 AM, user says "1:30" → interpret as 1:30 AM (near future within 1 hour)
+    - Current time: 3:00 PM, user says "2" → interpret as 2:00 PM (1 hour ago)
+    - Current time: 3:00 PM, user says "3:30" → interpret as 3:30 PM (30 minutes in future, within 1 hour window)
+  * Use contextual clues when available (e.g., "breakfast" implies AM, "dinner" implies PM) to override the default past-time rule
 
 Transcription: "{transcription}"
 Current date and time: "{current_dt}"
@@ -194,6 +203,13 @@ If the transcription is too vague or unclear, use "unclear"."""
                 extraction.get('log_date'),
                 extraction.get('log_time'),
             )
+
+            print("Categorized transcription as '%s' (date: %s, time: %s)",
+                category,
+                extraction.get('log_date'),
+                extraction.get('log_time')
+            )
+
             return metadata
             
         except Exception as e:

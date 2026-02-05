@@ -14,10 +14,11 @@ from src.services.speech.llm.categorization_service import CategorizationService
 
 # Example transcriptions to test
 SAMPLE_TRANSCRIPTIONS = [
+    "breastfeed at 12:30 for 30 minutes",
     "Baby drank 60 ml of formula at 1210",
     "Changed diaper, baby peed twice in the last hour",
-    "Baby had a bowel movement, color was yellow and consistency was normal",
-    "Took baby's temperature, it was 37.2 degrees Celsius",
+    "Baby had a bowel movement, color was yellow and consistency was normal at 1:40",
+    "Took baby's temperature, it was 37.2 degrees Celsius at 12:45 in the morning",
     "Weighed the baby today, she is now 4.5 kilograms",
     "Baby was crying a lot and seemed uncomfortable, gave tummy time",
     "Fed baby 80ml at 2pm, then changed a wet diaper and she had yellow poop",

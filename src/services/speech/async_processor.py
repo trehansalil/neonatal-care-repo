@@ -203,7 +203,7 @@ class AsyncSpeechProcessor:
                     'metadata': categorization_result
                 }
                 
-            logger.info(f"Entry {entry_id} categorized as: {result['category']}")
+            logger.info(f"Entry {entry_id} categorized as: {result['category']} at {result.get('log_date')}, {result.get('log_time')}")
             
             # Call the callback with categorization results
             if callback:
