@@ -119,10 +119,11 @@ services:
       - "5678:5678"
     environment:
       # Base URL n8n should think it's running on (important for webhooks)
-      WEBHOOK_URL: ${WEBHOOK_URL}
+      WEBHOOK_URL: ${WEBHOOK_URL:-https://salils-mac-mini/automation/}
       N8N_HOST: 0.0.0.0
       N8N_PORT: 5678
       N8N_PROTOCOL: http
+      N8N_PATH: /automation/
       # Optional: secure cookie off if you're just testing locally
       N8N_SECURE_COOKIE: "false"
     volumes:
