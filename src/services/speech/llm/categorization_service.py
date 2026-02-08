@@ -106,19 +106,24 @@ Temporal extraction rules:
 - Only extract a log_time if a time is provided; format it in 24-hour HH:MM.
 - If no detail on date or time is mentioned, assume it as the current date and time.
 - If relative times are mentioned (e.g., "an hour ago"), convert them in reference to current date and time.
-- When a time is mentioned without AM/PM (e.g., "at 6", "6:00", "940", "1040"):
+- When a time is mentioned without AM/PM (e.g., "at 6", "6:00", "940", "1040", "1:40"):
   * CRITICAL: Always choose the closest occurrence of that time in the PAST (within last 12 hours)
-  * If interpreting as AM would make the time more than 12 hours ago, interpret as PM instead
+  * Consider BOTH AM and PM interpretations, and choose whichever is closer to current time in the PAST
+  * If both AM and PM would be in the future, go back 24 hours to find the most recent occurrence
   * Exception: If the mentioned time is within the next hour, it can be near future
-  * Examples:
-    - Current time: 11:46 PM (23:46), user says "9:40" or "940" → interpret as 21:40 (2 hours ago, NOT 09:40 which is 14 hours ago)
-    - Current time: 11:46 PM (23:46), user says "10:40" or "1040" → interpret as 22:40 (1 hour ago, NOT 10:40 which is 13 hours ago)
-    - Current time: 01:25 AM, user says "6" → interpret as 18:00 previous day (7.5 hours ago)
-    - Current time: 01:25 AM, user says "12:10" → interpret as 00:10 same day (1.25 hours ago)
-    - Current time: 01:25 AM, user says "1:30" → interpret as 01:30 same day (near future, only 5 min away)
-    - Current time: 03:00 PM (15:00), user says "2" → interpret as 14:00 (1 hour ago, NOT 02:00 which is 13 hours ago)
-    - Current time: 03:00 PM (15:00), user says "3:30" → interpret as 15:30 (30 min in future within 1 hour window)
+  * Examples (read carefully):
+    - Current time: 11:46 PM (23:46) on 2026-02-08, user says "9:40" or "940" → interpret as 21:40 on 2026-02-08 (2 hours ago, NOT 09:40)
+    - Current time: 11:46 PM (23:46) on 2026-02-08, user says "10:40" or "1040" → interpret as 22:40 on 2026-02-08 (1 hour ago, NOT 10:40)
+    - Current time: 11:46 PM (23:46) on 2026-02-08, user says "1:40" → interpret as 13:40 on 2026-02-08 (10 hours ago, NOT 01:40)
+    - Current time: 01:25 AM on 2026-02-09, user says "6" → interpret as 18:00 on 2026-02-08 (7.5 hours ago)
+    - Current time: 01:25 AM on 2026-02-09, user says "12:10" → interpret as 00:10 on 2026-02-09 (1.25 hours ago)
+    - Current time: 01:25 AM on 2026-02-09, user says "1:30" → interpret as 01:30 on 2026-02-09 (5 min in future, acceptable)
+    - Current time: 03:00 PM (15:00) on 2026-02-09, user says "2" → interpret as 14:00 on 2026-02-09 (1 hour ago)
   * Use contextual clues when available (e.g., "breakfast" implies AM, "dinner" implies PM)
+- When a time is mentioned WITH explicit AM/PM or "morning"/"afternoon"/"evening":
+  * Honor the explicit indicator (e.g., "12:45 in the morning" = 00:45)
+  * If this time hasn't occurred yet today, it refers to YESTERDAY
+  * Example: Current time is 01:25 AM on 2026-02-09, user says "12:45 in the morning" → interpret as 00:45 on 2026-02-08 (yesterday)
 
 Transcription: "{transcription}"
 Current date and time: "{current_dt}"
