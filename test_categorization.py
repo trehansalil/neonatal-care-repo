@@ -14,8 +14,8 @@ from src.services.speech.llm.categorization_service import CategorizationService
 
 # Example transcriptions to test
 SAMPLE_TRANSCRIPTIONS = [
-    "breastfeed at 12:30 for 30 minutes",
-    "Baby drank 60 ml of formula at 1210",
+    "breastfeed at 9:40 for 30 minutes",
+    "Baby drank 60 ml of formula at 1040",
     "Changed diaper, baby peed twice in the last hour",
     "Baby had a bowel movement, color was yellow and consistency was normal at 1:40",
     "Took baby's temperature, it was 37.2 degrees Celsius at 12:45 in the morning",
