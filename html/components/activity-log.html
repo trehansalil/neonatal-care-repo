@@ -1,0 +1,39 @@
+<!-- Activity Log Section Component -->
+<section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-8 log-section">
+    <div class="mb-3">
+        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <span>📋</span> Activity Log
+        </h2>
+    </div>
+
+    <!-- Range & Presets -->
+    <div class="mb-2">
+        <div class="filter-scroll-container">
+            <button id="custom-range-btn" class="filter-chip" onclick="openModal('range')">
+                <span>📅</span> <span id="custom-range-label">Range</span> ▾
+            </button>
+            <button class="filter-chip" onclick="applyPreset('6h')">Last 6h</button>
+            <button class="filter-chip" onclick="applyPreset('12h')">Last 12h</button>
+            <button class="filter-chip active" onclick="applyPreset('today')">Today</button>
+            <button class="filter-chip" onclick="applyPreset('yesterday')">Yesterday</button>
+            <button class="filter-chip" onclick="applyPreset('24h')">Last 24h</button>
+            <button class="filter-chip" onclick="applyPreset('week')">This week</button>
+        </div>
+    </div>
+
+    <!-- Type Filters -->
+    <div class="mb-3">
+        <div class="filter-scroll-container">
+            <button class="filter-chip active" data-type="feed">🍼 Feed</button>
+            <button class="filter-chip active" data-type="susu">💧 Susu</button>
+            <button class="filter-chip active" data-type="poti">💩 Poti</button>
+            <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
+            <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
+            <button class="filter-chip" data-type="speech">🎙️ Speech</button>
+        </div>
+    </div>
+
+    <div id="entries-container" class="space-y-3">
+        <p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p>
+    </div>
+</section>

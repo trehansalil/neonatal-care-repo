@@ -1,0 +1,46 @@
+<!-- Temperature Modal Component -->
+<div id="temp-modal" class="modal">
+    <div class="modal-content">
+        <div class="bg-red-50 p-6 border-b border-red-100">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>🌡️</span> Log Temperature
+                </h3>
+                <button onclick="closeModal('temp')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+            </div>
+        </div>
+        <form id="temp-form" class="p-6 space-y-4">
+            <div class="datetime-section p-4 rounded-lg">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <span>📅</span> Date & Time
+                    </label>
+                    <button type="button" onclick="setCurrentDateTime('temp')" class="text-xs text-red-600 hover:text-red-700 font-semibold">
+                        Set to Now
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="temp-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                    <input type="time" id="temp-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                </div>
+                <p class="text-xs text-slate-500 mt-2">ℹ️ You can log past entries by changing the date/time</p>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Temperature (°C)</label>
+                <input type="number" id="temp-value" step="0.1" min="35" max="42" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="37.0">
+                <p class="text-xs text-slate-500 mt-1">Normal: 36.5-37.5°C</p>
+            </div>
+            <div id="temp-warning" class="hidden p-4 bg-red-100 border border-red-300 rounded-lg">
+                <p class="text-sm text-red-800 font-semibold">⚠️ High Temperature Detected</p>
+                <p class="text-xs text-red-700 mt-1">Consider contacting your pediatrician if fever persists.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                <textarea id="temp-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Any observations..."></textarea>
+            </div>
+            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                Save Entry
+            </button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,52 @@
+<!-- Dashboard Metrics Component -->
+<section class="mb-4 log-section">
+    <div class="dashboard-grid grid grid-cols-2 md:grid-cols-3 gap-3">
+        <!-- Feed Volume Card -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-sm">
+                    🍼
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-medium text-slate-500 mb-0.5">Feed Volume</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-semibold text-slate-900" id="total-feed-ml">0 ml</span>
+                        <span class="text-xs text-slate-400" id="feed-progress-text-compact">0%</span>
+                    </div>
+                    <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="feed-progress-bar" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1" id="target-basis-text">Goal: --</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diaper Timer Card -->
+        <div id="diaper-timer-card" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-300">
+            <div class="flex items-start gap-3">
+                <div id="diaper-timer-icon" class="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center transition-colors duration-300 text-slate-600 text-sm">
+                    ⏱️
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-medium text-slate-500 mb-0.5">Last Diaper</p>
+                    <div class="text-2xl font-semibold text-slate-900" id="diaper-timer-display">--:--</div>
+                    <p class="text-[10px] text-slate-400 mt-0.5" id="diaper-timer-subtitle">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diapers Used Card -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 text-sm">
+                    🧷
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-medium text-slate-500 mb-0.5">Diapers</p>
+                    <div class="text-2xl font-semibold text-slate-900" id="total-diapers">0</div>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Selected range</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
