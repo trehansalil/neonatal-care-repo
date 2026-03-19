@@ -42,7 +42,7 @@ Flask-based neonatal care tracking application with speech-to-text integration, 
 - **Flask Backend** ([app.py](app.py)): Main API server (4 Gunicorn workers with Gevent), CORS-enabled, HTTPS via self-signed certs, port 5000 (exposed as 8082)
 - **ClickHouse**: OLAP database for baby entries (HTTP interface port 8123, native protocol port 9000), partitioned by month, timezone-aware (Asia/Kolkata default)
 - **MinIO**: S3-compatible audio storage (API port 9002 external, 9000 internal, console port 9001), CORS enabled for audio playback
-- **Redis**: Pub/sub for SSE (Server-Sent Events) across Gunicorn workers (port 6379)
+- **Redis**: Pub/sub for SSE (Server-Sent Events) across Gunicorn workers + notification state management (port 6379)
 - **Transcription Server** ([transcription_server.py](transcription_server.py)): Mac-native MLX Whisper server (port 8083), runs on host machine via `host.docker.internal`
 - **Azure OpenAI**: LLM categorization/mapping via async background workers (2 threads per worker)
 - **n8n**: Webhook automation for notifications (port 5678)
@@ -88,7 +88,7 @@ make dev-import-data
 ### Production Deployment Pattern
 - **Nginx** serves as HTTPS gateway (port 80→443 redirect), proxies `/api/*` to Gunicorn backend
 - **Gunicorn** runs 4 workers with gevent async workers (300s timeout for long-running transcriptions)
-- **Redis** enables SSE (Server-Sent Events) across Gunicorn workers for real-time transcription updates
+- **Redis** enables SSE (Server-Sent Events) across Gunicorn workers for real-time transcription updates + stores notification state (last notified entry ID, timestamp)
 - **Single notification checker**: Uses file-based lock (`/tmp/baby_tracker_notification_checker.lock`) to ensure only one Gunicorn worker runs background notification thread
 
 ### Local Development (No Docker - rarely used)
@@ -335,7 +335,7 @@ ORDER BY date DESC;
 - **Medical disclaimer**: Tool is for tracking only, not medical advice (see [README.md](README.md))
 - **Self-signed certs**: [cert.pem](cert.pem) and [key.pem](key.pem) for local HTTPS (browser warnings expected)
 - **Current branch**: `copilot/refactortracker-html-separation` - refactoring tracker frontend into modular CSS/JS structure
-- **Gunicorn pattern**: File-based locks in `/tmp/` used to coordinate single-instance background tasks across workers
+- **Gunicorn pattern**: File-based locks in `/tmp/` used to coordinate single-instance background tasks across workers; Redis used for notification state management (last notification timestamp, entry ID)
 - **uv package manager**: Project uses `uv` for fast Python dependency management; see [pyproject.toml](pyproject.toml) for dependencies
 - **MTU setting**: Docker network MTU set to 1000 in docker-compose.yml for better compatibility with certain network environments
 - **Modular frontend**: CSS split into 10 modules, JS modularization in progress (see [MODULAR_STRUCTURE.md](html/MODULAR_STRUCTURE.md))

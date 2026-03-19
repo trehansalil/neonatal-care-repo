@@ -1,0 +1,53 @@
+<!-- Speech Log Entry Section Component -->
+<section class="mb-4 log-section">
+    <div class="bg-white hero-card rounded-2xl overflow-hidden">
+        <div class="p-3">
+            <div class="flex items-center gap-3">
+                <button data-speech-record onclick="startSpeechRecording()"
+                    class="hero-record flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center transition-all"
+                    aria-label="Start recording">
+                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </button>
+
+                <button data-speech-stop onclick="stopSpeechRecording()"
+                    class="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center transition-all hidden"
+                    aria-label="Stop recording">
+                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </button>
+
+                <div class="flex-1 speech-input-area px-4 py-3" id="speech-input-area">
+                    <div class="flex flex-col gap-1">
+                        <div class="quick-log-label">Quick Log</div>
+                        <div class="flex items-center gap-3">
+                            <div class="waveform hidden" id="waveform">
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                                <div class="waveform-bar"></div>
+                            </div>
+                            <div class="flex-1">
+                                <p data-speech-status
+                                    class="text-slate-600 text-sm font-medium placeholder-text"
+                                    id="speech-placeholder">Say: "20ml express milk at 2pm"...</p>
+                                <p data-speech-timer class="text-slate-400 text-xs mt-0.5 hidden tabular-nums"
+                                    id="speech-timer-text">00:00</p>
+                            </div>
+                            <div data-speech-cta class="flex items-center gap-2 flex-shrink-0"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

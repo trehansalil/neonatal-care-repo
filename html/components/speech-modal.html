@@ -1,0 +1,122 @@
+<!-- Speech Log Modal Component -->
+<div id="speech-modal" class="modal">
+    <div class="modal-content h-full md:h-auto md:max-h-[90vh] flex flex-col w-full md:w-[640px]">
+        <div class="bg-rose-50 p-5 border-b border-rose-100 flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-rose-500">Voice Notes</p>
+                <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">🎙️ Speech Log</h2>
+                <p class="text-sm text-slate-600">Record, transcribe, and file a quick voice note.</p>
+            </div>
+            <button onclick="closeModal('speech')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+        </div>
+
+        <form id="speech-form" class="p-5 md:p-6 space-y-4 flex-1 flex flex-col overflow-y-auto">
+            <div class="datetime-section p-4 rounded-lg">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <span>📅</span> Date & Time
+                    </label>
+                    <button type="button" onclick="setCurrentDateTime('speech')" class="text-xs text-rose-600 hover:text-rose-700 font-semibold">
+                        Set to Now
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="speech-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                    <input type="time" id="speech-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase">Status</p>
+                        <p id="speech-status" class="text-sm font-bold text-slate-800">Ready to record</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-slate-500 uppercase font-semibold">Duration</p>
+                        <p id="speech-timer" class="text-2xl font-mono font-bold text-slate-900">00:00</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-white border border-slate-200 p-3">
+                    <div class="flex items-end gap-1 h-20 md:h-16" id="speech-waveform">
+                        <!-- Waveform bars generated dynamically -->
+                    </div>
+                    <audio id="speech-audio" controls class="w-full mt-3 hidden"></audio>
+                </div>
+
+                <div class="speech-controls grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                    <button type="button" onclick="startSpeechRecording()" id="speech-record-btn" class="control-btn bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-3 rounded-xl shadow-sm flex-1">
+                        ⏺️ Record
+                    </button>
+                    <button type="button" onclick="pauseSpeechRecording()" id="speech-pause-btn" class="control-btn bg-amber-100 text-amber-800 font-semibold px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex-1">
+                        ⏸️ Pause
+                    </button>
+                    <button type="button" onclick="resumeSpeechRecording()" id="speech-resume-btn" class="control-btn bg-indigo-100 text-indigo-800 font-semibold px-4 py-3 rounded-xl border border-indigo-200 shadow-sm flex-1">
+                        ▶️ Resume
+                    </button>
+                    <button type="button" onclick="stopSpeechRecording()" id="speech-stop-btn" class="control-btn bg-slate-800 text-white font-bold px-4 py-3 rounded-xl shadow-sm col-span-2 sm:flex-1">
+                        ◼️ Stop
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500">Tip: On desktop use R to start and Space to pause/resume while focused on this modal.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-3">
+                    <label class="block text-sm font-semibold text-slate-700">Transcription</label>
+                    <textarea id="speech-transcription" rows="5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500" placeholder="Auto or manual notes..."></textarea>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="hydrateSpeechTranscription()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg">Fill from mic</button>
+                        <button type="button" id="speech-retranscribe-modal-btn" onclick="hydrateSpeechTranscription(true)" class="text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-2 rounded-lg hidden">🔄 Retranscribe</button>
+                        <button type="button" onclick="clearSpeechDraft()" class="text-sm bg-white border border-slate-200 text-slate-600 font-semibold px-3 py-2 rounded-lg">Reset text</button>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
+                        <select id="speech-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                            <option value="general">General Notes</option>
+                            <option value="feeding">Feeding</option>
+                            <option value="sleep">Sleep</option>
+                            <option value="health">Health</option>
+                            <option value="milestone">Milestone</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Recording Type</label>
+                        <select id="speech-mode" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                            <option value="auto">Auto</option>
+                            <option value="manual">Manual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Notes (optional)</label>
+                        <input id="speech-notes" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm" placeholder="Context or reminder" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Clip Length</label>
+                        <input id="speech-duration" type="text" readonly class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm" value="00:00" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <span>🕑</span> Recent clips
+                    </p>
+                    <button type="button" onclick="renderSpeechRecent()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold">Refresh</button>
+                </div>
+                <div id="speech-recent" class="space-y-2 text-sm text-slate-600">
+                    <p class="text-slate-500 text-sm">No speech clips yet.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                <button type="button" onclick="discardSpeech()" class="w-full sm:w-40 px-4 py-3 border border-slate-200 rounded-xl text-slate-700 font-semibold hover:bg-slate-50">Discard</button>
+                <button type="button" onclick="saveSpeechEntry()" class="w-full sm:flex-1 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm">Save to log</button>
+            </div>
+        </form>
+    </div>
+</div>

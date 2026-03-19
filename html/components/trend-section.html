@@ -1,0 +1,126 @@
+<!-- Trend Analysis Section Component -->
+<section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 trend-section">
+    <div class="mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <span>📈</span> <span id="chart-title">Trend Analysis</span>
+                    <span id="cumulative-badge" class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Cumulative</span>
+                </h2>
+                <p class="text-sm text-slate-500 mt-1">Visualize growth and vitals</p>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg self-start md:self-auto">
+                <button class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="today" id="trend-preset-today">Today</button>
+                <button class="px-4 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800" data-preset="7" id="trend-preset-7">7 Days</button>
+                <button class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="30" id="trend-preset-30">30 Days</button>
+                <div class="w-px h-4 bg-slate-300 mx-1"></div>
+                <button id="toggle-custom-date" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1">
+                    <span>📅</span> <span class="hidden sm:inline">Custom</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Custom Date Inputs -->
+        <div id="custom-date-panel" class="hidden mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
+            <div class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">From</label>
+                    <input type="date" id="trend-start-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">To</label>
+                    <input type="date" id="trend-end-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button id="trend-apply-range" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">Apply Range</button>
+                <div class="ml-auto text-xs text-slate-400 self-center" id="range-label"></div>
+            </div>
+        </div>
+
+        <!-- Toolbar: Metrics & Settings -->
+        <div class="flex flex-col lg:flex-row gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-6">
+            <div class="flex items-center gap-5 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1" id="metric-segment">
+                <button data-metric="weight-avg" data-label="Weight" class="metric-tab active">Weight</button>
+                <button data-metric="temp-avg" data-label="Temp" class="metric-tab">Temp</button>
+                <button data-metric="feed-total" data-label="Feeds" class="metric-tab">Feeds</button>
+                <button data-metric="susu-count" data-label="Susu" class="metric-tab">Susu</button>
+                <button data-metric="poti-count" data-label="Poti" class="metric-tab">Poti</button>
+                <button data-metric="diaper-count" data-label="Diapers" class="metric-tab">Diapers</button>
+            </div>
+
+            <div class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3 flex-wrap">
+                <!-- Compare Dropdown -->
+                <div class="relative min-w-[140px]">
+                    <select id="compare-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <option value="none">Compare: None</option>
+                        <option value="weight-avg">vs Weight</option>
+                        <option value="temp-avg">vs Temp</option>
+                        <option value="feed-total">vs Feeds</option>
+                        <option value="susu-count">vs Susu</option>
+                        <option value="poti-count">vs Poti</option>
+                        <option value="diaper-count">vs Diapers</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Aggregation Dropdown -->
+                <div class="relative min-w-[120px]">
+                    <select id="aggregation-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <option value="hour">By Hour</option>
+                        <option value="day" selected>By Day</option>
+                        <option value="week">By Week</option>
+                        <option value="month">By Month</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-bar mb-4" id="trend-stats">
+            <div class="stats-card">
+                <div class="icon bg-purple-100 text-purple-600">⏮</div>
+                <div>
+                    <div class="label">Starting</div>
+                    <div class="value" id="start-value">--</div>
+                    <div class="helper" id="start-helper">Range baseline</div>
+                </div>
+            </div>
+            <div class="stats-card">
+                <div class="icon bg-purple-100 text-purple-600">⏺</div>
+                <div>
+                    <div class="label">Current</div>
+                    <div class="value" id="latest-value">--</div>
+                    <div class="helper" id="latest-helper">Latest point</div>
+                </div>
+            </div>
+            <div class="stats-card">
+                <div class="icon bg-purple-100 text-purple-600">Δ</div>
+                <div>
+                    <div class="label">Total Change</div>
+                    <div class="value" id="value-change">--</div>
+                    <div class="helper" id="change-helper">–</div>
+                </div>
+            </div>
+            <div class="stats-card">
+                <div class="icon bg-purple-100 text-purple-600">↗</div>
+                <div>
+                    <div class="label">Avg Change</div>
+                    <div class="value" id="avg-change">--</div>
+                    <div class="helper" id="avg-helper">–</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative bg-slate-50 rounded-xl p-4 border border-slate-200" style="height: 320px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</section>

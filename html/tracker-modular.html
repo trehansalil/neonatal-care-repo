@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Baby Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/tracker-styles.css">
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">📊</span>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-800">Baby Tracker</h1>
+            </div>
+            <div class="flex gap-2">
+                <a href="supply_strategies.html" class="text-sm bg-teal-600 hover:bg-teal-700 text-white px-3 py-1 rounded transition-colors">🍼 Supply Tips</a>
+                <a href="index.html" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded transition-colors">Back to Guide</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+
+        <div class="mobile-tab-toggle">
+            <button id="tab-log" class="active">Log</button>
+            <button id="tab-trends">Trends</button>
+        </div>
+
+        <!-- Speech Log Entry Section -->
+        <section class="mb-4 log-section">
+            <div class="bg-white hero-card rounded-2xl overflow-hidden">
+                <div class="p-3">
+                    <div class="flex items-center gap-3">
+                        <button data-speech-record onclick="startSpeechRecording()" class="hero-record flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center transition-all" aria-label="Start recording">
+                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <button data-speech-stop onclick="stopSpeechRecording()" class="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center transition-all hidden" aria-label="Stop recording">
+                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div class="flex-1 speech-input-area px-4 py-3" id="speech-input-area">
+                            <div class="flex flex-col gap-1">
+                                <div class="quick-log-label">Quick Log</div>
+                                <div class="flex items-center gap-3">
+                                    <div class="waveform hidden" id="waveform">
+                                        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p data-speech-status class="text-slate-600 text-sm font-medium placeholder-text" id="speech-placeholder">Say: "20ml express milk at 2pm"...</p>
+                                        <p data-speech-timer class="text-slate-400 text-xs mt-0.5 hidden tabular-nums" id="speech-timer-text">00:00</p>
+                                    </div>
+                                    <div data-speech-cta class="flex items-center gap-2 flex-shrink-0"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Metrics -->
+        <section class="mb-4 log-section">
+            <div class="dashboard-grid grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-sm">🍼</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Feed Volume</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-semibold text-slate-900" id="total-feed-ml">0 ml</span>
+                                <span class="text-xs text-slate-400" id="feed-progress-text-compact">0%</span>
+                            </div>
+                            <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="feed-progress-bar" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 0%"></div></div>
+                            <p class="text-[10px] text-slate-400 mt-1" id="target-basis-text">Goal: --</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="diaper-timer-card" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <div id="diaper-timer-icon" class="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center transition-colors duration-300 text-slate-600 text-sm">⏱️</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Last Diaper</p>
+                            <div class="text-2xl font-semibold text-slate-900" id="diaper-timer-display">--:--</div>
+                            <p class="text-[10px] text-slate-400 mt-0.5" id="diaper-timer-subtitle">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 text-sm">🧷</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 mb-0.5">Diapers</p>
+                            <div class="text-2xl font-semibold text-slate-900" id="total-diapers">0</div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Selected range</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mobile Metrics Slider -->
+        <section class="metrics-slider-container log-section">
+            <div class="metrics-slider">
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-start gap-2">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 text-[11px]">🧷</div>
+                        <div class="flex-1 min-w-0"><p class="text-[10px] font-medium text-slate-500 mb-0.5">Diapers</p><div class="text-base font-semibold text-slate-900" id="total-diapers-mobile">0</div><p class="text-[9px] text-slate-400 mt-0.5">Selected range</p></div>
+                    </div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5"><div class="w-6 h-6 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 text-[11px]">🍼</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Feeds</span></div>
+                    <div class="text-base font-semibold text-slate-900" id="today-feeds-mobile">0 | 0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Total | Avg</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5"><div class="w-6 h-6 rounded bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-600 text-[11px]">💧</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Wet</span></div>
+                    <div class="text-base font-semibold text-slate-900" id="today-susu-mobile">0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Items</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5"><div class="w-6 h-6 rounded bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600 text-[11px]">💩</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Soiled</span></div>
+                    <div class="text-base font-semibold text-slate-900" id="today-poti-mobile">0</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Items</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5"><div class="w-6 h-6 rounded bg-red-50 flex items-center justify-center flex-shrink-0 text-red-600 text-[11px]">🌡️</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Temp</span></div>
+                    <div class="text-base font-semibold text-slate-900" id="avg-temp-mobile">--</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Avg (°C)</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-2 mb-0.5"><div class="w-6 h-6 rounded bg-purple-50 flex items-center justify-center flex-shrink-0 text-purple-600 text-[11px]">⚖️</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Weight</span></div>
+                    <div class="text-base font-semibold text-slate-900" id="current-weight-mobile">--</div>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Grams</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Stats -->
+        <section class="summary-stats-grid grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 log-section">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1"><div class="w-6 h-6 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 text-[11px]">🍼</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Feeds</span></div>
+                <div class="text-xl font-semibold text-slate-900" id="today-feeds">0 | 0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Total | Avg</div>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1"><div class="w-6 h-6 rounded bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-600 text-[11px]">💧</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Wet</span></div>
+                <div class="text-xl font-semibold text-slate-900" id="today-susu">0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Items</div>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1"><div class="w-6 h-6 rounded bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600 text-[11px]">💩</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Soiled</span></div>
+                <div class="text-xl font-semibold text-slate-900" id="today-poti">0</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Items</div>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1"><div class="w-6 h-6 rounded bg-red-50 flex items-center justify-center flex-shrink-0 text-red-600 text-[11px]">🌡️</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Temp</span></div>
+                <div class="text-xl font-semibold text-slate-900" id="avg-temp">--</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Avg (°C)</div>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
+                <div class="flex items-center gap-2 mb-1"><div class="w-6 h-6 rounded bg-purple-50 flex items-center justify-center flex-shrink-0 text-purple-600 text-[11px]">⚖️</div><span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Weight</span></div>
+                <div class="text-xl font-semibold text-slate-900" id="current-weight">--</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Grams</div>
+            </div>
+        </section>
+
+        <!-- Activity Log -->
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mb-8 log-section">
+            <div class="mb-3">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><span>📋</span> Activity Log</h2>
+            </div>
+            <div class="mb-2">
+                <div class="filter-scroll-container">
+                    <button id="custom-range-btn" class="filter-chip" onclick="openModal('range')"><span>📅</span> <span id="custom-range-label">Range</span> ▾</button>
+                    <button class="filter-chip" onclick="applyPreset('6h')">Last 6h</button>
+                    <button class="filter-chip" onclick="applyPreset('12h')">Last 12h</button>
+                    <button class="filter-chip active" onclick="applyPreset('today')">Today</button>
+                    <button class="filter-chip" onclick="applyPreset('yesterday')">Yesterday</button>
+                    <button class="filter-chip" onclick="applyPreset('24h')">Last 24h</button>
+                    <button class="filter-chip" onclick="applyPreset('week')">This week</button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="filter-scroll-container">
+                    <button class="filter-chip active" data-type="feed">🍼 Feed</button>
+                    <button class="filter-chip active" data-type="susu">💧 Susu</button>
+                    <button class="filter-chip active" data-type="poti">💩 Poti</button>
+                    <button class="filter-chip active" data-type="temp">🌡️ Temp</button>
+                    <button class="filter-chip active" data-type="weight">⚖️ Weight</button>
+                    <button class="filter-chip" data-type="speech">🎙️ Speech</button>
+                </div>
+            </div>
+            <div id="entries-container" class="space-y-3"><p class="text-center text-slate-500 py-8">No entries yet. Start logging above!</p></div>
+        </section>
+
+        <!-- Trend Section -->
+        <section class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 trend-section">
+            <div class="mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><span>📈</span> <span id="chart-title">Trend Analysis</span> <span id="cumulative-badge" class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Cumulative</span></h2>
+                        <p class="text-sm text-slate-500 mt-1">Visualize growth and vitals</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg self-start md:self-auto">
+                        <button class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="today" id="trend-preset-today">Today</button>
+                        <button class="px-4 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-slate-800" data-preset="7" id="trend-preset-7">7 Days</button>
+                        <button class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all" data-preset="30" id="trend-preset-30">30 Days</button>
+                        <div class="w-px h-4 bg-slate-300 mx-1"></div>
+                        <button id="toggle-custom-date" class="px-4 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"><span>📅</span> <span class="hidden sm:inline">Custom</span></button>
+                    </div>
+                </div>
+                <div id="custom-date-panel" class="hidden mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">From</label><input type="date" id="trend-start-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">To</label><input type="date" id="trend-end-date" class="text-sm border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                        <button id="trend-apply-range" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">Apply Range</button>
+                        <div class="ml-auto text-xs text-slate-400 self-center" id="range-label"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col lg:flex-row gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-6">
+                    <div class="flex items-center gap-5 flex-grow overflow-x-auto pb-1 lg:pb-0 no-scrollbar px-1" id="metric-segment">
+                        <button data-metric="weight-avg" data-label="Weight" class="metric-tab active">Weight</button>
+                        <button data-metric="temp-avg" data-label="Temp" class="metric-tab">Temp</button>
+                        <button data-metric="feed-total" data-label="Feeds" class="metric-tab">Feeds</button>
+                        <button data-metric="susu-count" data-label="Susu" class="metric-tab">Susu</button>
+                        <button data-metric="poti-count" data-label="Poti" class="metric-tab">Poti</button>
+                        <button data-metric="diaper-count" data-label="Diapers" class="metric-tab">Diapers</button>
+                    </div>
+                    <div class="flex items-center gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-3 flex-wrap">
+                        <div class="relative min-w-[140px]">
+                            <select id="compare-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <option value="none">Compare: None</option>
+                                <option value="weight-avg">vs Weight</option>
+                                <option value="temp-avg">vs Temp</option>
+                                <option value="feed-total">vs Feeds</option>
+                                <option value="susu-count">vs Susu</option>
+                                <option value="poti-count">vs Poti</option>
+                                <option value="diaper-count">vs Diapers</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div>
+                        </div>
+                        <div class="relative min-w-[120px]">
+                            <select id="aggregation-select" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 pr-8 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <option value="hour">By Hour</option>
+                                <option value="day" selected>By Day</option>
+                                <option value="week">By Week</option>
+                                <option value="month">By Month</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stats-bar mb-4" id="trend-stats">
+                    <div class="stats-card"><div class="icon bg-purple-100 text-purple-600">⏮</div><div><div class="label">Starting</div><div class="value" id="start-value">--</div><div class="helper" id="start-helper">Range baseline</div></div></div>
+                    <div class="stats-card"><div class="icon bg-purple-100 text-purple-600">⏺</div><div><div class="label">Current</div><div class="value" id="latest-value">--</div><div class="helper" id="latest-helper">Latest point</div></div></div>
+                    <div class="stats-card"><div class="icon bg-purple-100 text-purple-600">Δ</div><div><div class="label">Total Change</div><div class="value" id="value-change">--</div><div class="helper" id="change-helper">–</div></div></div>
+                    <div class="stats-card"><div class="icon bg-purple-100 text-purple-600">↗</div><div><div class="label">Avg Change</div><div class="value" id="avg-change">--</div><div class="helper" id="avg-helper">–</div></div></div>
+                </div>
+                <div class="relative bg-slate-50 rounded-xl p-4 border border-slate-200" style="height: 320px;"><canvas id="trendChart"></canvas></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FEED MODAL -->
+    <div id="feed-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-sky-50 p-6 border-b border-sky-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span>🍼</span> Log Feed</h3>
+                    <button onclick="closeModal('feed')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                </div>
+            </div>
+            <form id="feed-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('feed')" class="text-xs text-sky-600 hover:text-sky-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="feed-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                        <input type="time" id="feed-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Feed Type</label>
+                    <select id="feed-type" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500">
+                        <option value="">Select type...</option>
+                        <option value="breast">Breastfeeding</option>
+                        <option value="bottle">Bottle (Formula)</option>
+                        <option value="bottle_expressed">Bottle (Expressed Milk)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Amount (mL)</label>
+                    <input type="number" id="feed-amount" min="0" max="200" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" placeholder="60">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="feed-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SUSU MODAL -->
+    <div id="susu-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-indigo-50 p-6 border-b border-indigo-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span>💧</span> Log Susu (Urine)</h3>
+                    <button onclick="closeModal('susu')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                </div>
+            </div>
+            <form id="susu-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('susu')" class="text-xs text-indigo-600 hover:text-indigo-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="susu-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                        <input type="time" id="susu-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Wet Items</label>
+                    <input type="number" id="susu-count" min="1" max="5" value="1" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Urine Color</label>
+                    <select id="susu-color" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="clear">Clear (Normal)</option>
+                        <option value="pale_yellow">Pale Yellow (Normal)</option>
+                        <option value="dark_yellow">Dark Yellow</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="susu-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- POTI MODAL -->
+    <div id="poti-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-amber-50 p-6 border-b border-amber-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span>💩</span> Log Poti (Stool)</h3>
+                    <button onclick="closeModal('poti')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                </div>
+            </div>
+            <form id="poti-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('poti')" class="text-xs text-amber-600 hover:text-amber-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="poti-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">
+                        <input type="time" id="poti-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Number of Soiled Items</label>
+                    <input type="number" id="poti-count" min="1" max="5" value="1" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Consistency</label>
+                    <select id="poti-consistency" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        <option value="soft">Soft (Normal)</option>
+                        <option value="liquid">Liquid/Watery</option>
+                        <option value="firm">Firm</option>
+                        <option value="hard">Hard ⚠️</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Color</label>
+                    <select id="poti-color" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                        <option value="yellow">Yellow (Normal)</option>
+                        <option value="mustard">Mustard Yellow</option>
+                        <option value="green">Green</option>
+                        <option value="brown">Brown</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="poti-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TEMP MODAL -->
+    <div id="temp-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-red-50 p-6 border-b border-red-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span>🌡️</span> Log Temperature</h3>
+                    <button onclick="closeModal('temp')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                </div>
+            </div>
+            <form id="temp-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('temp')" class="text-xs text-red-600 hover:text-red-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="temp-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                        <input type="time" id="temp-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Temperature (°C)</label>
+                    <input type="number" id="temp-value" step="0.1" min="35" max="42" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="37.0">
+                    <p class="text-xs text-slate-500 mt-1">Normal: 36.5-37.5°C</p>
+                </div>
+                <div id="temp-warning" class="hidden p-4 bg-red-100 border border-red-300 rounded-lg">
+                    <p class="text-sm text-red-800 font-semibold">⚠️ High Temperature Detected</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="temp-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WEIGHT MODAL -->
+    <div id="weight-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-purple-50 p-6 border-b border-purple-100">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><span>⚖️</span> Log Weight</h3>
+                    <button onclick="closeModal('weight')" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                </div>
+            </div>
+            <form id="weight-form" class="p-6 space-y-4">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('weight')" class="text-xs text-purple-600 hover:text-purple-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="weight-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                        <input type="time" id="weight-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Weight (grams)</label>
+                    <input type="number" id="weight-value" step="1" min="1000" max="10000" required class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="2500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                    <textarea id="weight-notes" rows="2" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Any observations..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SPEECH MODAL -->
+    <div id="speech-modal" class="modal">
+        <div class="modal-content h-full md:h-auto md:max-h-[90vh] flex flex-col w-full md:w-[640px]">
+            <div class="bg-rose-50 p-5 border-b border-rose-100 flex items-start justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-500">Voice Notes</p>
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">🎙️ Speech Log</h2>
+                    <p class="text-sm text-slate-600">Record, transcribe, and file a quick voice note.</p>
+                </div>
+                <button onclick="closeModal('speech')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+            </div>
+            <form id="speech-form" class="p-5 md:p-6 space-y-4 flex-1 flex flex-col overflow-y-auto">
+                <div class="datetime-section p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-sm font-semibold text-slate-700 flex items-center gap-2"><span>📅</span> Date & Time</label>
+                        <button type="button" onclick="setCurrentDateTime('speech')" class="text-xs text-rose-600 hover:text-rose-700 font-semibold">Set to Now</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="speech-date" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                        <input type="time" id="speech-time" required class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500">
+                    </div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div><p class="text-xs font-semibold text-slate-500 uppercase">Status</p><p id="speech-status" class="text-sm font-bold text-slate-800">Ready to record</p></div>
+                        <div class="text-right"><p class="text-xs text-slate-500 uppercase font-semibold">Duration</p><p id="speech-timer" class="text-2xl font-mono font-bold text-slate-900">00:00</p></div>
+                    </div>
+                    <div class="rounded-lg bg-white border border-slate-200 p-3">
+                        <div class="flex items-end gap-1 h-20 md:h-16" id="speech-waveform"></div>
+                        <audio id="speech-audio" controls class="w-full mt-3 hidden"></audio>
+                    </div>
+                    <div class="speech-controls grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                        <button type="button" onclick="startSpeechRecording()" id="speech-record-btn" class="control-btn bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-3 rounded-xl shadow-sm flex-1">⏺️ Record</button>
+                        <button type="button" onclick="pauseSpeechRecording()" id="speech-pause-btn" class="control-btn bg-amber-100 text-amber-800 font-semibold px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex-1">⏸️ Pause</button>
+                        <button type="button" onclick="resumeSpeechRecording()" id="speech-resume-btn" class="control-btn bg-indigo-100 text-indigo-800 font-semibold px-4 py-3 rounded-xl border border-indigo-200 shadow-sm flex-1">▶️ Resume</button>
+                        <button type="button" onclick="stopSpeechRecording()" id="speech-stop-btn" class="control-btn bg-slate-800 text-white font-bold px-4 py-3 rounded-xl shadow-sm col-span-2 sm:flex-1">◼️ Stop</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <label class="block text-sm font-semibold text-slate-700">Transcription</label>
+                        <textarea id="speech-transcription" rows="5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500" placeholder="Auto or manual notes..."></textarea>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="hydrateSpeechTranscription()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg">Fill from mic</button>
+                            <button type="button" onclick="clearSpeechDraft()" class="text-sm bg-white border border-slate-200 text-slate-600 font-semibold px-3 py-2 rounded-lg">Reset</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
+                            <select id="speech-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm">
+                                <option value="general">General Notes</option>
+                                <option value="feeding">Feeding</option>
+                                <option value="sleep">Sleep</option>
+                                <option value="health">Health</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
+                            <input id="speech-notes" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm" placeholder="Context" />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="button" onclick="discardSpeech()" class="w-full sm:w-40 px-4 py-3 border border-slate-200 rounded-xl text-slate-700 font-semibold hover:bg-slate-50">Discard</button>
+                    <button type="button" onclick="saveSpeechEntry()" class="w-full sm:flex-1 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm">Save to log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RANGE MODAL -->
+    <div id="range-modal" class="modal">
+        <div class="modal-content h-full md:h-auto md:max-h-[80vh] flex flex-col w-full md:w-[500px]">
+            <div class="bg-white p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-slate-800">Select Range</h3>
+                <button onclick="closeModal('range')" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="p-4 border-b border-slate-100 shrink-0">
+                <div class="flex bg-slate-100 p-1 rounded-xl">
+                    <button id="range-tab-presets" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all bg-white shadow-sm text-sky-600" onclick="switchRangeTab('presets')">Presets</button>
+                    <button id="range-tab-custom" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-800 transition-all" onclick="switchRangeTab('custom')">Custom</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="range-view-presets" class="space-y-2">
+                    <button onclick="selectPresetAndClose('6h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">Last 6 hours</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                    <button onclick="selectPresetAndClose('12h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">Last 12 hours</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                    <button onclick="selectPresetAndClose('today')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">Today</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                    <button onclick="selectPresetAndClose('yesterday')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">Yesterday</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                    <button onclick="selectPresetAndClose('24h')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">Last 24 hours</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                    <button onclick="selectPresetAndClose('week')" class="w-full p-4 text-left rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex justify-between items-center group transition-all"><span class="font-semibold text-slate-700">This Week</span><span class="text-slate-400 group-hover:text-sky-500">→</span></button>
+                </div>
+                <div id="range-view-custom" class="hidden space-y-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date Range</label>
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="text-xs text-slate-500 mb-1 block font-semibold">From</label><input type="date" id="custom-start-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"></div>
+                                <div><label class="text-xs text-slate-500 mb-1 block font-semibold">To</label><input type="date" id="custom-end-date" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="closeModal('range')" class="flex-1 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                        <button onclick="applyCustomRange()" class="flex-1 py-3 rounded-xl font-bold text-white bg-sky-500 hover:bg-sky-600 shadow-lg shadow-sky-200 transition-all">Apply Range</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // API Configuration
+        const API_BASE_URL = '/api';
+        const SPEECH_UPLOAD_URL = `${API_BASE_URL}/speech/upload`;
+        const SPEECH_TRANSCRIBE_URL = `${API_BASE_URL}/speech/transcribe`;
+        const SPEECH_ENTRIES_URL = `${API_BASE_URL}/speech_entries`;
+
+        // State
+        let entries = [];
+        let speechEntries = [];
+        let trendChart = null;
+        let currentEditingEntry = null;
+        let currentMetric = 'weight-avg';
+        let currentTimeRange = 'week';
+        let compareMetric = null;
+        let isCumulative = false;
+        const typeFilters = new Set(['feed', 'susu', 'poti', 'temp', 'weight']);
+        let historyRange = { start: null, end: null };
+        let trendRange = { start: null, end: null };
+        
+        const STORAGE_KEYS = {
+            metric: 'tracker.metric',
+            range: 'tracker.range',
+            view: 'tracker.view',
+            cumulative: 'tracker.cumulative'
+        };
+
+        // Speech recording state
+        let speechRecorder = null;
+        let speechStream = null;
+        let speechChunks = [];
+        let speechTimerInterval = null;
+        let speechStartTime = null;
+        let speechDraft = null;
+        let speechStatus = 'idle';
+        let selectedMimeType = 'audio/webm';
+
+        const placeholderPrompts = [
+            'Say: "50ml formula milk at 2pm"...',
+            'Say: "Stool was soft and yellow"...',
+            'Say: "Baby had susu just now"...',
+            'Say: "Fed 60ml at lunch time"...',
+            'Say: "Urine diaper at 3:30pm"...',
+            'Say: "Temperature log of 98.6°F"...',
+            'Say: "Weight entry of 4.312 Kg"...'
+        ];
+        let currentPlaceholderIndex = 0;
+        let placeholderRotationInterval = null;
+
+        let sseConnection = null;
+        let pendingSpeechEntries = new Set();
+
+        let diaperTimerInterval = null;
+        let lastDiaperChangeTime = null;
+        const DIAPER_ALERT_HOURS = 3;
+        let webhookConfig = { configured: false, webhook_url: null, diaper_alert_hours: 3 };
+
+        // Initialize waveform bars
+        document.addEventListener('DOMContentLoaded', () => {
+            const waveform = document.getElementById('speech-waveform');
+            if (waveform) {
+                waveform.innerHTML = Array(16).fill(0).map(() => 
+                    '<div class="w-1 flex-1 max-w-[10px] bg-slate-200 rounded-full speech-bar"></div>'
+                ).join('');
+            }
+            initializeApp();
+        });
+    </script>
+    
+    <script src="js/tracker.js"></script>
+</body>
+</html>

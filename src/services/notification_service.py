@@ -5,7 +5,7 @@ Handles sending notifications to external webhooks for care reminders.
 
 import requests
 import json
-import os
+import redis
 from datetime import datetime, timedelta
 import pytz
 from typing import Optional, Dict, Any
@@ -16,28 +16,8 @@ from src.settings import configured_settings
 
 logger = get_logger(__name__)
 
-# File to track notification state across workers
-NOTIFICATION_STATE_FILE = '/tmp/baby_tracker_notification_state.json'
-
-
-def _load_notification_state() -> Dict[str, Any]:
-    """Load notification state from file."""
-    try:
-        if os.path.exists(NOTIFICATION_STATE_FILE):
-            with open(NOTIFICATION_STATE_FILE, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        logger.error(f"Error loading notification state: {e}")
-    return {}
-
-
-def _save_notification_state(state: Dict[str, Any]):
-    """Save notification state to file."""
-    try:
-        with open(NOTIFICATION_STATE_FILE, 'w') as f:
-            json.dump(state, f)
-    except Exception as e:
-        logger.error(f"Error saving notification state: {e}")
+# Redis key for tracking notification state across workers
+NOTIFICATION_STATE_KEY = 'baby_tracker:notification_state'
 
 
 class NotificationService:
@@ -54,10 +34,62 @@ class NotificationService:
         self.diaper_alert_hours = configured_settings.diaper_alert_hours
         self.reminder_interval_minutes = 15  # Send reminder every 15 minutes when overdue
         
+        # Initialize Redis client for state management
+        try:
+            self.redis_client = redis.from_url(
+                configured_settings.redis_url,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize Redis client: {e}")
+            self.redis_client = None
+
     def is_configured(self) -> bool:
         """Check if notification service is properly configured."""
         return bool(self.webhook_url)
     
+    def _load_notification_state(self) -> Dict[str, Any]:
+        """Load notification state from Redis.
+
+        Returns:
+            Dictionary containing notification state, or empty dict if unavailable.
+        """
+        if not self.redis_client:
+            logger.warning("Redis client not available for state management")
+            return {}
+
+        try:
+            state_json = self.redis_client.get(NOTIFICATION_STATE_KEY)
+            if state_json:
+                return json.loads(state_json)
+        except Exception as e:
+            logger.error(f"Error loading notification state from Redis: {e}")
+
+        return {}
+
+    def _save_notification_state(self, state: Dict[str, Any]) -> bool:
+        """Save notification state to Redis.
+
+        Args:
+            state: Dictionary containing notification state to save.
+
+        Returns:
+            True if state was saved successfully, False otherwise.
+        """
+        if not self.redis_client:
+            logger.warning("Redis client not available for state management")
+            return False
+
+        try:
+            state_json = json.dumps(state)
+            self.redis_client.set(NOTIFICATION_STATE_KEY, state_json)
+            return True
+        except Exception as e:
+            logger.error(f"Error saving notification state to Redis: {e}")
+            return False
+
     def send_notification(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Send a notification to the configured webhook.
         
@@ -146,8 +178,8 @@ class NotificationService:
             
             # Send notification if overdue
             if hours_since >= self.diaper_alert_hours:
-                # Load state from file
-                state = _load_notification_state()
+                # Load state from Redis
+                state = self._load_notification_state()
                 last_notified_entry_id = state.get('last_notified_entry_id')
                 last_notification_time_str = state.get('last_notification_time')
                 last_notification_time = None
@@ -217,7 +249,7 @@ class NotificationService:
                 
                 # Update state if successful
                 if success:
-                    _save_notification_state({
+                    self._save_notification_state({
                         'last_notification_time': now.isoformat(),
                         'last_notified_entry_id': entry_id
                     })
@@ -225,11 +257,11 @@ class NotificationService:
                 return success
             else:
                 # Not overdue - reset tracking
-                state = _load_notification_state()
+                state = self._load_notification_state()
                 if state.get('last_notified_entry_id') is not None:
                     logger.info("Diaper change no longer overdue - resetting notification tracking")
-                    _save_notification_state({})
-                    
+                    self._save_notification_state({})
+
                 logger.debug(f"Diaper change not overdue ({hours_since:.1f}h < {self.diaper_alert_hours}h)")
                 return False
                 

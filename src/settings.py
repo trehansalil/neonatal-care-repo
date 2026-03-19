@@ -55,7 +55,9 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=100, alias="MAX_UPLOAD_SIZE_MB")
     allowed_audio_formats: str = Field(default=".wav,.mp3,.m4a,.webm,.ogg,.mp4", alias="ALLOWED_AUDIO_FORMATS")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
-    
+
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+
     # Notification Settings
     n8n_webhook_id: str = Field(default="", alias="N8N_WEBHOOK_ID")
     n8n_host: str = Field(default="n8n:5678", alias="N8N_HOST")
