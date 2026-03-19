@@ -37,7 +37,7 @@ jobs:
         with:
           images: ghcr.io/trehansalil/neonatal-care
           tags: |
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,format=long
             type=raw,value=latest
 
       - name: Build and push
