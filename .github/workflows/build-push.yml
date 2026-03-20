@@ -6,28 +6,47 @@
 # Builds the Docker image, pushes to GHCR, then triggers the deploy workflow
 # in hetzner-deployment-service via repository_dispatch.
 
-name: Build & Push Image
+name: Build, Push & Deploy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Trigger deployment after build?'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: trehansalil/neonatal-care
 
 jobs:
   build-push:
+    name: Build & Push to GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write   # Required for GHCR push
 
+    outputs:
+      image_tag: ${{ steps.sha.outputs.tag }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get short SHA
+        id: sha
+        run: echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -35,10 +54,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/trehansalil/neonatal-care
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=sha-,format=long
-            type=raw,value=latest
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -47,15 +69,28 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Trigger deploy in hetzner-deployment-service
-        uses: peter-evans/repository-dispatch@v3
+  deploy:
+    name: Trigger Deployment
+    runs-on: ubuntu-latest
+    needs: build-push
+    if: github.ref == 'refs/heads/main' || github.event.inputs.deploy == 'true'
+
+    steps:
+      - name: Trigger hetzner-deployment-service
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.DEPLOY_REPO_PAT }}   # PAT with repo scope on hetzner-deployment-service
-          repository: trehansalil/hetzner-deployment-service
-          event-type: neonatal-care-image-updated
-          client-payload: |
-            {
-              "app": "neonatal-care",
-              "image_tag": "sha-${{ github.sha }}"
-            }
+          github-token: ${{ secrets.DEPLOY_REPO_PAT }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'trehansalil',
+              repo: 'hetzner-deployment-service',
+              event_type: 'neonatal-care-image-updated',
+              client_payload: {
+                app: 'neonatal-care',
+                image_tag: '${{ needs.build-push.outputs.image_tag }}'
+              }
+            });
+            console.log('Deployment triggered with tag: ${{ needs.build-push.outputs.image_tag }}');
