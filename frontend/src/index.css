@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primary - saliltrehan.com red */
+  --color-primary-50: #FEF2F2;
+  --color-primary-100: #FDE3E3;
+  --color-primary-200: #FBC8C8;
+  --color-primary-300: #F7A0A0;
+  --color-primary-400: #EF5350;
+  --color-primary-500: #C0110E;
+  --color-primary-600: #A30E0C;
+  --color-primary-700: #860B09;
+  --color-primary-800: #6B0908;
+  --color-primary-900: #4A0605;
+
+  /* Accent - saliltrehan.com yellow */
+  --color-accent-50: #FFFDF0;
+  --color-accent-100: #FFF9D6;
+  --color-accent-200: #FFF0A3;
+  --color-accent-300: #F5D44A;
+  --color-accent-400: #E6C32E;
+  --color-accent-500: #D4AF1A;
+
+  /* Neutrals */
+  --color-dark: #0B0909;
+  --color-surface: #FFFFFF;
+  --color-muted: #6B7280;
+  --color-border: #E5E7EB;
+  --color-bg: #F9FAFB;
+
+  /* Font */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-pulse-record: pulse-record 1.5s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-record {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-dark);
+  background-color: var(--color-bg);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
