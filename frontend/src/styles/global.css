@@ -1,0 +1,191 @@
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.serif { font-family: var(--serif); }
+.hand  { font-family: var(--hand); }
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card     { background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-card); }
+.card-sm  { background: var(--paper); border-radius: var(--r-md); box-shadow: var(--shadow-soft); }
+.card-flat{ background: var(--paper); border-radius: var(--r-lg); border: 1px solid var(--line); }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.08s ease, box-shadow 0.18s ease, background 0.18s ease;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--sage); color: white; box-shadow: 0 2px 0 var(--sage-d); }
+.btn-primary:hover { background: var(--sage-d); }
+.btn-ghost { background: transparent; color: var(--ink); }
+.btn-ghost:hover { background: rgba(0,0,0,0.04); }
+.btn-soft { background: var(--cream-2); color: var(--ink); }
+.btn-soft:hover { background: var(--line); }
+.btn-danger { background: #fce8e8; color: var(--bad); }
+.btn-danger:hover { background: #f5d0d0; }
+.btn-full { width: 100%; }
+
+/* ── Chips / Badges ─────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: var(--cream-2); color: var(--ink-soft);
+}
+.chip.sage   { background: var(--sage-bg);   color: var(--sage-d); }
+.chip.apricot{ background: var(--apricot-bg);color: #8E5A38; }
+.chip.rose   { background: var(--rose-bg);   color: #8E5454; }
+.chip.sky    { background: var(--sky-bg);    color: #4A6B7C; }
+.chip.butter { background: var(--butter-bg); color: #8E6E2E; }
+.chip.good   { background: #e3f0e4; color: var(--good); }
+.chip.warn   { background: #f5ead9; color: var(--warn); }
+.chip.bad    { background: #f5e0e0; color: var(--bad); }
+
+/* ── Sketch DNA ─────────────────────────────────────────────────────────── */
+.handnote { font-family: var(--hand); font-size: 19px; color: var(--sage-d); font-weight: 600; }
+.wavy-underline {
+  text-decoration: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='6' viewBox='0 0 40 6'><path d='M0 3 Q5 0 10 3 T20 3 T30 3 T40 3' stroke='%237A9B7E' stroke-width='1.4' fill='none'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 18px 5px;
+  padding-bottom: 5px;
+}
+.dashed-line {
+  background-image: linear-gradient(90deg, var(--ink-faint) 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  height: 1px;
+}
+
+/* ── Form inputs ────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-size: 15px;
+  font-family: var(--sans);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus { border-color: var(--sage); }
+.input::placeholder { color: var(--ink-mute); }
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+/* ── Layout helpers ─────────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--line); width: 100%; }
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122,155,126,0.5); }
+  50%       { box-shadow: 0 0 0 12px rgba(122,155,126,0); }
+}
+.pulse { animation: pulse-ring 2s ease-out infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.25s ease-out; }
+
+/* ── App shell ──────────────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--cream);
+}
+
+/* Desktop sidebar */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0 24px;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 100dvh;
+}
+
+/* Mobile bottom nav (shown on small screens) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 72px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 8px;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
+/* Page padding accounting for bottom nav on mobile */
+.page-pad {
+  padding: 20px 18px 96px;
+}
+@media (min-width: 768px) {
+  .page-pad {
+    padding: 32px 32px 40px;
+    max-width: 860px;
+  }
+}
+
+/* Hide/show based on viewport */
+@media (min-width: 768px) {
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 767px) {
+  .desktop-only { display: none !important; }
+  .sidebar { display: none; }
+}
