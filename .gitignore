@@ -24,6 +24,7 @@ venv/
 .venv/
 env/
 ENV/
+*.db
 
 # Docker
 *.log
@@ -32,6 +33,10 @@ ENV/
 node_modules/
 backups/
 folder/
+
+# Frontend build
+dist/
+.vite/
 
 .env
 *.pem
